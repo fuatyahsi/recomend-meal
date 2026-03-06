@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Badge {
+class AppBadge {
   final String id;
   final String nameTr;
   final String nameEn;
@@ -11,7 +11,7 @@ class Badge {
   final String conditionType; // recipes_shared, likes_received, ratings_given, special
   final int conditionValue; // threshold
 
-  const Badge({
+  const AppBadge({
     required this.id,
     required this.nameTr,
     required this.nameEn,
@@ -23,9 +23,9 @@ class Badge {
     required this.conditionValue,
   });
 
-  factory Badge.fromFirestore(DocumentSnapshot doc) {
+  factory AppBadge.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return Badge(
+    return AppBadge(
       id: doc.id,
       nameTr: data['nameTr'] ?? '',
       nameEn: data['nameEn'] ?? '',
@@ -38,8 +38,8 @@ class Badge {
     );
   }
 
-  factory Badge.fromJson(Map<String, dynamic> json) {
-    return Badge(
+  factory AppBadge.fromJson(Map<String, dynamic> json) {
+    return AppBadge(
       id: json['id'] ?? '',
       nameTr: json['nameTr'] ?? '',
       nameEn: json['nameEn'] ?? '',
@@ -68,8 +68,8 @@ class Badge {
       locale == 'tr' ? descriptionTr : descriptionEn;
 
   /// Predefined badges
-  static List<Badge> get allBadges => [
-        const Badge(
+  static List<AppBadge> get allBadges => [
+        const AppBadge(
           id: 'first_recipe',
           nameTr: 'İlk Tarif',
           nameEn: 'First Recipe',
@@ -80,7 +80,7 @@ class Badge {
           conditionType: 'recipes_shared',
           conditionValue: 1,
         ),
-        const Badge(
+        const AppBadge(
           id: 'chef_5',
           nameTr: 'Aşçıbaşı',
           nameEn: 'Head Chef',
@@ -91,7 +91,7 @@ class Badge {
           conditionType: 'recipes_shared',
           conditionValue: 5,
         ),
-        const Badge(
+        const AppBadge(
           id: 'master_chef',
           nameTr: 'Usta Şef',
           nameEn: 'Master Chef',
@@ -102,7 +102,7 @@ class Badge {
           conditionType: 'recipes_shared',
           conditionValue: 25,
         ),
-        const Badge(
+        const AppBadge(
           id: 'legend_chef',
           nameTr: 'Efsane Şef',
           nameEn: 'Legendary Chef',
@@ -113,7 +113,7 @@ class Badge {
           conditionType: 'recipes_shared',
           conditionValue: 100,
         ),
-        const Badge(
+        const AppBadge(
           id: 'liked_10',
           nameTr: 'Beğenilen',
           nameEn: 'Liked',
@@ -124,7 +124,7 @@ class Badge {
           conditionType: 'likes_received',
           conditionValue: 10,
         ),
-        const Badge(
+        const AppBadge(
           id: 'popular_50',
           nameTr: 'Popüler Şef',
           nameEn: 'Popular Chef',
@@ -135,7 +135,7 @@ class Badge {
           conditionType: 'likes_received',
           conditionValue: 50,
         ),
-        const Badge(
+        const AppBadge(
           id: 'superstar',
           nameTr: 'Süperstar',
           nameEn: 'Superstar',
@@ -146,7 +146,7 @@ class Badge {
           conditionType: 'likes_received',
           conditionValue: 100,
         ),
-        const Badge(
+        const AppBadge(
           id: 'critic_10',
           nameTr: 'Eleştirmen',
           nameEn: 'Critic',
@@ -157,7 +157,7 @@ class Badge {
           conditionType: 'ratings_given',
           conditionValue: 10,
         ),
-        const Badge(
+        const AppBadge(
           id: 'critic_50',
           nameTr: 'Baş Eleştirmen',
           nameEn: 'Head Critic',
