@@ -67,51 +67,192 @@ class FridgeChefApp extends StatelessWidget {
   }
 
   Widget _buildHome(AppProvider appProvider, AuthProvider authProvider) {
-    // AppProvider yükleniyorsa splash göster
-    if (appProvider.isLoading) {
+    if (appProvider.isLoading || authProvider.isLoading) {
       return const _SplashScreen();
     }
 
-    // AuthProvider yükleniyorsa splash göster
-    if (authProvider.isLoading) {
-      return const _SplashScreen();
-    }
-
-    // Giriş yapmışsa ana ekrana git
     if (authProvider.isAuthenticated) {
       return const MainShell();
     }
 
-    // Giriş yapmamışsa login ekranına git
     return const LoginScreen();
   }
 }
 
-class _SplashScreen extends StatelessWidget {
+class _SplashScreen extends StatefulWidget {
   const _SplashScreen();
 
   @override
+  State<_SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<_SplashScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _logoController;
+  late AnimationController _pulseController;
+  late Animation<double> _logoScale;
+  late Animation<double> _logoOpacity;
+  late Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _logoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: Curves.elasticOut,
+      ),
+    );
+
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
+      ),
+    );
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _pulse = Tween<double>(begin: 0.9, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _logoController.forward();
+  }
+
+  @override
+  void dispose() {
+    _logoController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              '🧑‍🍳',
-              style: TextStyle(fontSize: 80),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'FridgeChef',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              theme.colorScheme.primary.withOpacity(0.05),
+              theme.colorScheme.surface,
+              theme.colorScheme.secondaryContainer.withOpacity(0.08),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Animated logo
+              AnimatedBuilder(
+                animation: _logoController,
+                builder: (context, child) => Opacity(
+                  opacity: _logoOpacity.value,
+                  child: Transform.scale(
+                    scale: _logoScale.value,
+                    child: child,
                   ),
-            ),
-            const SizedBox(height: 24),
-            const CircularProgressIndicator(),
-          ],
+                ),
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.primary.withOpacity(0.7),
+                        const Color(0xFFFF8C42),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.3),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text('🧑‍🍳', style: TextStyle(fontSize: 50)),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // App name with fade in
+              AnimatedBuilder(
+                animation: _logoController,
+                builder: (context, child) => Opacity(
+                  opacity: _logoOpacity.value,
+                  child: child,
+                ),
+                child: Text(
+                  'FridgeChef',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.primary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              AnimatedBuilder(
+                animation: _logoController,
+                builder: (context, child) => Opacity(
+                  opacity: _logoOpacity.value,
+                  child: child,
+                ),
+                child: Text(
+                  'Malzemelerini seç, tarifini bul',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Custom loading indicator
+              AnimatedBuilder(
+                animation: _pulse,
+                builder: (context, child) => Transform.scale(
+                  scale: _pulse.value,
+                  child: child,
+                ),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.primary.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

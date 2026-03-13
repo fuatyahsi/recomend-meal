@@ -41,6 +41,8 @@ dependencies:
   # Connectivity
   connectivity_plus: ^6.1.1
 
+  # Custom animations are used instead of Lottie for lighter bundle
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -52,3 +54,4 @@ flutter:
   assets:
     - assets/data/
     - assets/images/
+    - assets/animations/

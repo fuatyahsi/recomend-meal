@@ -1,15 +1,28 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/app_provider.dart';
 import '../models/recipe.dart';
+import '../utils/app_theme.dart';
+import '../widgets/glass_container.dart';
 import 'ingredient_selection_screen.dart';
 import 'category_recipes_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  late AnimationController _heroController;
+  late Animation<double> _heroScale;
+  late Animation<double> _heroOpacity;
 
   static const _categories = [
     {'id': 'breakfast', 'emoji': '🍳', 'tr': 'Kahvaltı', 'en': 'Breakfast', 'color': 0xFFFFF3E0},
@@ -21,6 +34,28 @@ class HomeScreen extends StatelessWidget {
     {'id': 'beverage', 'emoji': '🥤', 'tr': 'İçecek', 'en': 'Beverage', 'color': 0xFFE0F7FA},
     {'id': 'side', 'emoji': '🍚', 'tr': 'Garnitür', 'en': 'Side', 'color': 0xFFFFF8E1},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _heroController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _heroScale = Tween<double>(begin: 0.9, end: 1.0).animate(
+      CurvedAnimation(parent: _heroController, curve: Curves.elasticOut),
+    );
+    _heroOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _heroController, curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
+    );
+    _heroController.forward();
+  }
+
+  @override
+  void dispose() {
+    _heroController.dispose();
+    super.dispose();
+  }
 
   void _openCategory(BuildContext context, Map<String, dynamic> cat, String locale) {
     Navigator.push(
@@ -56,334 +91,468 @@ class HomeScreen extends StatelessWidget {
     final locale = provider.languageCode;
     final isTr = locale == 'tr';
 
-    // Get a few popular recipes for the "Öne Çıkanlar" section
     final allRecipes = provider.recipeService.recipes;
-    final popularRecipes = allRecipes.length > 6 ? allRecipes.sublist(0, 6) : allRecipes;
+    final popularRecipes = allRecipes.length > 8 ? allRecipes.sublist(0, 8) : allRecipes;
 
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Top Bar ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.appName,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          Text(
-                            l10n.appTagline,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => provider.toggleLanguage(),
-                      child: Text(
-                        locale == 'tr' ? '🇬🇧 EN' : '🇹🇷 TR',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined, size: 22),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                      ),
-                    ),
-                  ],
-                ),
+      body: Stack(
+        children: [
+          // Subtle background gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  theme.colorScheme.primary.withOpacity(0.03),
+                  theme.colorScheme.surface,
+                  theme.colorScheme.secondaryContainer.withOpacity(0.05),
+                ],
+                stops: const [0.0, 0.4, 1.0],
               ),
+            ),
+          ),
 
-              const SizedBox(height: 20),
-
-              // ── "Buzdolabında Ne Var?" CTA ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const IngredientSelectionScreen()),
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.primary.withOpacity(0.8),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+          SafeArea(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── Top Bar ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
                     child: Row(
                       children: [
+                        // Animated logo
                         Container(
-                          width: 52,
-                          height: 52,
+                          width: 42,
+                          height: 42,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(14),
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary,
+                                theme.colorScheme.primary.withOpacity(0.7),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: AppTheme.accentShadow,
                           ),
                           child: const Center(
-                            child: Text('🧊', style: TextStyle(fontSize: 28)),
+                            child: Text('🧑‍🍳', style: TextStyle(fontSize: 22)),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                isTr ? 'Buzdolabında Ne Var?' : "What's in Your Fridge?",
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                l10n.appName,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.primary,
+                                  letterSpacing: -0.5,
                                 ),
                               ),
-                              const SizedBox(height: 2),
                               Text(
-                                isTr
-                                    ? 'Malzemelerini seç, sana tarif bulalım'
-                                    : 'Select ingredients, we\'ll find recipes',
+                                l10n.appTagline,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.white.withOpacity(0.85),
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios, color: Colors.white.withOpacity(0.7), size: 18),
+                        _AnimatedIconButton(
+                          icon: locale == 'tr' ? '🇬🇧' : '🇹🇷',
+                          label: locale == 'tr' ? 'EN' : 'TR',
+                          onTap: () => provider.toggleLanguage(),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: Icon(Icons.settings_outlined,
+                              size: 22, color: theme.colorScheme.onSurfaceVariant),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-              ),
 
-              // Quick stats if ingredients already selected
-              if (provider.selectedCount > 0)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(10),
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                // ── Hero CTA - "Buzdolabında Ne Var?" ──
+                SliverToBoxAdapter(
+                  child: AnimatedBuilder(
+                    animation: _heroController,
+                    builder: (context, child) => Opacity(
+                      opacity: _heroOpacity.value,
+                      child: Transform.scale(
+                        scale: _heroScale.value,
+                        child: child,
+                      ),
                     ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _HeroCTACard(
+                        isTr: isTr,
+                        selectedCount: provider.selectedCount,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const IngredientSelectionScreen()),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Selected ingredients badge
+                if (provider.selectedCount > 0)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                      child: GlassCard(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        borderRadius: 14,
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primaryContainer.withOpacity(0.5),
+                            theme.colorScheme.primaryContainer.withOpacity(0.2),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.check_circle,
+                                  size: 18, color: theme.colorScheme.primary),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l10n.ingredientsSelected(provider.selectedCount),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const IngredientSelectionScreen()),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(l10n.findRecipes,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 28)),
+
+                // ── Kategoriler ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.check_circle, size: 18, color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            l10n.ingredientsSelected(provider.selectedCount),
-                            style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+                        Text(
+                          isTr ? 'Kategoriler' : 'Categories',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
                           ),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const IngredientSelectionScreen()),
+                          onPressed: () => _openAllRecipes(context, locale),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                isTr ? 'Tümünü Gör' : 'See All',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.arrow_forward_ios,
+                                  size: 12, color: theme.colorScheme.primary),
+                            ],
                           ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(l10n.findRecipes, style: const TextStyle(fontSize: 13)),
                         ),
                       ],
                     ),
                   ),
                 ),
 
-              const SizedBox(height: 24),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-              // ── Kategoriler ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isTr ? 'Kategoriler' : 'Categories',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    TextButton(
-                      onPressed: () => _openAllRecipes(context, locale),
-                      child: Text(
-                        isTr ? 'Tümünü Gör' : 'See All',
-                        style: TextStyle(fontSize: 13, color: theme.colorScheme.primary),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 108,
+                    child: AnimationLimiter(
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _categories.length,
+                        itemBuilder: (context, index) {
+                          final cat = _categories[index];
+                          final count = provider.recipeService
+                              .getRecipesByCategory(cat['id'] as String)
+                              .length;
+                          return AnimationConfiguration.staggeredList(
+                            position: index,
+                            duration: const Duration(milliseconds: 400),
+                            child: SlideAnimation(
+                              horizontalOffset: 50.0,
+                              child: FadeInAnimation(
+                                child: _CategoryChip(
+                                  cat: cat,
+                                  count: count,
+                                  locale: locale,
+                                  onTap: () => _openCategory(context, cat, locale),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _categories.length,
-                  itemBuilder: (context, index) {
-                    final cat = _categories[index];
-                    final count = provider.recipeService
-                        .getRecipesByCategory(cat['id'] as String)
-                        .length;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GestureDetector(
-                        onTap: () => _openCategory(context, cat, locale),
-                        child: SizedBox(
-                          width: 78,
-                          height: 100,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 54,
-                                height: 54,
-                                decoration: BoxDecoration(
-                                  color: Color(cat['color'] as int),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    cat['emoji'] as String,
-                                    style: const TextStyle(fontSize: 26),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 28)),
+
+                // ── Öne Çıkan Tarifler ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isTr ? 'Öne Çıkanlar' : 'Popular Recipes',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                        TextButton(
+                          onPressed: () => _openAllRecipes(context, locale),
+                          child: Text(
+                            isTr ? 'Tümünü Gör' : 'See All',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 210,
+                    child: AnimationLimiter(
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: popularRecipes.length,
+                        itemBuilder: (context, index) {
+                          final recipe = popularRecipes[index];
+                          return AnimationConfiguration.staggeredList(
+                            position: index,
+                            duration: const Duration(milliseconds: 450),
+                            child: SlideAnimation(
+                              horizontalOffset: 60.0,
+                              child: FadeInAnimation(
+                                child: _PopularRecipeCard(
+                                  recipe: recipe,
+                                  locale: locale,
+                                  index: index,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => RecipeDetailScreen(recipe: recipe),
+                                    ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 5),
-                              Text(
-                                '${isTr ? cat['tr'] : cat['en']}',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11,
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                '($count)',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.outline,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Öne Çıkan Tarifler ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isTr ? 'Öne Çıkanlar' : 'Popular Recipes',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    TextButton(
-                      onPressed: () => _openAllRecipes(context, locale),
-                      child: Text(
-                        isTr ? 'Tümünü Gör' : 'See All',
-                        style: TextStyle(fontSize: 13, color: theme.colorScheme.primary),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 170,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: popularRecipes.length,
-                  itemBuilder: (context, index) {
-                    final recipe = popularRecipes[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RecipeDetailScreen(recipe: recipe),
-                          ),
-                        ),
-                        child: _PopularRecipeCard(recipe: recipe, locale: locale),
-                      ),
-                    );
-                  },
-                ),
-              ),
 
-              const SizedBox(height: 20),
+                const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
-              // ── Hızlı Tarifler (< 20 dk) ──
-              Builder(
-                builder: (context) {
-                  final quickRecipes = allRecipes
-                      .where((r) => r.totalTimeMinutes <= 20)
-                      .take(6)
-                      .toList();
-                  if (quickRecipes.isEmpty) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Text(
-                          isTr ? '⚡ Hızlı Tarifler (≤ 20 dk)' : '⚡ Quick Recipes (≤ 20 min)',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...quickRecipes.map((recipe) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
-                        child: _QuickRecipeTile(
-                          recipe: recipe,
-                          locale: locale,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RecipeDetailScreen(recipe: recipe),
+                // ── Hızlı Tarifler ──
+                SliverToBoxAdapter(
+                  child: Builder(
+                    builder: (context) {
+                      final quickRecipes = allRecipes
+                          .where((r) => r.totalTimeMinutes <= 20)
+                          .take(6)
+                          .toList();
+                      if (quickRecipes.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text('⚡', style: TextStyle(fontSize: 16)),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isTr ? 'Hızlı Tarifler' : 'Quick Recipes',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '≤ 20 ${isTr ? "dk" : "min"}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      )),
-                    ],
-                  );
-                },
-              ),
+                          const SizedBox(height: 12),
+                          AnimationLimiter(
+                            child: Column(
+                              children: List.generate(quickRecipes.length, (index) {
+                                final recipe = quickRecipes[index];
+                                return AnimationConfiguration.staggeredList(
+                                  position: index,
+                                  duration: const Duration(milliseconds: 375),
+                                  child: SlideAnimation(
+                                    verticalOffset: 30.0,
+                                    child: FadeInAnimation(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 20, vertical: 4),
+                                        child: _QuickRecipeTile(
+                                          recipe: recipe,
+                                          locale: locale,
+                                          onTap: () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  RecipeDetailScreen(recipe: recipe),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
 
-              const SizedBox(height: 24),
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Animated Language Toggle ──
+class _AnimatedIconButton extends StatelessWidget {
+  final String icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _AnimatedIconButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             ],
           ),
         ),
@@ -392,66 +561,386 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ── Popular Recipe Horizontal Card ──
-class _PopularRecipeCard extends StatelessWidget {
-  final Recipe recipe;
-  final String locale;
+// ── Hero CTA Card with glassmorphism ──
+class _HeroCTACard extends StatelessWidget {
+  final bool isTr;
+  final int selectedCount;
+  final VoidCallback onTap;
 
-  const _PopularRecipeCard({required this.recipe, required this.locale});
+  const _HeroCTACard({
+    required this.isTr,
+    required this.selectedCount,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      width: 140,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.4),
-              shape: BoxShape.circle,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.colorScheme.primary,
+                theme.colorScheme.primary.withOpacity(0.8),
+                const Color(0xFFFF8C42),
+              ],
             ),
-            child: Center(
-              child: Text(recipe.imageEmoji, style: const TextStyle(fontSize: 32)),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              recipe.getName(locale),
-              style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.access_time, size: 12, color: theme.colorScheme.outline),
-              const SizedBox(width: 3),
-              Text(
-                '${recipe.totalTimeMinutes} dk',
-                style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+                spreadRadius: -4,
               ),
             ],
           ),
-        ],
+          child: Row(
+            children: [
+              // Glass icon container
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: const Center(
+                  child: Text('🧊', style: TextStyle(fontSize: 30)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isTr ? 'Buzdolabında Ne Var?' : "What's in Your Fridge?",
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isTr
+                          ? 'Malzemelerini seç, sana tarif bulalım'
+                          : 'Select ingredients, we\'ll find recipes',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-// ── Quick Recipe Tile ──
+// ── Category Chip - Glass Style ──
+class _CategoryChip extends StatelessWidget {
+  final Map<String, dynamic> cat;
+  final int count;
+  final String locale;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.cat,
+    required this.count,
+    required this.locale,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isTr = locale == 'tr';
+    final catId = cat['id'] as String;
+    final gradientColors = AppTheme.categoryGradients[catId] ??
+        [const Color(0xFFEEEEEE), const Color(0xFFE0E0E0)];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          width: 80,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: gradientColors,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradientColors[1].withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    cat['emoji'] as String,
+                    style: const TextStyle(fontSize: 28),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${isTr ? cat['tr'] : cat['en']}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                '($count)',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Popular Recipe Card - Enhanced ──
+class _PopularRecipeCard extends StatelessWidget {
+  final Recipe recipe;
+  final String locale;
+  final int index;
+  final VoidCallback onTap;
+
+  const _PopularRecipeCard({
+    required this.recipe,
+    required this.locale,
+    required this.index,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final gradientColors = AppTheme.categoryGradients[recipe.category] ??
+        [const Color(0xFFF5F5F5), const Color(0xFFE0E0E0)];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 155,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: AppTheme.softShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top section with emoji & gradient
+              Container(
+                height: 110,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      gradientColors[0],
+                      gradientColors[1].withOpacity(0.6),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Background pattern emoji (subtle)
+                    Positioned(
+                      right: -8,
+                      bottom: -8,
+                      child: Text(
+                        recipe.imageEmoji,
+                        style: TextStyle(
+                          fontSize: 48,
+                          color: Colors.black.withOpacity(0.05),
+                        ),
+                      ),
+                    ),
+                    // Main emoji
+                    Center(
+                      child: Text(
+                        recipe.imageEmoji,
+                        style: const TextStyle(fontSize: 44),
+                      ),
+                    ),
+                    // Time badge
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.schedule,
+                                size: 10, color: theme.colorScheme.primary),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${recipe.totalTimeMinutes}\'',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Difficulty badge
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _getDifficultyColor(recipe.difficulty).withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          recipe.getDifficultyText(locale),
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Bottom section
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        recipe.getName(locale),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          Icon(Icons.restaurant_outlined,
+                              size: 12, color: theme.colorScheme.outline),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${recipe.servings} ${locale == 'tr' ? 'kişilik' : 'serv.'}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+      case 'kolay':
+        return Colors.green;
+      case 'medium':
+      case 'orta':
+        return Colors.orange;
+      case 'hard':
+      case 'zor':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+// ── Quick Recipe Tile - Enhanced ──
 class _QuickRecipeTile extends StatelessWidget {
   final Recipe recipe;
   final String locale;
@@ -470,36 +959,90 @@ class _QuickRecipeTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
-            borderRadius: BorderRadius.circular(10),
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+            ),
           ),
           child: Row(
             children: [
-              Text(recipe.imageEmoji, style: const TextStyle(fontSize: 24)),
-              const SizedBox(width: 12),
+              // Emoji container with gradient
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: AppTheme.categoryGradients[recipe.category] ??
+                        [const Color(0xFFF5F5F5), const Color(0xFFE0E0E0)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(recipe.imageEmoji, style: const TextStyle(fontSize: 22)),
+                ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  recipe.getName(locale),
-                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      recipe.getName(locale),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${recipe.servings} ${locale == 'tr' ? 'kişilik' : 'servings'}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.shade100),
                 ),
-                child: Text(
-                  '${recipe.totalTimeMinutes} dk',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.green.shade700),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt, size: 13, color: Colors.green.shade700),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${recipe.totalTimeMinutes}\'',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.outline),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right,
+                  size: 18, color: theme.colorScheme.outline),
             ],
           ),
         ),
