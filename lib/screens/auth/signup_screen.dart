@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../l10n/app_localizations.dart';
+import '../main_shell.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -31,11 +32,31 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
-    await auth.signUp(
+    final success = await auth.signUp(
       email: _emailController.text.trim(),
       password: _passwordController.text,
       displayName: _nameController.text.trim(),
     );
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
+      );
+      return;
+    }
+
+    if (auth.error == null) {
+      final isTr = AppLocalizations.of(context).languageCode == 'tr';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isTr ? 'Kayit olusturulamadi.' : 'Sign-up failed.',
+          ),
+        ),
+      );
+    }
   }
 
   @override

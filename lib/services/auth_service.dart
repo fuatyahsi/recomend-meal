@@ -24,20 +24,10 @@ class AuthService {
 
     await credential.user?.updateDisplayName(displayName);
 
-    final appUser = AppUser(
-      uid: credential.user!.uid,
-      email: email,
-      displayName: displayName,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+    return _upsertUserProfile(
+      credential.user!,
+      displayNameOverride: displayName,
     );
-
-    await _firestore
-        .collection('users')
-        .doc(appUser.uid)
-        .set(appUser.toFirestore());
-
-    return appUser;
   }
 
   Future<AppUser> signInWithEmail({
@@ -48,7 +38,7 @@ class AuthService {
       email: email,
       password: password,
     );
-    return await getUserProfile(credential.user!.uid);
+    return _upsertUserProfile(credential.user!);
   }
 
   // --- Google Sign-In ---
@@ -63,24 +53,7 @@ class AuthService {
     );
 
     final userCredential = await _auth.signInWithCredential(credential);
-    final user = userCredential.user!;
-
-    // Check if user doc exists
-    final doc = await _firestore.collection('users').doc(user.uid).get();
-    if (!doc.exists) {
-      final appUser = AppUser(
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? '',
-        photoURL: user.photoURL ?? '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await _firestore.collection('users').doc(user.uid).set(appUser.toFirestore());
-      return appUser;
-    }
-
-    return AppUser.fromFirestore(doc);
+    return _upsertUserProfile(userCredential.user!);
   }
 
   // --- Password Reset ---
@@ -99,6 +72,57 @@ class AuthService {
     final doc = await _firestore.collection('users').doc(uid).get();
     if (!doc.exists) throw Exception('User not found');
     return AppUser.fromFirestore(doc);
+  }
+
+  Future<AppUser> _upsertUserProfile(
+    User user, {
+    String? displayNameOverride,
+  }) async {
+    final users = _firestore.collection('users');
+    final doc = await users.doc(user.uid).get();
+    if (doc.exists) {
+      return AppUser.fromFirestore(doc);
+    }
+
+    final email = user.email ?? '';
+    final displayName = _resolveDisplayName(
+      user: user,
+      displayNameOverride: displayNameOverride,
+    );
+
+    final appUser = AppUser(
+      uid: user.uid,
+      email: email,
+      displayName: displayName,
+      photoURL: user.photoURL ?? '',
+      createdAt: user.metadata.creationTime ?? DateTime.now(),
+      updatedAt: user.metadata.lastSignInTime ?? DateTime.now(),
+    );
+
+    await users.doc(user.uid).set(appUser.toFirestore(), SetOptions(merge: true));
+    return appUser;
+  }
+
+  String _resolveDisplayName({
+    required User user,
+    String? displayNameOverride,
+  }) {
+    final preferred = displayNameOverride?.trim();
+    if (preferred != null && preferred.isNotEmpty) {
+      return preferred;
+    }
+
+    final firebaseName = user.displayName?.trim();
+    if (firebaseName != null && firebaseName.isNotEmpty) {
+      return firebaseName;
+    }
+
+    final email = user.email ?? '';
+    if (email.contains('@')) {
+      return email.split('@').first;
+    }
+
+    return 'User';
   }
 
   Future<void> updateUserProfile(AppUser user) async {

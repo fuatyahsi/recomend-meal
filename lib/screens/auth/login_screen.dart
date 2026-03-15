@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../l10n/app_localizations.dart';
+import '../main_shell.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -28,10 +29,30 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
-    await auth.signIn(
+    final success = await auth.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
+      );
+      return;
+    }
+
+    if (auth.error == null) {
+      final isTr = AppLocalizations.of(context).languageCode == 'tr';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isTr ? 'Giris yapilamadi.' : 'Sign-in failed.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
