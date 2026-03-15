@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../models/badge_model.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/badge_service.dart';
-import '../models/badge_model.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -14,7 +16,7 @@ class AuthProvider extends ChangeNotifier {
   AppUser? _currentUser;
   bool _isLoading = false;
   String? _error;
-  List<AppBadge> _newBadges = []; // Newly earned badges to show
+  List<AppBadge> _newBadges = [];
 
   AppUser? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
@@ -28,7 +30,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Initialize: check if user already logged in
   Future<void> initialize() async {
     _isLoading = true;
     notifyListeners();
@@ -37,12 +38,13 @@ class AuthProvider extends ChangeNotifier {
       final firebaseUser = _authService.currentFirebaseUser;
       if (firebaseUser != null) {
         try {
-          _currentUser = await _authService.getUserProfile(firebaseUser.uid)
+          _currentUser = await _authService
+              .getUserProfile(firebaseUser.uid)
               .timeout(const Duration(seconds: 10));
         } on TimeoutException {
           _currentUser = _buildFallbackUser(firebaseUser);
-        } catch (e) {
-          if (_isMissingUserProfile(e)) {
+        } catch (error) {
+          if (_isMissingUserProfile(error)) {
             await _authService.signOut();
           } else {
             _currentUser = _buildFallbackUser(firebaseUser);
@@ -50,7 +52,7 @@ class AuthProvider extends ChangeNotifier {
         }
       }
     } catch (_) {
-      // Firebase not ready or other error
+      // Firebase may not be ready yet.
     }
 
     _isLoading = false;
@@ -64,6 +66,7 @@ class AuthProvider extends ChangeNotifier {
   AppUser _buildFallbackUser(User firebaseUser) {
     final email = firebaseUser.email ?? '';
     final fallbackName = firebaseUser.displayName?.trim();
+
     return AppUser(
       uid: firebaseUser.uid,
       email: email,
@@ -76,7 +79,6 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  // --- Sign Up ---
   Future<bool> signUp({
     required String email,
     required String password,
@@ -92,23 +94,19 @@ class AuthProvider extends ChangeNotifier {
         password: password,
         displayName: displayName,
       );
-      _isLoading = false;
-      notifyListeners();
       return true;
-    } on FirebaseAuthException catch (e) {
-      _error = _getFirebaseErrorMessage(e.code);
+    } on FirebaseAuthException catch (error) {
+      _error = _getFirebaseErrorMessage(error.code);
+      return false;
+    } catch (error) {
+      _error = error.toString();
+      return false;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
   }
 
-  // --- Sign In ---
   Future<bool> signIn({
     required String email,
     required String password,
@@ -123,23 +121,19 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       await _checkBadges();
-      _isLoading = false;
-      notifyListeners();
       return true;
-    } on FirebaseAuthException catch (e) {
-      _error = _getFirebaseErrorMessage(e.code);
+    } on FirebaseAuthException catch (error) {
+      _error = _getFirebaseErrorMessage(error.code);
+      return false;
+    } catch (error) {
+      _error = error.toString();
+      return false;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
   }
 
-  // --- Google Sign In ---
   Future<bool> signInWithGoogle() async {
     _isLoading = true;
     _error = null;
@@ -148,18 +142,22 @@ class AuthProvider extends ChangeNotifier {
     try {
       _currentUser = await _authService.signInWithGoogle();
       await _checkBadges();
-      _isLoading = false;
-      notifyListeners();
       return true;
-    } catch (e) {
-      _error = e.toString();
+    } on FirebaseAuthException catch (error) {
+      _error = _getFirebaseErrorMessage(error.code);
+      return false;
+    } on PlatformException catch (error) {
+      _error = _getGoogleSignInPlatformMessage(error);
+      return false;
+    } catch (error) {
+      _error = _getGoogleSignInFallbackMessage(error);
+      return false;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
     }
   }
 
-  // --- Password Reset ---
   Future<bool> resetPassword(String email) async {
     _isLoading = true;
     _error = null;
@@ -167,23 +165,19 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _authService.resetPassword(email);
-      _isLoading = false;
-      notifyListeners();
       return true;
-    } on FirebaseAuthException catch (e) {
-      _error = _getFirebaseErrorMessage(e.code);
+    } on FirebaseAuthException catch (error) {
+      _error = _getFirebaseErrorMessage(error.code);
+      return false;
+    } catch (error) {
+      _error = error.toString();
+      return false;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
   }
 
-  // --- Sign Out ---
   Future<void> signOut() async {
     await _authService.signOut();
     _currentUser = null;
@@ -191,9 +185,9 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- Refresh User ---
   Future<void> refreshUser() async {
     if (_currentUser == null) return;
+
     try {
       _currentUser = await _authService.getUserProfile(_currentUser!.uid);
       await _checkBadges();
@@ -201,13 +195,12 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  // --- Badge Check ---
   Future<void> _checkBadges() async {
     if (_currentUser == null) return;
+
     final awarded = await _badgeService.checkAndAwardBadges(_currentUser!);
     if (awarded.isNotEmpty) {
       _newBadges = awarded;
-      // Refresh user to get updated badges list
       _currentUser = await _authService.getUserProfile(_currentUser!.uid);
     }
   }
@@ -215,19 +208,58 @@ class AuthProvider extends ChangeNotifier {
   String _getFirebaseErrorMessage(String code) {
     switch (code) {
       case 'email-already-in-use':
-        return 'Bu e-posta zaten kullanılıyor / Email already in use';
+        return 'Bu e-posta zaten kullaniliyor / Email already in use';
       case 'invalid-email':
-        return 'Geçersiz e-posta / Invalid email';
+        return 'Gecersiz e-posta / Invalid email';
       case 'weak-password':
-        return 'Şifre çok zayıf / Password too weak';
+        return 'Sifre cok zayif / Password too weak';
       case 'user-not-found':
-        return 'Kullanıcı bulunamadı / User not found';
+        return 'Kullanici bulunamadi / User not found';
       case 'wrong-password':
-        return 'Yanlış şifre / Wrong password';
+        return 'Yanlis sifre / Wrong password';
+      case 'invalid-credential':
+      case 'invalid-login-credentials':
+        return 'E-posta veya sifre hatali / Invalid email or password';
+      case 'user-disabled':
+        return 'Bu hesap devre disi / This account is disabled';
+      case 'network-request-failed':
+        return 'Ag baglantisi hatasi / Network request failed';
       case 'too-many-requests':
-        return 'Çok fazla deneme. Lütfen bekleyin / Too many attempts';
+        return 'Cok fazla deneme. Lutfen bekleyin / Too many attempts';
       default:
-        return 'Bir hata oluştu / An error occurred ($code)';
+        return 'Bir hata olustu / An error occurred ($code)';
     }
+  }
+
+  String _getGoogleSignInPlatformMessage(PlatformException error) {
+    final rawMessage = [
+      error.code,
+      error.message ?? '',
+      '${error.details ?? ''}',
+    ].join(' ').toLowerCase();
+
+    if (rawMessage.contains('apiexception: 10')) {
+      return 'Google girisi bu Android buildi icin yapilandirilmamis. Firebase Android uygulamasina SHA-1/SHA-256 ekleyip google-services.json dosyasini yeniden indirmelisin.';
+    }
+
+    if (rawMessage.contains('canceled') || rawMessage.contains('cancelled')) {
+      return 'Google girisi iptal edildi / Google sign-in cancelled';
+    }
+
+    return 'Google girisinde hata olustu / Google sign-in failed';
+  }
+
+  String _getGoogleSignInFallbackMessage(Object error) {
+    final message = error.toString().toLowerCase();
+
+    if (message.contains('apiexception: 10')) {
+      return 'Google girisi bu Android buildi icin yapilandirilmamis. Firebase Android uygulamasina SHA-1/SHA-256 ekleyip google-services.json dosyasini yeniden indirmelisin.';
+    }
+
+    if (message.contains('canceled') || message.contains('cancelled')) {
+      return 'Google girisi iptal edildi / Google sign-in cancelled';
+    }
+
+    return 'Google girisinde hata olustu / Google sign-in failed';
   }
 }
