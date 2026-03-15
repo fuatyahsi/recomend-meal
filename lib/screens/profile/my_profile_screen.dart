@@ -7,9 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/community_recipe_service.dart';
 import '../../services/badge_service.dart';
 import '../badges/badges_screen.dart';
-import '../premium/premium_screen.dart';
 import '../auth/login_screen.dart';
-import '../../providers/app_provider.dart';
 import '../cookbook/cookbooks_screen.dart';
 import '../settings_screen.dart';
 
@@ -63,15 +61,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     MaterialPageRoute(builder: (_) => const LoginScreen())),
                 child: Text(isTr ? 'Giriş Yap' : 'Sign In'),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PremiumScreen()),
-                ),
-                icon: const Icon(Icons.workspace_premium, color: Colors.amber),
-                label: Text(isTr ? 'Premium\'u Kesfet' : 'Explore Premium'),
-              ),
             ],
           ),
         ),
@@ -79,7 +68,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
 
     final user = auth.currentUser!;
-    final badgeProgress = _badgeService.getBadgeProgress(user);
     final earnedBadges = AppBadge.allBadges
         .where((b) => user.badges.contains(b.id))
         .toList();
@@ -88,13 +76,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       appBar: AppBar(
         title: Text(isTr ? 'Profilim' : 'My Profile'),
         actions: [
-          if (!(user.isPremium))
-            IconButton(
-              icon: const Icon(Icons.workspace_premium, color: Colors.amber),
-              tooltip: isTr ? 'Premium' : 'Premium',
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const PremiumScreen())),
-            ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.push(context,

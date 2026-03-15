@@ -48,18 +48,18 @@ class _PremiumScreenState extends State<PremiumScreen> {
             : 'A dedicated area is reserved for richer filters and quick decision flows.',
       },
       {
-        'icon': 'plan',
-        'title': isTr ? 'Yakinda: Diyet Planlari' : 'Coming Soon: Diet Plans',
+        'icon': 'community',
+        'title': isTr ? 'Ozel Challenge Sezonlari' : 'Special Challenge Seasons',
         'description': isTr
-            ? 'Haftalik planlayici premium paketine eklenecek.'
-            : 'A weekly planner will be added to the premium package.',
+            ? 'Topluluk challenge serilerinin ozel sezonlari once burada acilir.'
+            : 'Special community challenge seasons appear here first.',
       },
       {
-        'icon': 'nutrition',
-        'title': isTr ? 'Yakinda: Besin Degerleri' : 'Coming Soon: Nutrition Info',
+        'icon': 'support',
+        'title': isTr ? 'Uygulamayi Destekle' : 'Support the App',
         'description': isTr
-            ? 'Tarif bazli nutrition paneli premium yol haritasinda.'
-            : 'Recipe-level nutrition panels are on the premium roadmap.',
+            ? 'Premium, reklamsiz deneyimin yaninda uygulamanin gelisimini de destekler.'
+            : 'Premium helps fund the app in addition to unlocking an ad-free experience.',
       },
     ];
   }
@@ -379,10 +379,10 @@ class _FeatureTile extends StatelessWidget {
         return Icons.auto_awesome;
       case 'filter':
         return Icons.tune;
-      case 'plan':
-        return Icons.calendar_view_week;
-      case 'nutrition':
-        return Icons.query_stats;
+      case 'community':
+        return Icons.emoji_events;
+      case 'support':
+        return Icons.favorite;
       case 'badge':
         return Icons.workspace_premium;
       default:

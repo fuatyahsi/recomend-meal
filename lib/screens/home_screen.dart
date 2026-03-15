@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -200,20 +199,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                ),
-
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: _PremiumSpotlightCard(
-                      isTr: isTr,
-                      isPremium: isPremium,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PremiumScreen()),
-                      ),
                     ),
                   ),
                 ),
@@ -1051,102 +1036,6 @@ class _PopularRecipeCard extends StatelessWidget {
   }
 }
 
-class _PremiumSpotlightCard extends StatelessWidget {
-  final bool isTr;
-  final bool isPremium;
-  final VoidCallback onTap;
-
-  const _PremiumSpotlightCard({
-    required this.isTr,
-    required this.isPremium,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      child: Ink(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isPremium
-                ? const [Color(0xFFFFD54F), Color(0xFFFFA726)]
-                : [theme.colorScheme.primary, theme.colorScheme.secondary],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withOpacity(0.18),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.workspace_premium,
-                color: Colors.white,
-                size: 30,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isPremium
-                        ? (isTr ? 'Premium aktif' : 'Premium active')
-                        : (isTr ? 'Premium artik gorunur' : 'Premium is now visible'),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isPremium
-                        ? (isTr
-                            ? 'Reklamsiz deneyim ve premium rozet su an hesabinda aktif.'
-                            : 'Ad-free experience and your premium badge are active on this account.')
-                        : (isTr
-                            ? 'Planlari incele, premium ekranini ac ve avantajlari uygulama icinde gor.'
-                            : 'Open the premium screen from the app and review the available benefits.'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withOpacity(0.88),
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton(
-              onPressed: onTap,
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: theme.colorScheme.primary,
-              ),
-              child: Text(isTr ? 'Ac' : 'Open'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ── Feature Button (Mood / Orchestra) ──
 class _FeatureButton extends StatelessWidget {
