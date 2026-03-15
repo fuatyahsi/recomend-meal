@@ -43,7 +43,7 @@ class NotificationService {
       macOS: darwinSettings,
     );
 
-    await _plugin.initialize(initializationSettings);
+    await _plugin.initialize(settings: initializationSettings);
     _initialized = true;
   }
 
@@ -95,14 +95,12 @@ class NotificationService {
       if (!notification.scheduledAt.isAfter(now)) continue;
 
       await _plugin.zonedSchedule(
-        notification.id,
-        notification.title,
-        notification.body,
-        tz.TZDateTime.from(notification.scheduledAt, tz.local),
-        details,
+        id: notification.id,
+        title: notification.title,
+        body: notification.body,
+        scheduledDate: tz.TZDateTime.from(notification.scheduledAt, tz.local),
+        notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }
@@ -112,7 +110,7 @@ class NotificationService {
     final pending = await _plugin.pendingNotificationRequests();
     for (final item in pending) {
       if (item.id >= 7000 && item.id < 9000) {
-        await _plugin.cancel(item.id);
+        await _plugin.cancel(id: item.id);
       }
     }
   }

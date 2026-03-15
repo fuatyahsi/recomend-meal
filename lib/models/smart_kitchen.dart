@@ -99,7 +99,7 @@ class SmartKitchenPreferences {
 
   factory SmartKitchenPreferences.defaults() {
     return const SmartKitchenPreferences(
-      mealSlots: const [
+      mealSlots: [
         MealRoutineSlot(
           id: 'breakfast',
           weekdayMinutes: 420,
@@ -126,7 +126,7 @@ class SmartKitchenPreferences {
       schoolBreakfastNudges: true,
       priceComparisonEnabled: false,
       campaignAlertsEnabled: false,
-      preferredMarkets: const ['Migros', 'CarrefourSA'],
+      preferredMarkets: ['Migros', 'CarrefourSA'],
     );
   }
 
