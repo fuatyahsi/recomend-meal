@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/app_provider.dart';
+import 'smart_kitchen_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -83,6 +84,34 @@ class SettingsScreen extends StatelessWidget {
               title: Text(l10n.darkMode),
               value: provider.isDarkMode,
               onChanged: (_) => provider.toggleDarkMode(),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.auto_awesome),
+              title: Text(
+                provider.languageCode == 'tr'
+                    ? 'Akilli Mutfak Asistani'
+                    : 'Smart Kitchen Assistant',
+              ),
+              subtitle: Text(
+                provider.languageCode == 'tr'
+                    ? 'Ogün saatleri, rutinler ve plan onizlemesi'
+                    : 'Meal times, routines and plan preview',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SmartKitchenScreen(),
+                ),
+              ),
             ),
           ),
 

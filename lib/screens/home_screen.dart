@@ -16,6 +16,7 @@ import 'recipe_roulette_screen.dart';
 import 'flavor_dna_screen.dart';
 import 'settings_screen.dart';
 import 'premium/premium_screen.dart';
+import 'smart_kitchen_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -96,6 +97,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final locale = provider.languageCode;
     final isTr = locale == 'tr';
     final isPremium = context.watch<AuthProvider>().isPremium;
+    final nextMealId = provider.getNextPlannedMealId();
+    final assistantSuggestion =
+        provider.getPersonalizedSuggestions(mealId: nextMealId, limit: 1);
+    final nextReminder = provider.nextReminderPreview;
 
     final allRecipes = provider.recipeService.recipes;
     final popularRecipes = allRecipes.length > 8 ? allRecipes.sublist(0, 8) : allRecipes;
@@ -204,6 +209,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _SmartKitchenLauncherCard(
+                      isTr: isTr,
+                      mealLabel: provider.getMealLabel(nextMealId),
+                      suggestionName: assistantSuggestion.isEmpty
+                          ? null
+                          : assistantSuggestion.first.recipe.getName(locale),
+                      missingCount: assistantSuggestion.isEmpty
+                          ? 0
+                          : assistantSuggestion.first.missingItems.length,
+                      reminderText: nextReminder == null
+                          ? null
+                          : MaterialLocalizations.of(context).formatTimeOfDay(
+                              TimeOfDay(
+                                hour: nextReminder.remindAt.hour,
+                                minute: nextReminder.remindAt.minute,
+                              ),
+                              alwaysUse24HourFormat: true,
+                            ),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SmartKitchenScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
                 // ── Hero CTA - "Buzdolabında Ne Var?" ──
                 SliverToBoxAdapter(
@@ -765,6 +803,178 @@ class _HeroCTACard extends StatelessWidget {
 }
 
 // ── Category Chip - Glass Style ──
+class _SmartKitchenLauncherCard extends StatelessWidget {
+  final bool isTr;
+  final String mealLabel;
+  final String? suggestionName;
+  final int missingCount;
+  final String? reminderText;
+  final VoidCallback onTap;
+
+  const _SmartKitchenLauncherCard({
+    required this.isTr,
+    required this.mealLabel,
+    required this.suggestionName,
+    required this.missingCount,
+    required this.reminderText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF153B50),
+                theme.colorScheme.primary,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withOpacity(0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isTr
+                              ? 'Akilli Aksam Asistani'
+                              : 'Smart Meal Assistant',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          reminderText == null
+                              ? (isTr
+                                  ? '$mealLabel icin plan hazirla'
+                                  : 'Plan your next $mealLabel')
+                              : (isTr
+                                  ? '$mealLabel icin $reminderText hatirlatmasi hazir'
+                                  : '$reminderText reminder ready for $mealLabel'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withOpacity(0.86),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                suggestionName == null
+                    ? (isTr
+                        ? 'Rutinlerini kur, uygulama sana aksami planlasin.'
+                        : 'Set your routines and let the app plan the evening.')
+                    : (isTr
+                        ? 'Bugun icin onerim: $suggestionName'
+                        : 'My pick for today: $suggestionName'),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _HomeBadge(
+                    icon: Icons.nights_stay_outlined,
+                    label: mealLabel,
+                  ),
+                  _HomeBadge(
+                    icon: Icons.shopping_bag_outlined,
+                    label: isTr
+                        ? '$missingCount eksik urun'
+                        : '$missingCount missing items',
+                  ),
+                  _HomeBadge(
+                    icon: Icons.notifications_active_outlined,
+                    label: isTr ? 'Rutin + uyari' : 'Routine + alerts',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HomeBadge({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CategoryChip extends StatelessWidget {
   final Map<String, dynamic> cat;
   final int count;

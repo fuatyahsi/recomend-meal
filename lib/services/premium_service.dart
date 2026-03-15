@@ -9,62 +9,59 @@ class PremiumService {
     return expiryTimestamp?.toDate();
   }
 
-  // Premium plan fiyatları
   static const double monthlyPriceTRY = 49.99;
   static const double yearlyPriceTRY = 399.99;
   static const double monthlyPriceUSD = 4.99;
   static const double yearlyPriceUSD = 39.99;
 
-  // Premium özellikler
   static List<Map<String, String>> getPremiumFeatures(String langCode) {
     final isTr = langCode == 'tr';
     return [
       {
-        'icon': '🚫',
-        'title': isTr ? 'Reklamsız Deneyim' : 'Ad-Free Experience',
+        'icon': 'mute',
+        'title': isTr ? 'Reklamsiz Deneyim' : 'Ad-Free Experience',
         'description': isTr
-            ? 'Tüm reklamları kaldır, kesintisiz yemek keşfet'
-            : 'Remove all ads, discover recipes without interruption',
+            ? 'Tarif akisini reklam kesintisi olmadan kullan.'
+            : 'Use the recipe flow without ad interruptions.',
       },
       {
-        'icon': '⭐',
-        'title': isTr ? 'Özel Tarifler' : 'Exclusive Recipes',
+        'icon': 'star',
+        'title': isTr ? 'Ozel Tarifler' : 'Exclusive Recipes',
         'description': isTr
-            ? 'Sadece premium üyelere özel şef tarifleri'
-            : 'Chef recipes exclusive to premium members',
+            ? 'Sadece premium katmanda acilan secili tarifler.'
+            : 'Selected recipes unlocked only in the premium layer.',
       },
       {
-        'icon': '🔍',
-        'title': isTr ? 'Gelişmiş Filtreleme' : 'Advanced Filtering',
+        'icon': 'filter',
+        'title': isTr ? 'Gelismis Filtreleme' : 'Advanced Filtering',
         'description': isTr
-            ? 'Kalori, pişirme süresi, diyet türü ile filtrele'
-            : 'Filter by calories, cooking time, diet type',
+            ? 'Sure, zorluk ve mutfak akisina gore daha iyi filtrele.'
+            : 'Filter better by time, difficulty and cooking flow.',
       },
       {
-        'icon': '📋',
-        'title': isTr ? 'Diyet Planları' : 'Diet Plans',
+        'icon': 'community',
+        'title': isTr ? 'Ozel Challenge Sezonlari' : 'Special Challenge Seasons',
         'description': isTr
-            ? 'Haftalık kişiselleştirilmiş yemek planları'
-            : 'Weekly personalized meal plans',
+            ? 'Topluluk challenge sezonlarinda erken erisim ve ozel akislar.'
+            : 'Early access and special flows for community challenge seasons.',
       },
       {
-        'icon': '📊',
-        'title': isTr ? 'Besin Değerleri' : 'Nutrition Info',
+        'icon': 'support',
+        'title': isTr ? 'Uygulamaya Destek' : 'Support the App',
         'description': isTr
-            ? 'Her tarifin detaylı besin değerleri'
-            : 'Detailed nutritional info for every recipe',
+            ? 'Premium, reklamsiz deneyimin yaninda uygulamanin gelisimini destekler.'
+            : 'Premium supports the app in addition to unlocking an ad-free experience.',
       },
       {
-        'icon': '🏆',
+        'icon': 'badge',
         'title': isTr ? 'Premium Rozet' : 'Premium Badge',
         'description': isTr
-            ? 'Profilinde özel premium rozeti göster'
-            : 'Show exclusive premium badge on your profile',
+            ? 'Profilinde premium uyelik rozeti gorunur.'
+            : 'Your profile shows an active premium badge.',
       },
     ];
   }
 
-  // Kullanıcı premium durumunu kontrol et
   Future<bool> checkPremiumStatus(String uid) async {
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
@@ -79,21 +76,16 @@ class PremiumService {
         }
       }
       return false;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-  // Premium satın al (gerçek uygulamada in_app_purchase kullanılacak)
   Future<bool> purchasePremium({
     required String uid,
-    required String planType, // 'monthly' or 'yearly'
+    required String planType,
   }) async {
     try {
-      // NOT: Gerçek uygulamada in_app_purchase paketi ile
-      // Google Play / App Store üzerinden ödeme alınacak
-      // Bu sadece veritabanı tarafının simülasyonu
-
       DateTime expiryDate;
       if (planType == 'monthly') {
         expiryDate = DateTime.now().add(const Duration(days: 30));
@@ -109,7 +101,6 @@ class PremiumService {
         'premiumExpiry': FieldValue.delete(),
       });
 
-      // Premium satın alma kaydı oluştur
       await _firestore.collection('premium_purchases').add({
         'uid': uid,
         'planType': planType,
@@ -119,12 +110,11 @@ class PremiumService {
       });
 
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-  // Premium iptal et
   Future<bool> cancelPremium(String uid) async {
     try {
       await _firestore.collection('users').doc(uid).update({
@@ -135,7 +125,7 @@ class PremiumService {
         'premiumExpiry': FieldValue.delete(),
       });
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
