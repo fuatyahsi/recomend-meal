@@ -41,6 +41,10 @@ dependencies:
   # Connectivity
   connectivity_plus: ^6.1.1
 
+  # Voice commands for hands-free cooking
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
+
   # Custom animations are used instead of Lottie for lighter bundle
 
 dev_dependencies:

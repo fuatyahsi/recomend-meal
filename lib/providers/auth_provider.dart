@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
@@ -37,9 +39,14 @@ class AuthProvider extends ChangeNotifier {
         try {
           _currentUser = await _authService.getUserProfile(firebaseUser.uid)
               .timeout(const Duration(seconds: 10));
-        } catch (_) {
-          // Profile not found or timeout, sign out
-          await _authService.signOut();
+        } on TimeoutException {
+          _currentUser = _buildFallbackUser(firebaseUser);
+        } catch (e) {
+          if (_isMissingUserProfile(e)) {
+            await _authService.signOut();
+          } else {
+            _currentUser = _buildFallbackUser(firebaseUser);
+          }
         }
       }
     } catch (_) {
@@ -48,6 +55,25 @@ class AuthProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  bool _isMissingUserProfile(Object error) {
+    return error.toString().contains('User not found');
+  }
+
+  AppUser _buildFallbackUser(User firebaseUser) {
+    final email = firebaseUser.email ?? '';
+    final fallbackName = firebaseUser.displayName?.trim();
+    return AppUser(
+      uid: firebaseUser.uid,
+      email: email,
+      displayName: (fallbackName != null && fallbackName.isNotEmpty)
+          ? fallbackName
+          : (email.contains('@') ? email.split('@').first : 'User'),
+      photoURL: firebaseUser.photoURL ?? '',
+      createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
+      updatedAt: firebaseUser.metadata.lastSignInTime ?? DateTime.now(),
+    );
   }
 
   // --- Sign Up ---

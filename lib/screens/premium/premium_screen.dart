@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/premium_service.dart';
+import '../auth/login_screen.dart';
 
 class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});
@@ -13,99 +14,79 @@ class PremiumScreen extends StatefulWidget {
 }
 
 class _PremiumScreenState extends State<PremiumScreen> {
-  String _selectedPlan = 'yearly'; // yearly varsayılan
+  String _selectedPlan = 'yearly';
   bool _isPurchasing = false;
+
+  List<Map<String, String>> _premiumFeatures(bool isTr) {
+    return [
+      {
+        'icon': 'ads',
+        'title': isTr ? 'Reklamsiz Deneyim' : 'Ad-Free Experience',
+        'description': isTr
+            ? 'Banner reklamlar gizlenir, tarif akisi daha temiz olur.'
+            : 'Banner ads are hidden for a cleaner recipe flow.',
+      },
+      {
+        'icon': 'badge',
+        'title': isTr ? 'Premium Rozet' : 'Premium Badge',
+        'description': isTr
+            ? 'Profilinde premium uyelik rozeti gorunur.'
+            : 'Your profile shows an active premium badge.',
+      },
+      {
+        'icon': 'chef',
+        'title': isTr ? 'Erken Deneyim Erisimi' : 'Early Access',
+        'description': isTr
+            ? 'Yeni mutfak deneyimleri once premium katmaninda acilir.'
+            : 'New cooking experiences appear in the premium layer first.',
+      },
+      {
+        'icon': 'filter',
+        'title': isTr ? 'Premium Karar Araclari' : 'Premium Decision Tools',
+        'description': isTr
+            ? 'Daha zengin filtreleme ve hizli karar akislarina alan ayrildi.'
+            : 'A dedicated area is reserved for richer filters and quick decision flows.',
+      },
+      {
+        'icon': 'plan',
+        'title': isTr ? 'Yakinda: Diyet Planlari' : 'Coming Soon: Diet Plans',
+        'description': isTr
+            ? 'Haftalik planlayici premium paketine eklenecek.'
+            : 'A weekly planner will be added to the premium package.',
+      },
+      {
+        'icon': 'nutrition',
+        'title': isTr ? 'Yakinda: Besin Degerleri' : 'Coming Soon: Nutrition Info',
+        'description': isTr
+            ? 'Tarif bazli nutrition paneli premium yol haritasinda.'
+            : 'Recipe-level nutrition panels are on the premium roadmap.',
+      },
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     final appProvider = context.watch<AppProvider>();
     final authProvider = context.watch<AuthProvider>();
-    final isTr = appProvider.locale.languageCode == 'tr';
     final theme = Theme.of(context);
+    final isTr = appProvider.locale.languageCode == 'tr';
     final isPremium = authProvider.currentUser?.isPremium ?? false;
+    final isAuthenticated = authProvider.isAuthenticated;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isTr ? 'Premium' : 'Premium'),
+        title: const Text('Premium'),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    theme.colorScheme.primary,
-                    theme.colorScheme.secondary,
-                  ],
-                ),
-              ),
-              child: Column(
-                children: [
-                  const Text('👑', style: TextStyle(fontSize: 64)),
-                  const SizedBox(height: 16),
-                  Text(
-                    isTr
-                        ? 'FridgeChef Premium'
-                        : 'FridgeChef Premium',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isTr
-                        ? 'Yemek deneyimini bir üst seviyeye taşı!'
-                        : 'Take your cooking experience to the next level!',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (isPremium) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.check_circle,
-                              color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            isTr ? 'Premium Üyesin!' : 'You\'re Premium!',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+            _PremiumHeader(
+              isTr: isTr,
+              isPremium: isPremium,
             ),
-
-            const SizedBox(height: 24),
-
-            // Özellik listesi
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -116,68 +97,81 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ...PremiumService.getPremiumFeatures(
-                          appProvider.locale.languageCode)
-                      .map((feature) => _FeatureTile(
-                            icon: feature['icon']!,
-                            title: feature['title']!,
-                            description: feature['description']!,
-                          )),
+                  ..._premiumFeatures(isTr)
+                      .map(
+                        (feature) => _FeatureTile(
+                          iconKey: feature['icon']!,
+                          title: feature['title']!,
+                          description: feature['description']!,
+                        ),
+                      ),
                 ],
               ),
             ),
-
             if (!isPremium) ...[
-              const SizedBox(height: 32),
-
-              // Plan seçimi
+              if (!isAuthenticated)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.login, size: 22),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            isTr
+                                ? 'Premium burada. Planlari inceleyebilirsin, satin alma icin once giris yapman gerekir.'
+                                : 'Premium is here. You can browse the plans now and sign in before purchase.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isTr ? 'Plan Seç' : 'Choose Plan',
+                      isTr ? 'Plan Sec' : 'Choose Plan',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Yıllık Plan
                     _PlanCard(
                       isSelected: _selectedPlan == 'yearly',
-                      title: isTr ? 'Yıllık Plan' : 'Yearly Plan',
+                      title: isTr ? 'Yillik Plan' : 'Yearly Plan',
                       price: isTr
-                          ? '₺${PremiumService.yearlyPriceTRY.toStringAsFixed(2)}/yıl'
+                          ? 'TRY ${PremiumService.yearlyPriceTRY.toStringAsFixed(2)}/yil'
                           : '\$${PremiumService.yearlyPriceUSD.toStringAsFixed(2)}/year',
                       subtitle: isTr
-                          ? '₺${(PremiumService.yearlyPriceTRY / 12).toStringAsFixed(2)}/ay - %33 tasarruf'
-                          : '\$${(PremiumService.yearlyPriceUSD / 12).toStringAsFixed(2)}/mo - 33% savings',
-                      badge: isTr ? 'En Popüler' : 'Most Popular',
+                          ? 'Aylik ortalama ile daha avantajli'
+                          : 'Best value on a monthly average',
+                      badge: isTr ? 'Populer' : 'Popular',
                       onTap: () => setState(() => _selectedPlan = 'yearly'),
                     ),
                     const SizedBox(height: 12),
-
-                    // Aylık Plan
                     _PlanCard(
                       isSelected: _selectedPlan == 'monthly',
-                      title: isTr ? 'Aylık Plan' : 'Monthly Plan',
+                      title: isTr ? 'Aylik Plan' : 'Monthly Plan',
                       price: isTr
-                          ? '₺${PremiumService.monthlyPriceTRY.toStringAsFixed(2)}/ay'
+                          ? 'TRY ${PremiumService.monthlyPriceTRY.toStringAsFixed(2)}/ay'
                           : '\$${PremiumService.monthlyPriceUSD.toStringAsFixed(2)}/month',
-                      subtitle: isTr
-                          ? 'İstediğin zaman iptal et'
-                          : 'Cancel anytime',
+                      subtitle: isTr ? 'Istedigin zaman iptal et' : 'Cancel anytime',
                       onTap: () => setState(() => _selectedPlan = 'monthly'),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // Satın al butonu
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: SizedBox(
@@ -186,49 +180,42 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   child: ElevatedButton(
                     onPressed: _isPurchasing ? null : _handlePurchase,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: _isPurchasing
                         ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(
-                            isTr ? 'Premium\'a Geç' : 'Go Premium',
+                            isAuthenticated
+                                ? (isTr ? 'Premiuma Gec' : 'Go Premium')
+                                : (isTr ? 'Giris Yap ve Devam Et' : 'Sign In to Continue'),
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 17,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                   ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
-              // Küçük yazı
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   isTr
-                      ? 'Abonelik, seçilen süre sonunda otomatik yenilenir. İstediğiniz zaman iptal edebilirsiniz.'
-                      : 'Subscription auto-renews at the end of the selected period. You can cancel anytime.',
+                      ? 'Bu ekran su anda gorunur durumda. Satin alma akisi ise uygulama ici simulasyon olarak calisiyor.'
+                      : 'This screen is fully visible now. The purchase flow currently works as an in-app simulation.',
+                  textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ],
-
             const SizedBox(height: 32),
           ],
         ),
@@ -241,66 +228,189 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
     final authProvider = context.read<AuthProvider>();
     final isTr = context.read<AppProvider>().locale.languageCode == 'tr';
+    if (!authProvider.isAuthenticated || authProvider.currentUser == null) {
+      if (!mounted) return;
+      setState(() => _isPurchasing = false);
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
 
-    // NOT: Gerçek uygulamada burada in_app_purchase paketi kullanılacak
-    // Şimdilik Firestore'a kayıt yapıyoruz
     final premiumService = PremiumService();
     final success = await premiumService.purchasePremium(
       uid: authProvider.currentUser!.uid,
       planType: _selectedPlan,
     );
 
+    if (!mounted) return;
     setState(() => _isPurchasing = false);
 
-    if (mounted) {
-      if (success) {
-        await authProvider.refreshUser();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isTr
-                  ? 'Premium\'a hoş geldin! 🎉'
-                  : 'Welcome to Premium! 🎉',
-            ),
-            backgroundColor: Colors.green,
+    if (success) {
+      await authProvider.refreshUser();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isTr ? 'Premium aktif edildi.' : 'Premium activated.',
           ),
-        );
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isTr
-                  ? 'Bir hata oluştu. Lütfen tekrar deneyin.'
-                  : 'An error occurred. Please try again.',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isTr ? 'Bir hata olustu. Lutfen tekrar dene.' : 'An error occurred. Please try again.',
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 }
 
-class _FeatureTile extends StatelessWidget {
-  final String icon;
-  final String title;
-  final String description;
+class _PremiumHeader extends StatelessWidget {
+  final bool isTr;
+  final bool isPremium;
 
-  const _FeatureTile({
-    required this.icon,
-    required this.title,
-    required this.description,
+  const _PremiumHeader({
+    required this.isTr,
+    required this.isPremium,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary,
+            theme.colorScheme.secondary,
+          ],
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 78,
+            height: 78,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.workspace_premium,
+              size: 42,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'FridgeChef Premium',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isTr
+                ? 'Reklamsiz, daha guclu ve daha ozel bir mutfak deneyimi.'
+                : 'Ad-free, sharper and more premium cooking flows.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+          if (isPremium) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    isTr ? 'Premium uyeligin aktif' : 'Your premium membership is active',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureTile extends StatelessWidget {
+  final String iconKey;
+  final String title;
+  final String description;
+
+  const _FeatureTile({
+    required this.iconKey,
+    required this.title,
+    required this.description,
+  });
+
+  IconData _resolveIcon() {
+    switch (iconKey) {
+      case 'ads':
+        return Icons.visibility_off;
+      case 'chef':
+        return Icons.auto_awesome;
+      case 'filter':
+        return Icons.tune;
+      case 'plan':
+        return Icons.calendar_view_week;
+      case 'nutrition':
+        return Icons.query_stats;
+      case 'badge':
+        return Icons.workspace_premium;
+      default:
+        return Icons.star_outline;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(icon, style: const TextStyle(fontSize: 28)),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              _resolveIcon(),
+              color: theme.colorScheme.primary,
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -349,33 +459,30 @@ class _PlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return GestureDetector(
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withOpacity(0.3),
+                : theme.colorScheme.outline.withValues(alpha: 0.35),
             width: isSelected ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(16),
           color: isSelected
-              ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
               : null,
         ),
         child: Row(
           children: [
             Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,13 +498,10 @@ class _PlanCard extends StatelessWidget {
                       if (badge != null) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: theme.colorScheme.primary,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             badge!,

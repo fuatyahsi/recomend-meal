@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -105,6 +104,7 @@ class _CommunityRecipeDetailScreenState
       imageQuality: 80,
     );
     if (picked == null) return;
+    if (!mounted) return;
 
     // Yorum dialogu
     final commentController = TextEditingController();
@@ -202,9 +202,11 @@ class _CommunityRecipeDetailScreenState
 
     final liked = await _recipeService.toggleLike(
         widget.recipe.id, auth.currentUser!.uid);
+    final refreshedRecipe = await _recipeService.getRecipeById(widget.recipe.id);
+    if (!mounted) return;
     setState(() {
       _isLiked = liked;
-      _likeCount += liked ? 1 : -1;
+      _likeCount = refreshedRecipe?.totalLikes ?? _likeCount;
     });
     await auth.refreshUser();
   }

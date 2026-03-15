@@ -35,6 +35,8 @@ class AppUser {
 
   factory AppUser.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final premiumExpiryTimestamp = data['premiumExpiresAt'] as Timestamp? ??
+        data['premiumExpiry'] as Timestamp?;
     return AppUser(
       uid: doc.id,
       email: data['email'] ?? '',
@@ -44,7 +46,7 @@ class AppUser {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isPremium: data['isPremium'] ?? false,
-      premiumExpiresAt: (data['premiumExpiresAt'] as Timestamp?)?.toDate(),
+      premiumExpiresAt: premiumExpiryTimestamp?.toDate(),
       totalRecipesShared: data['totalRecipesShared'] ?? 0,
       totalLikesReceived: data['totalLikesReceived'] ?? 0,
       totalRatingsGiven: data['totalRatingsGiven'] ?? 0,

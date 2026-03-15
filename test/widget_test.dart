@@ -1,30 +1,53 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:fridge_chef/main.dart';
+import 'package:fridge_chef/models/recipe.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('recipe match percentage is calculated correctly', () {
+    const recipe = Recipe(
+      id: 'menemen',
+      nameTr: 'Menemen',
+      nameEn: 'Menemen',
+      descriptionTr: 'Test recipe',
+      descriptionEn: 'Test recipe',
+      ingredients: [
+        RecipeIngredient(ingredientId: 'egg', amountTr: '2 adet', amountEn: '2'),
+        RecipeIngredient(
+          ingredientId: 'tomato',
+          amountTr: '2 adet',
+          amountEn: '2',
+        ),
+        RecipeIngredient(
+          ingredientId: 'pepper',
+          amountTr: '1 adet',
+          amountEn: '1',
+        ),
+      ],
+      stepsTr: [
+        RecipeStep(stepNumber: 1, instruction: 'Mix'),
+      ],
+      stepsEn: [
+        RecipeStep(stepNumber: 1, instruction: 'Mix'),
+      ],
+      prepTimeMinutes: 10,
+      cookTimeMinutes: 10,
+      servings: 2,
+      difficulty: 'easy',
+      category: 'main',
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(recipe.getMatchPercentage(['egg', 'tomato']), closeTo(2 / 3, 0.001));
+    expect(recipe.canMakeWith(['egg', 'tomato']), isFalse);
+    expect(recipe.canMakeWith(['egg', 'tomato', 'pepper']), isTrue);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  test('ingredient amount scales with serving multiplier', () {
+    const ingredient = RecipeIngredient(
+      ingredientId: 'milk',
+      amountTr: '2 bardak',
+      amountEn: '2 cups',
+    );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(ingredient.getScaledAmount('en', 1.5), '3 cups');
+    expect(ingredient.getScaledAmount('tr', 0.5), '1 bardak');
   });
 }

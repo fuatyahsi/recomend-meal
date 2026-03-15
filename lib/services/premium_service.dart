@@ -3,6 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class PremiumService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  DateTime? _readPremiumExpiry(Map<String, dynamic> data) {
+    final expiryTimestamp = data['premiumExpiresAt'] as Timestamp? ??
+        data['premiumExpiry'] as Timestamp?;
+    return expiryTimestamp?.toDate();
+  }
+
   // Premium plan fiyatları
   static const double monthlyPriceTRY = 49.99;
   static const double yearlyPriceTRY = 399.99;
@@ -66,10 +72,9 @@ class PremiumService {
         final data = doc.data()!;
         final isPremium = data['isPremium'] ?? false;
         if (isPremium) {
-          // Premium bitiş tarihini kontrol et
-          final premiumExpiry = data['premiumExpiry'] as Timestamp?;
+          final premiumExpiry = _readPremiumExpiry(data);
           if (premiumExpiry != null) {
-            return premiumExpiry.toDate().isAfter(DateTime.now());
+            return premiumExpiry.isAfter(DateTime.now());
           }
         }
       }
@@ -100,7 +105,8 @@ class PremiumService {
         'isPremium': true,
         'premiumPlan': planType,
         'premiumStartDate': FieldValue.serverTimestamp(),
-        'premiumExpiry': Timestamp.fromDate(expiryDate),
+        'premiumExpiresAt': Timestamp.fromDate(expiryDate),
+        'premiumExpiry': FieldValue.delete(),
       });
 
       // Premium satın alma kaydı oluştur
@@ -124,6 +130,9 @@ class PremiumService {
       await _firestore.collection('users').doc(uid).update({
         'isPremium': false,
         'premiumPlan': null,
+        'premiumStartDate': FieldValue.delete(),
+        'premiumExpiresAt': FieldValue.delete(),
+        'premiumExpiry': FieldValue.delete(),
       });
       return true;
     } catch (e) {

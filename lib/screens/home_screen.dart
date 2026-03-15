@@ -4,13 +4,19 @@ import 'package:provider/provider.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/app_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/recipe.dart';
 import '../utils/app_theme.dart';
 import '../widgets/glass_container.dart';
 import 'ingredient_selection_screen.dart';
 import 'category_recipes_screen.dart';
 import 'recipe_detail_screen.dart';
+import 'mood_recipes_screen.dart';
+import 'kitchen_orchestra_screen.dart';
+import 'recipe_roulette_screen.dart';
+import 'flavor_dna_screen.dart';
 import 'settings_screen.dart';
+import 'premium/premium_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -90,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final theme = Theme.of(context);
     final locale = provider.languageCode;
     final isTr = locale == 'tr';
+    final isPremium = context.watch<AuthProvider>().isPremium;
 
     final allRecipes = provider.recipeService.recipes;
     final popularRecipes = allRecipes.length > 8 ? allRecipes.sublist(0, 8) : allRecipes;
@@ -171,6 +178,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         const SizedBox(width: 4),
                         IconButton(
+                          icon: Icon(
+                            isPremium
+                                ? Icons.workspace_premium
+                                : Icons.workspace_premium_outlined,
+                            size: 22,
+                            color: Colors.amber.shade700,
+                          ),
+                          tooltip: isTr ? 'Premium' : 'Premium',
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                          ),
+                        ),
+                        IconButton(
                           icon: Icon(Icons.settings_outlined,
                               size: 22, color: theme.colorScheme.onSurfaceVariant),
                           onPressed: () => Navigator.push(
@@ -179,6 +200,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _PremiumSpotlightCard(
+                      isTr: isTr,
+                      isPremium: isPremium,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                      ),
                     ),
                   ),
                 ),
@@ -262,6 +297,82 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                // ── Feature Buttons (Mood + Orchestra) ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _FeatureButton(
+                            emoji: '🎭',
+                            title: isTr ? 'Ruh Haline Göre' : 'By Mood',
+                            subtitle: isTr ? 'Nasıl hissediyorsun?' : 'How do you feel?',
+                            gradientColors: const [Color(0xFFE8D5F5), Color(0xFFF3E5F5)],
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const MoodRecipesScreen()),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _FeatureButton(
+                            emoji: '🎼',
+                            title: isTr ? 'Mutfak Orkestra' : 'Kitchen Orchestra',
+                            subtitle: isTr ? 'Çoklu zamanlayıcı' : 'Multi-timer',
+                            gradientColors: const [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const KitchenOrchestraScreen()),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+                // ── Feature Buttons Row 2 (Roulette + DNA) ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _FeatureButton(
+                            emoji: '🎰',
+                            title: isTr ? 'Ne Pişirsem?' : 'What to Cook?',
+                            subtitle: isTr ? 'Rulet + Tarif Duellosu' : 'Roulette + Recipe Duel',
+                            gradientColors: const [Color(0xFFFFCDD2), Color(0xFFFFEBEE)],
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const RecipeRouletteScreen()),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _FeatureButton(
+                            emoji: '🧬',
+                            title: isTr ? 'Lezzet DNA\'sı' : 'Flavor DNA',
+                            subtitle: isTr ? 'Profil analizi' : 'Profile analysis',
+                            gradientColors: const [Color(0xFFD1C4E9), Color(0xFFEDE7F6)],
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const FlavorDNAScreen()),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
@@ -937,6 +1048,184 @@ class _PopularRecipeCard extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+}
+
+class _PremiumSpotlightCard extends StatelessWidget {
+  final bool isTr;
+  final bool isPremium;
+  final VoidCallback onTap;
+
+  const _PremiumSpotlightCard({
+    required this.isTr,
+    required this.isPremium,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Ink(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isPremium
+                ? const [Color(0xFFFFD54F), Color(0xFFFFA726)]
+                : [theme.colorScheme.primary, theme.colorScheme.secondary],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withOpacity(0.18),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.workspace_premium,
+                color: Colors.white,
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isPremium
+                        ? (isTr ? 'Premium aktif' : 'Premium active')
+                        : (isTr ? 'Premium artik gorunur' : 'Premium is now visible'),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isPremium
+                        ? (isTr
+                            ? 'Reklamsiz deneyim ve premium rozet su an hesabinda aktif.'
+                            : 'Ad-free experience and your premium badge are active on this account.')
+                        : (isTr
+                            ? 'Planlari incele, premium ekranini ac ve avantajlari uygulama icinde gor.'
+                            : 'Open the premium screen from the app and review the available benefits.'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withOpacity(0.88),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton(
+              onPressed: onTap,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: theme.colorScheme.primary,
+              ),
+              child: Text(isTr ? 'Ac' : 'Open'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Feature Button (Mood / Orchestra) ──
+class _FeatureButton extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final List<Color> gradientColors;
+  final VoidCallback onTap;
+
+  const _FeatureButton({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.gradientColors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradientColors,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: gradientColors[0].withOpacity(0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+            border: Border.all(
+              color: gradientColors[0].withOpacity(0.5),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 10,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

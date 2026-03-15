@@ -138,6 +138,23 @@ class RecipeIngredient {
   }
 
   String getAmount(String locale) => locale == 'tr' ? amountTr : amountEn;
+
+  /// Porsiyon çarpanına göre miktarı hesapla
+  String getScaledAmount(String locale, double multiplier) {
+    final amount = locale == 'tr' ? amountTr : amountEn;
+    if (multiplier == 1.0) return amount;
+
+    final regex = RegExp(r'(\d+[.,]?\d*)');
+    return amount.replaceAllMapped(regex, (match) {
+      final original = double.tryParse(match.group(1)!.replaceAll(',', '.')) ?? 0;
+      final scaled = original * multiplier;
+      if (scaled == scaled.roundToDouble()) {
+        return scaled.round().toString();
+      } else {
+        return scaled.toStringAsFixed(1);
+      }
+    });
+  }
 }
 
 class RecipeStep {

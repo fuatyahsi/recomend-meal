@@ -37,13 +37,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _loadData() async {
+    final auth = context.read<AuthProvider>();
     try {
       final user = await _authService.getUserProfile(widget.userId);
       final recipes = await _recipeService.getUserRecipes(widget.userId);
       final followerCount = await _followService.getFollowerCount(widget.userId);
       final followingCount = await _followService.getFollowingCount(widget.userId);
 
-      final auth = context.read<AuthProvider>();
       bool isFollowing = false;
       if (auth.isAuthenticated) {
         isFollowing = await _followService.isFollowing(

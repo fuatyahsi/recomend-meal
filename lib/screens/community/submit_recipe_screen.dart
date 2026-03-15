@@ -7,9 +7,12 @@ import '../../models/community_recipe_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/community_recipe_service.dart';
 import '../../services/cloudinary_service.dart';
+import '../../utils/community_challenges.dart';
 
 class SubmitRecipeScreen extends StatefulWidget {
-  const SubmitRecipeScreen({super.key});
+  final CommunityChallenge? challenge;
+
+  const SubmitRecipeScreen({super.key, this.challenge});
 
   @override
   State<SubmitRecipeScreen> createState() => _SubmitRecipeScreenState();
@@ -48,8 +51,12 @@ class _SubmitRecipeScreenState extends State<SubmitRecipeScreen> {
     _nameEnController.dispose();
     _descTrController.dispose();
     _descEnController.dispose();
-    for (final s in _stepsTr) s.controller.dispose();
-    for (final s in _stepsEn) s.controller.dispose();
+    for (final s in _stepsTr) {
+      s.controller.dispose();
+    }
+    for (final s in _stepsEn) {
+      s.controller.dispose();
+    }
     super.dispose();
   }
 
@@ -132,11 +139,15 @@ class _SubmitRecipeScreenState extends State<SubmitRecipeScreen> {
         category: _category,
         imageEmoji: _emoji,
         imageUrl: _uploadedImageUrl ?? '',
+        tags: [
+          if (widget.challenge != null) widget.challenge!.tag,
+          if (widget.challenge != null) 'challenge',
+        ],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      final recipeId = await _recipeService.submitRecipe(recipe);
+      await _recipeService.submitRecipe(recipe);
 
       // Try to refresh user but don't block on failure
       try {
@@ -190,6 +201,46 @@ class _SubmitRecipeScreenState extends State<SubmitRecipeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.challenge != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: widget.challenge!.accentColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: widget.challenge!.accentColor.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.challenge!.emoji, style: const TextStyle(fontSize: 28)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.challenge!.title(isTr),
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.challenge!.description(isTr),
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
               // Emoji picker
               Text(isTr ? 'Tarif İkonu' : 'Recipe Icon',
                   style: theme.textTheme.titleSmall),
@@ -367,7 +418,7 @@ class _SubmitRecipeScreenState extends State<SubmitRecipeScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _difficulty,
+                      initialValue: _difficulty,
                       decoration: InputDecoration(
                         labelText: isTr ? 'Zorluk' : 'Difficulty',
                         border: OutlineInputBorder(
@@ -387,7 +438,7 @@ class _SubmitRecipeScreenState extends State<SubmitRecipeScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _category,
+                      initialValue: _category,
                       decoration: InputDecoration(
                         labelText: isTr ? 'Kategori' : 'Category',
                         border: OutlineInputBorder(
@@ -423,18 +474,24 @@ class _SubmitRecipeScreenState extends State<SubmitRecipeScreen> {
                   _NumberField(
                     label: isTr ? 'Hazırlık (dk)' : 'Prep (min)',
                     value: _prepTime,
+                    step: 5,
+                    minValue: 0,
                     onChanged: (v) => setState(() => _prepTime = v),
                   ),
                   const SizedBox(width: 12),
                   _NumberField(
                     label: isTr ? 'Pişirme (dk)' : 'Cook (min)',
                     value: _cookTime,
+                    step: 5,
+                    minValue: 0,
                     onChanged: (v) => setState(() => _cookTime = v),
                   ),
                   const SizedBox(width: 12),
                   _NumberField(
                     label: isTr ? 'Porsiyon' : 'Servings',
                     value: _servings,
+                    step: 1,
+                    minValue: 1,
                     onChanged: (v) => setState(() => _servings = v),
                   ),
                 ],
@@ -570,11 +627,15 @@ class _NumberField extends StatelessWidget {
   final String label;
   final int value;
   final ValueChanged<int> onChanged;
+  final int step;
+  final int minValue;
 
   const _NumberField({
     required this.label,
     required this.value,
     required this.onChanged,
+    this.step = 1,
+    this.minValue = 0,
   });
 
   @override
@@ -589,13 +650,18 @@ class _NumberField extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline, size: 20),
-                onPressed: value > 1 ? () => onChanged(value - 5) : null,
+                onPressed: value > minValue
+                    ? () {
+                        final nextValue = value - step;
+                        onChanged(nextValue < minValue ? minValue : nextValue);
+                      }
+                    : null,
               ),
               Text('$value',
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, size: 20),
-                onPressed: () => onChanged(value + 5),
+                onPressed: () => onChanged(value + step),
               ),
             ],
           ),

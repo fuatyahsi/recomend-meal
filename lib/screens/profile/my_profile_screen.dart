@@ -63,6 +63,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     MaterialPageRoute(builder: (_) => const LoginScreen())),
                 child: Text(isTr ? 'Giriş Yap' : 'Sign In'),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                ),
+                icon: const Icon(Icons.workspace_premium, color: Colors.amber),
+                label: Text(isTr ? 'Premium\'u Kesfet' : 'Explore Premium'),
+              ),
             ],
           ),
         ),

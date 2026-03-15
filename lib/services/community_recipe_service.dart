@@ -9,6 +9,11 @@ class CommunityRecipeService {
 
   CollectionReference get _recipesRef =>
       _firestore.collection('community_recipes');
+  CollectionReference<Map<String, dynamic>> get _likesRef =>
+      _firestore.collection('recipe_likes');
+
+  String _buildLikeDocId(String recipeId, String userId) =>
+      '${recipeId}_$userId';
 
   // --- CRUD ---
   Future<String> submitRecipe(CommunityRecipe recipe) async {
@@ -187,53 +192,78 @@ class CommunityRecipeService {
 
   // --- Like System ---
   Future<bool> toggleLike(String recipeId, String userId) async {
-    final likesRef = _firestore.collection('recipe_likes');
-    final existing = await likesRef
+    final canonicalLikeRef = _likesRef.doc(_buildLikeDocId(recipeId, userId));
+    final existing = await _likesRef
         .where('recipeId', isEqualTo: recipeId)
         .where('userId', isEqualTo: userId)
-        .limit(1)
         .get();
 
-    if (existing.docs.isNotEmpty) {
-      // Unlike
-      await existing.docs.first.reference.delete();
-      await _recipesRef.doc(recipeId).update({
-        'totalLikes': FieldValue.increment(-1),
-      });
-      final recipe = await getRecipeById(recipeId);
-      if (recipe != null) {
-        try {
-          await _firestore.collection('users').doc(recipe.userId).set({
-            'totalLikesReceived': FieldValue.increment(-1),
-          }, SetOptions(merge: true));
-        } catch (_) {}
+    return _firestore.runTransaction((transaction) async {
+      final recipeRef = _recipesRef.doc(recipeId);
+      final recipeSnap = await transaction.get(recipeRef);
+      if (!recipeSnap.exists) {
+        throw StateError('Recipe not found');
       }
-      return false; // unliked
-    } else {
-      // Like
-      await likesRef.add({
+
+      final canonicalLikeSnap = await transaction.get(canonicalLikeRef);
+      final recipeData =
+          recipeSnap.data() as Map<String, dynamic>? ?? <String, dynamic>{};
+      final ownerId = recipeData['userId'] as String? ?? '';
+
+      final likeRefs = <DocumentReference<Map<String, dynamic>>>{
+        ...existing.docs.map((doc) => doc.reference),
+        if (canonicalLikeSnap.exists) canonicalLikeRef,
+      };
+
+      if (likeRefs.isNotEmpty) {
+        final removedCount = likeRefs.length;
+        for (final likeRef in likeRefs) {
+          transaction.delete(likeRef);
+        }
+        transaction.update(recipeRef, {
+          'totalLikes': FieldValue.increment(-removedCount),
+        });
+        if (ownerId.isNotEmpty) {
+          transaction.set(
+            _firestore.collection('users').doc(ownerId),
+            {
+              'totalLikesReceived': FieldValue.increment(-removedCount),
+            },
+            SetOptions(merge: true),
+          );
+        }
+        return false;
+      }
+
+      transaction.set(canonicalLikeRef, {
         'recipeId': recipeId,
         'userId': userId,
         'createdAt': Timestamp.now(),
       });
-      await _recipesRef.doc(recipeId).update({
+      transaction.update(recipeRef, {
         'totalLikes': FieldValue.increment(1),
       });
-      final recipe = await getRecipeById(recipeId);
-      if (recipe != null) {
-        try {
-          await _firestore.collection('users').doc(recipe.userId).set({
+      if (ownerId.isNotEmpty) {
+        transaction.set(
+          _firestore.collection('users').doc(ownerId),
+          {
             'totalLikesReceived': FieldValue.increment(1),
-          }, SetOptions(merge: true));
-        } catch (_) {}
+          },
+          SetOptions(merge: true),
+        );
       }
-      return true; // liked
-    }
+      return true;
+    });
   }
 
   Future<bool> isLikedByUser(String recipeId, String userId) async {
-    final snapshot = await _firestore
-        .collection('recipe_likes')
+    final canonicalLike =
+        await _likesRef.doc(_buildLikeDocId(recipeId, userId)).get();
+    if (canonicalLike.exists) {
+      return true;
+    }
+
+    final snapshot = await _likesRef
         .where('recipeId', isEqualTo: recipeId)
         .where('userId', isEqualTo: userId)
         .limit(1)

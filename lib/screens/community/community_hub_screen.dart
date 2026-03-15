@@ -4,8 +4,10 @@ import '../../l10n/app_localizations.dart';
 import '../../models/community_recipe_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/community_recipe_service.dart';
+import '../../utils/community_challenges.dart';
 import '../../widgets/rating_stars_widget.dart';
 import '../../widgets/banner_ad_widget.dart';
+import '../auth/login_screen.dart';
 import 'submit_recipe_screen.dart';
 import 'community_recipe_detail_screen.dart';
 
@@ -28,7 +30,7 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadRecipes();
   }
 
@@ -53,12 +55,34 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
     super.dispose();
   }
 
+  Future<bool> _ensureAuthenticated() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.isAuthenticated) {
+      return true;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+
+    if (!mounted) {
+      return false;
+    }
+
+    return context.read<AuthProvider>().isAuthenticated;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final locale = l10n.languageCode;
     final isTr = locale == 'tr';
+    final activeChallenge = CommunityChallenges.active();
+    final challengeRecipes = {
+      for (final recipe in [..._trending, ..._latest]) recipe.id: recipe,
+    }.values.where((recipe) => recipe.tags.contains(activeChallenge.tag)).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
       appBar: AppBar(
@@ -74,11 +98,34 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
               icon: const Icon(Icons.new_releases_outlined),
               text: isTr ? 'Yeni' : 'Latest',
             ),
+            const Tab(
+              icon: Icon(Icons.emoji_events_outlined),
+              text: 'Challenge',
+            ),
           ],
         ),
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: _ChallengeBanner(
+              challenge: activeChallenge,
+              recipes: challengeRecipes,
+              isTr: isTr,
+              onParticipate: () async {
+                final isAuthenticated = await _ensureAuthenticated();
+                if (!isAuthenticated || !mounted) return;
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SubmitRecipeScreen(challenge: activeChallenge),
+                  ),
+                );
+                _loadRecipes();
+              },
+            ),
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -101,6 +148,14 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
                             : 'No recipes yet.',
                         onRefresh: _loadRecipes,
                       ),
+                      _RecipeList(
+                        recipes: challengeRecipes,
+                        locale: locale,
+                        emptyMessage: isTr
+                            ? 'Bu haftanin challenge akisi henuz bos. Ilk tarifi sen gonder.'
+                            : 'This week\'s challenge feed is still empty. Be the first entry.',
+                        onRefresh: _loadRecipes,
+                      ),
                     ],
                   ),
           ),
@@ -109,8 +164,8 @@ class _CommunityHubScreenState extends State<CommunityHubScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          final auth = context.read<AuthProvider>();
-          if (!auth.isAuthenticated) return;
+          final isAuthenticated = await _ensureAuthenticated();
+          if (!isAuthenticated || !mounted) return;
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const SubmitRecipeScreen()),
@@ -237,6 +292,31 @@ class _CommunityRecipeCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
+              if (recipe.tags.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: recipe.tags.take(2).map((tag) {
+                    final prettyTag = tag
+                        .replaceFirst('challenge_', '')
+                        .replaceAll('_', ' ');
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '#$prettyTag',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 10),
+              ],
               // Stats row
               Row(
                 children: [
@@ -262,6 +342,163 @@ class _CommunityRecipeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ChallengeBanner extends StatelessWidget {
+  final CommunityChallenge challenge;
+  final List<CommunityRecipe> recipes;
+  final bool isTr;
+  final VoidCallback onParticipate;
+
+  const _ChallengeBanner({
+    required this.challenge,
+    required this.recipes,
+    required this.isTr,
+    required this.onParticipate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            challenge.accentColor.withValues(alpha: 0.92),
+            challenge.accentColor.withValues(alpha: 0.68),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: challenge.accentColor.withValues(alpha: 0.28),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(challenge.emoji, style: const TextStyle(fontSize: 34)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isTr ? 'Haftalık Challenge' : 'Weekly Challenge',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      challenge.title(isTr),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      challenge.subtitle(isTr),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton(
+                onPressed: onParticipate,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: challenge.accentColor,
+                ),
+                child: Text(isTr ? 'Katıl' : 'Join'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            challenge.description(isTr),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.92),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ChallengeStat(
+                label: isTr ? 'Katılım' : 'Entries',
+                value: '${recipes.length}',
+              ),
+              _ChallengeStat(
+                label: isTr ? 'Etiket' : 'Tag',
+                value: '#${challenge.tag.replaceFirst('challenge_', '')}',
+              ),
+              if (recipes.isNotEmpty)
+                _ChallengeStat(
+                  label: isTr ? 'Son Gönderi' : 'Latest',
+                  value: recipes.first.getName(isTr ? 'tr' : 'en'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChallengeStat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ChallengeStat({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
