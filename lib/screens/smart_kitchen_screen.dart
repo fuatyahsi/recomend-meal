@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/smart_kitchen.dart';
 import '../providers/app_provider.dart';
+import '../services/notification_service.dart';
 import 'recipe_detail_screen.dart';
 
 class SmartKitchenScreen extends StatelessWidget {
@@ -37,6 +38,19 @@ class SmartKitchenScreen extends StatelessWidget {
             subtitle: isTr
                 ? 'Rutinlerini kaydet, uygulama seni tanisin, ne pisirecegini ve ne alman gerektigini one cikarsin.'
                 : 'Save routines so the app can learn your rhythm, suggest meals and surface what to buy.',
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () async {
+              await NotificationService.instance.requestPermissions();
+              await provider.syncSmartKitchenNotifications();
+            },
+            icon: const Icon(Icons.notifications_active_outlined),
+            label: Text(
+              isTr
+                  ? 'Bildirimleri Etkinlestir'
+                  : 'Enable Notifications',
+            ),
           ),
           const SizedBox(height: 16),
           _SectionTitle(

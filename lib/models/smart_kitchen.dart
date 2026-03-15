@@ -98,7 +98,7 @@ class SmartKitchenPreferences {
   });
 
   factory SmartKitchenPreferences.defaults() {
-    return SmartKitchenPreferences(
+    return const SmartKitchenPreferences(
       mealSlots: const [
         MealRoutineSlot(
           id: 'breakfast',

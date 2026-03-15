@@ -7,6 +7,7 @@ import 'l10n/app_localizations.dart';
 import 'providers/app_provider.dart';
 import 'providers/auth_provider.dart';
 import 'services/ad_service.dart';
+import 'services/notification_service.dart';
 import 'screens/main_shell.dart';
 import 'screens/auth/login_screen.dart';
 import 'utils/app_theme.dart';
@@ -18,6 +19,10 @@ void main() async {
   // AdMob başlat
   try {
     await AdService().initialize();
+  } catch (_) {}
+
+  try {
+    await NotificationService.instance.initialize();
   } catch (_) {}
 
   runApp(

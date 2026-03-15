@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/smart_kitchen.dart';
+import '../services/notification_service.dart';
 import '../services/recipe_service.dart';
 
 class AppProvider extends ChangeNotifier {
@@ -42,6 +43,11 @@ class AppProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('LoadPreferences error: $e');
     }
+    try {
+      await _refreshSmartKitchenNotifications();
+    } catch (e) {
+      debugPrint('Smart kitchen notification sync error: $e');
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -50,6 +56,7 @@ class AppProvider extends ChangeNotifier {
   void setLocale(Locale locale) {
     _locale = locale;
     _savePreferences();
+    _refreshSmartKitchenNotifications();
     notifyListeners();
   }
 
@@ -58,6 +65,7 @@ class AppProvider extends ChangeNotifier {
         ? const Locale('en')
         : const Locale('tr');
     _savePreferences();
+    _refreshSmartKitchenNotifications();
     notifyListeners();
   }
 
@@ -77,6 +85,7 @@ class AppProvider extends ChangeNotifier {
     }
     _updateMatchingRecipes();
     _savePreferences();
+    _refreshSmartKitchenNotifications();
     notifyListeners();
   }
 
@@ -88,6 +97,7 @@ class AppProvider extends ChangeNotifier {
     _selectedIngredientIds.clear();
     _matchingRecipes = [];
     _savePreferences();
+    _refreshSmartKitchenNotifications();
     notifyListeners();
   }
 
@@ -217,6 +227,7 @@ class AppProvider extends ChangeNotifier {
     _smartKitchenPreferences =
         _smartKitchenPreferences.replaceSlot(slot.copyWith(enabled: enabled));
     await _savePreferences();
+    await _refreshSmartKitchenNotifications();
     notifyListeners();
   }
 
@@ -235,6 +246,7 @@ class AppProvider extends ChangeNotifier {
       ),
     );
     await _savePreferences();
+    await _refreshSmartKitchenNotifications();
     notifyListeners();
   }
 
@@ -244,6 +256,7 @@ class AppProvider extends ChangeNotifier {
       slot.copyWith(leadMinutes: minutes),
     );
     await _savePreferences();
+    await _refreshSmartKitchenNotifications();
     notifyListeners();
   }
 
@@ -382,6 +395,50 @@ class AppProvider extends ChangeNotifier {
   bool _isWeekend(DateTime date) {
     return date.weekday == DateTime.saturday ||
         date.weekday == DateTime.sunday;
+  }
+
+  Future<void> syncSmartKitchenNotifications() async {
+    await _refreshSmartKitchenNotifications();
+  }
+
+  Future<void> _refreshSmartKitchenNotifications() async {
+    final reminders = getUpcomingReminderPreviews(limit: 3)
+        .asMap()
+        .entries
+        .map((entry) {
+          final index = entry.key;
+          final preview = entry.value;
+          final suggestion =
+              getPersonalizedSuggestions(mealId: preview.mealId, limit: 1);
+          final recipeName = suggestion.isEmpty
+              ? null
+              : suggestion.first.recipe.getName(languageCode);
+          final missingCount = suggestion.isEmpty
+              ? 0
+              : suggestion.first.missingItems.length;
+          final mealLabel = getMealLabel(preview.mealId);
+
+          final title = languageCode == 'tr'
+              ? '$mealLabel yaklasiyor'
+              : '$mealLabel is coming up';
+          final body = recipeName == null
+              ? (languageCode == 'tr'
+                  ? 'Rutinine gore $mealLabel zamani yaklasiyor.'
+                  : 'Based on your routine, it is almost time for $mealLabel.')
+              : (languageCode == 'tr'
+                  ? '$recipeName oneriliyor. $missingCount eksik urununu kontrol et.'
+                  : '$recipeName is suggested. Check your $missingCount missing items.');
+
+          return SmartReminderNotification(
+            id: 7000 + index,
+            title: title,
+            body: body,
+            scheduledAt: preview.remindAt,
+          );
+        })
+        .toList();
+
+    await NotificationService.instance.scheduleSmartKitchenReminders(reminders);
   }
 
   // --- Persistence ---
