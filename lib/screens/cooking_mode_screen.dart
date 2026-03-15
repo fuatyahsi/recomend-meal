@@ -266,7 +266,7 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      backgroundColor: Colors.grey.shade950,
+      backgroundColor: const Color(0xFF121212),
       builder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
