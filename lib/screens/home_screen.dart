@@ -98,8 +98,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isTr = locale == 'tr';
     final isPremium = context.watch<AuthProvider>().isPremium;
     final nextMealId = provider.getNextPlannedMealId();
-    final assistantSuggestion =
-        provider.getPersonalizedSuggestions(mealId: nextMealId, limit: 1);
+    final plannedRecipe = provider.getPlannedRecipe(nextMealId);
+    final plannedMissingCount =
+        provider.getShoppingItemsForMeal(nextMealId).length;
     final nextReminder = provider.nextReminderPreview;
 
     final allRecipes = provider.recipeService.recipes;
@@ -215,13 +216,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _SmartKitchenLauncherCard(
                       isTr: isTr,
-                      mealLabel: provider.getMealLabel(nextMealId),
-                      suggestionName: assistantSuggestion.isEmpty
-                          ? null
-                          : assistantSuggestion.first.recipe.getName(locale),
-                      missingCount: assistantSuggestion.isEmpty
-                          ? 0
-                          : assistantSuggestion.first.missingItems.length,
+                      mealLabel: provider.getPlannerMealLabel(nextMealId),
+                      plannedRecipeName: plannedRecipe?.getName(locale),
+                      missingCount:
+                          plannedRecipe == null ? 0 : plannedMissingCount,
                       reminderText: nextReminder == null
                           ? null
                           : MaterialLocalizations.of(context).formatTimeOfDay(
@@ -806,7 +804,7 @@ class _HeroCTACard extends StatelessWidget {
 class _SmartKitchenLauncherCard extends StatelessWidget {
   final bool isTr;
   final String mealLabel;
-  final String? suggestionName;
+  final String? plannedRecipeName;
   final int missingCount;
   final String? reminderText;
   final VoidCallback onTap;
@@ -814,7 +812,7 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
   const _SmartKitchenLauncherCard({
     required this.isTr,
     required this.mealLabel,
-    required this.suggestionName,
+    required this.plannedRecipeName,
     required this.missingCount,
     required this.reminderText,
     required this.onTap,
@@ -871,8 +869,8 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                       children: [
                         Text(
                           isTr
-                              ? 'Akilli Aksam Asistani'
-                              : 'Smart Meal Assistant',
+                              ? 'Akıllı Mutfak Asistanı'
+                              : 'Smart Kitchen Assistant',
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -882,10 +880,10 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                         Text(
                           reminderText == null
                               ? (isTr
-                                  ? '$mealLabel icin plan hazirla'
+                                  ? '$mealLabel için planını hazırla'
                                   : 'Plan your next $mealLabel')
                               : (isTr
-                                  ? '$mealLabel icin $reminderText hatirlatmasi hazir'
+                                  ? '$mealLabel için $reminderText hatırlatması hazır'
                                   : '$reminderText reminder ready for $mealLabel'),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.white.withOpacity(0.86),
@@ -899,13 +897,13 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                suggestionName == null
+                plannedRecipeName == null
                     ? (isTr
-                        ? 'Rutinlerini kur, uygulama sana aksami planlasin.'
-                        : 'Set your routines and let the app plan the evening.')
+                        ? 'Önce sıradaki öğün için tarif seç, sonra eksikleri ve hatırlatmaları birlikte hazırlayalım.'
+                        : 'Pick a recipe for the next meal first, then let us prepare the reminders and shopping gaps.')
                     : (isTr
-                        ? 'Bugun icin onerim: $suggestionName'
-                        : 'My pick for today: $suggestionName'),
+                        ? 'Planlanan tarif: $plannedRecipeName'
+                        : 'Planned recipe: $plannedRecipeName'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -917,18 +915,22 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   _HomeBadge(
-                    icon: Icons.nights_stay_outlined,
+                    icon: Icons.restaurant_outlined,
                     label: mealLabel,
                   ),
                   _HomeBadge(
                     icon: Icons.shopping_bag_outlined,
                     label: isTr
-                        ? '$missingCount eksik urun'
+                        ? plannedRecipeName == null
+                            ? 'Önce tarif seç'
+                            : '$missingCount eksik ürün'
+                        : plannedRecipeName == null
+                            ? 'Choose recipe first'
                         : '$missingCount missing items',
                   ),
                   _HomeBadge(
                     icon: Icons.notifications_active_outlined,
-                    label: isTr ? 'Rutin + uyari' : 'Routine + alerts',
+                    label: isTr ? 'Rutin + hatırlatma' : 'Routine + reminders',
                   ),
                 ],
               ),

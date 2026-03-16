@@ -6,6 +6,7 @@ void main() {
     final original = SmartKitchenPreferences.defaults().copyWith(
       campaignAlertsEnabled: true,
       preferredMarkets: const ['Migros', 'A101'],
+      plannedRecipeIds: const {'dinner': 'mercimek-corbasi'},
     ).replaceSlot(
       SmartKitchenPreferences.defaults()
           .slotById('dinner')
@@ -16,6 +17,7 @@ void main() {
 
     expect(restored.campaignAlertsEnabled, isTrue);
     expect(restored.preferredMarkets, ['Migros', 'A101']);
+    expect(restored.plannedRecipeIds['dinner'], 'mercimek-corbasi');
     expect(restored.slotById('dinner').weekdayMinutes, 1140);
     expect(restored.slotById('dinner').leadMinutes, 45);
   });

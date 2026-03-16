@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/recipe.dart';
 import '../models/smart_kitchen.dart';
 import '../services/notification_service.dart';
 import '../services/recipe_service.dart';
@@ -222,6 +223,18 @@ class AppProvider extends ChangeNotifier {
     return 'dinner';
   }
 
+  Recipe? getPlannedRecipe(String mealId) {
+    final recipeId = _smartKitchenPreferences.plannedRecipeIds[mealId];
+    if (recipeId == null || recipeId.isEmpty) return null;
+    return _recipeService.getRecipeById(recipeId);
+  }
+
+  List<Recipe> getMealPlanCandidates(String mealId, {int limit = 6}) {
+    return getPersonalizedSuggestions(mealId: mealId, limit: limit)
+        .map((suggestion) => suggestion.recipe)
+        .toList();
+  }
+
   Future<void> setMealSlotEnabled(String mealId, bool enabled) async {
     final slot = _smartKitchenPreferences.slotById(mealId);
     _smartKitchenPreferences =
@@ -254,6 +267,32 @@ class AppProvider extends ChangeNotifier {
     final slot = _smartKitchenPreferences.slotById(mealId);
     _smartKitchenPreferences = _smartKitchenPreferences.replaceSlot(
       slot.copyWith(leadMinutes: minutes),
+    );
+    await _savePreferences();
+    await _refreshSmartKitchenNotifications();
+    notifyListeners();
+  }
+
+  Future<void> setPlannedRecipeForMeal(String mealId, String recipeId) async {
+    final plannedRecipeIds = {
+      ..._smartKitchenPreferences.plannedRecipeIds,
+      mealId: recipeId,
+    };
+    _smartKitchenPreferences = _smartKitchenPreferences.copyWith(
+      plannedRecipeIds: plannedRecipeIds,
+    );
+    await _savePreferences();
+    await _refreshSmartKitchenNotifications();
+    notifyListeners();
+  }
+
+  Future<void> clearPlannedRecipeForMeal(String mealId) async {
+    final plannedRecipeIds = {
+      ..._smartKitchenPreferences.plannedRecipeIds,
+    };
+    plannedRecipeIds.remove(mealId);
+    _smartKitchenPreferences = _smartKitchenPreferences.copyWith(
+      plannedRecipeIds: plannedRecipeIds,
     );
     await _savePreferences();
     await _refreshSmartKitchenNotifications();
@@ -307,7 +346,8 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<String> getSmartShoppingSummary(String mealId) {
+  // ignore: unused_element
+  List<String> _legacySmartShoppingSummary(String mealId) {
     final suggestions = getPersonalizedSuggestions(mealId: mealId, limit: 1);
     if (suggestions.isEmpty) return const [];
     return suggestions.first.missingItems.map((item) {
@@ -316,7 +356,8 @@ class AppProvider extends ChangeNotifier {
     }).toList();
   }
 
-  String getMealLabel(String mealId) {
+  // ignore: unused_element
+  String _legacyMealLabel(String mealId) {
     switch (mealId) {
       case 'breakfast':
         return languageCode == 'tr' ? 'Kahvalti' : 'Breakfast';
@@ -325,6 +366,79 @@ class AppProvider extends ChangeNotifier {
       case 'dinner':
       default:
         return languageCode == 'tr' ? 'Aksam' : 'Dinner';
+    }
+  }
+
+  List<SmartShoppingItem> getShoppingItemsForMeal(String mealId) {
+    final plannedRecipe = getPlannedRecipe(mealId);
+    if (plannedRecipe == null) return const [];
+
+    return plannedRecipe
+        .getMissingIngredients(_selectedIngredientIds.toList())
+        .map((requirement) {
+          final ingredient =
+              _recipeService.getIngredientById(requirement.ingredientId);
+          if (ingredient == null) return null;
+          return SmartShoppingItem(
+            ingredient: ingredient,
+            requirement: requirement,
+          );
+        })
+        .whereType<SmartShoppingItem>()
+        .toList();
+  }
+
+  List<String> getPlannedShoppingSummary() {
+    final summary = <String>[];
+
+    for (final slot in _smartKitchenPreferences.mealSlots.where(
+      (slot) => slot.enabled && getPlannedRecipe(slot.id) != null,
+    )) {
+      final recipe = getPlannedRecipe(slot.id);
+      if (recipe == null) continue;
+
+      for (final item in getShoppingItemsForMeal(slot.id)) {
+        summary.add(
+          '${getPlannerMealLabel(slot.id)} • ${recipe.getName(languageCode)} • '
+          '${item.ingredient.getName(languageCode)} • '
+          '${item.requirement.getAmount(languageCode)}',
+        );
+      }
+    }
+
+    return summary;
+  }
+
+  String getPlannerMealLabel(String mealId) {
+    switch (mealId) {
+      case 'breakfast':
+        return languageCode == 'tr' ? 'Kahvaltı' : 'Breakfast';
+      case 'lunch':
+        return languageCode == 'tr' ? 'Öğle' : 'Lunch';
+      case 'dinner':
+      default:
+        return languageCode == 'tr' ? 'Akşam' : 'Dinner';
+    }
+  }
+
+  List<String> getSmartShoppingSummary(String mealId) {
+    final items = getShoppingItemsForMeal(mealId);
+    if (items.isEmpty) return const [];
+    return items.map((item) {
+      return '${item.ingredient.getName(languageCode)} • '
+          '${item.requirement.getAmount(languageCode)}';
+    }).toList();
+  }
+
+  String getMealLabel(String mealId) {
+    switch (mealId) {
+      case 'breakfast':
+        return languageCode == 'tr' ? 'Kahvaltı' : 'Breakfast';
+      case 'lunch':
+        return languageCode == 'tr' ? 'Öğle' : 'Lunch';
+      case 'dinner':
+      default:
+        return languageCode == 'tr' ? 'Akşam' : 'Dinner';
     }
   }
 
@@ -408,26 +522,32 @@ class AppProvider extends ChangeNotifier {
         .map((entry) {
           final index = entry.key;
           final preview = entry.value;
-          final suggestion =
-              getPersonalizedSuggestions(mealId: preview.mealId, limit: 1);
-          final recipeName = suggestion.isEmpty
-              ? null
-              : suggestion.first.recipe.getName(languageCode);
-          final missingCount = suggestion.isEmpty
+          final plannedRecipe = getPlannedRecipe(preview.mealId);
+          final recipeName = plannedRecipe?.getName(languageCode);
+          final missingCount = plannedRecipe == null
               ? 0
-              : suggestion.first.missingItems.length;
-          final mealLabel = getMealLabel(preview.mealId);
+              : getShoppingItemsForMeal(preview.mealId).length;
+          final mealLabel = getPlannerMealLabel(preview.mealId);
 
-          final title = languageCode == 'tr'
-              ? '$mealLabel yaklasiyor'
+          final legacyTitle = languageCode == 'tr'
+              ? '$mealLabel yaklaşıyor'
               : '$mealLabel is coming up';
-          final body = recipeName == null
+          final legacyBody = recipeName == null
               ? (languageCode == 'tr'
-                  ? 'Rutinine gore $mealLabel zamani yaklasiyor.'
+                  ? 'Rutinine göre $mealLabel zamanı yaklaşıyor.'
                   : 'Based on your routine, it is almost time for $mealLabel.')
               : (languageCode == 'tr'
-                  ? '$recipeName oneriliyor. $missingCount eksik urununu kontrol et.'
-                  : '$recipeName is suggested. Check your $missingCount missing items.');
+                  ? '$recipeName planlandı. $missingCount eksik malzemeyi kontrol et.'
+                  : '$recipeName is planned. Check your $missingCount missing items.');
+
+          final title = languageCode == 'tr'
+              ? '$mealLabel yaklaşıyor'
+              : legacyTitle;
+          final body = languageCode == 'tr'
+              ? recipeName == null
+                  ? '$mealLabel için önce tarifini seç, sonra eksikleri burada hazırlayalım.'
+                  : '$recipeName planlandı. $missingCount eksik malzemeyi kontrol et.'
+              : legacyBody;
 
           return SmartReminderNotification(
             id: 7000 + index,

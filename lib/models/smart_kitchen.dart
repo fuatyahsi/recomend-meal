@@ -87,6 +87,7 @@ class SmartKitchenPreferences {
   final bool priceComparisonEnabled;
   final bool campaignAlertsEnabled;
   final List<String> preferredMarkets;
+  final Map<String, String> plannedRecipeIds;
 
   const SmartKitchenPreferences({
     required this.mealSlots,
@@ -95,6 +96,7 @@ class SmartKitchenPreferences {
     required this.priceComparisonEnabled,
     required this.campaignAlertsEnabled,
     required this.preferredMarkets,
+    required this.plannedRecipeIds,
   });
 
   factory SmartKitchenPreferences.defaults() {
@@ -127,6 +129,7 @@ class SmartKitchenPreferences {
       priceComparisonEnabled: false,
       campaignAlertsEnabled: false,
       preferredMarkets: ['Migros', 'CarrefourSA'],
+      plannedRecipeIds: {},
     );
   }
 
@@ -144,6 +147,7 @@ class SmartKitchenPreferences {
     bool? priceComparisonEnabled,
     bool? campaignAlertsEnabled,
     List<String>? preferredMarkets,
+    Map<String, String>? plannedRecipeIds,
   }) {
     return SmartKitchenPreferences(
       mealSlots: mealSlots ?? this.mealSlots,
@@ -156,6 +160,7 @@ class SmartKitchenPreferences {
       campaignAlertsEnabled:
           campaignAlertsEnabled ?? this.campaignAlertsEnabled,
       preferredMarkets: preferredMarkets ?? this.preferredMarkets,
+      plannedRecipeIds: plannedRecipeIds ?? this.plannedRecipeIds,
     );
   }
 
@@ -181,6 +186,9 @@ class SmartKitchenPreferences {
       preferredMarkets:
           (json['preferredMarkets'] as List<dynamic>? ?? const ['Migros'])
               .cast<String>(),
+      plannedRecipeIds:
+          (json['plannedRecipeIds'] as Map<String, dynamic>? ?? const {})
+              .map((key, value) => MapEntry(key, value as String)),
     );
   }
 
@@ -191,6 +199,7 @@ class SmartKitchenPreferences {
         'priceComparisonEnabled': priceComparisonEnabled,
         'campaignAlertsEnabled': campaignAlertsEnabled,
         'preferredMarkets': preferredMarkets,
+        'plannedRecipeIds': plannedRecipeIds,
       };
 }
 

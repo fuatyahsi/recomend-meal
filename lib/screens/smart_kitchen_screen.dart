@@ -22,22 +22,27 @@ class SmartKitchenScreen extends StatelessWidget {
     final suggestions =
         provider.getPersonalizedSuggestions(mealId: nextMealId, limit: 3);
     final reminderPreviews = provider.getUpcomingReminderPreviews(limit: 3);
-    final shoppingList = provider.getSmartShoppingSummary(nextMealId);
+    final plannedShoppingSummary = provider.getPlannedShoppingSummary();
+    final hasAnyPlannedMeal = prefs.mealSlots.any(
+      (slot) => slot.enabled && provider.getPlannedRecipe(slot.id) != null,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isTr ? 'Akilli Mutfak Asistani' : 'Smart Kitchen Assistant'),
+        title: Text(
+          isTr ? 'Akıllı Mutfak Asistanı' : 'Smart Kitchen Assistant',
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           _IntroCard(
             title: isTr
-                ? 'Eve donmeden aksam planin hazir olsun'
-                : 'Plan dinner before you get home',
+                ? 'Öğünlerini planla, eksikleri önceden gör'
+                : 'Plan meals and spot gaps ahead of time',
             subtitle: isTr
-                ? 'Rutinlerini kaydet, uygulama seni tanisin, ne pisirecegini ve ne alman gerektigini one cikarsin.'
-                : 'Save routines so the app can learn your rhythm, suggest meals and surface what to buy.',
+                ? 'Önce hangi öğünde ne pişireceğini seç. Sonra uygulama eksik malzemeleri, alışveriş notlarını ve hatırlatmaları senin için toparlasın.'
+                : 'Choose what you want to cook for each meal first. Then let the app organize missing ingredients, shopping notes, and reminders for you.',
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
@@ -47,16 +52,14 @@ class SmartKitchenScreen extends StatelessWidget {
             },
             icon: const Icon(Icons.notifications_active_outlined),
             label: Text(
-              isTr
-                  ? 'Bildirimleri Etkinlestir'
-                  : 'Enable Notifications',
+              isTr ? 'Bildirimleri Etkinleştir' : 'Enable Notifications',
             ),
           ),
           const SizedBox(height: 16),
           _SectionTitle(
-            title: isTr ? 'Ogun rutinleri' : 'Meal routines',
+            title: isTr ? 'Öğün rutinleri' : 'Meal routines',
             subtitle: isTr
-                ? 'Hafta ici ve hafta sonu saatlerini ayarla.'
+                ? 'Hafta içi ve hafta sonu saatlerini ayarla.'
                 : 'Set weekday and weekend times.',
           ),
           const SizedBox(height: 12),
@@ -99,10 +102,46 @@ class SmartKitchenScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _SectionTitle(
+            title: isTr ? 'Öğün planı' : 'Meal plan',
+            subtitle: isTr
+                ? 'Önce tarifini seç, sonra alışveriş açığını çıkaralım.'
+                : 'Pick the recipe first, then let us prepare the shopping gap.',
+          ),
+          const SizedBox(height: 12),
+          ...prefs.mealSlots.where((slot) => slot.enabled).map(
+            (slot) {
+              final plannedRecipe = provider.getPlannedRecipe(slot.id);
+              final missingCount =
+                  provider.getShoppingItemsForMeal(slot.id).length;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _MealPlanCard(
+                  isTr: isTr,
+                  mealLabel: _mealLabelText(slot.id, isTr),
+                  recipeName: plannedRecipe?.getName(isTr ? 'tr' : 'en'),
+                  missingCount: missingCount,
+                  onPick: () => _showMealPicker(
+                    context,
+                    provider: provider,
+                    mealId: slot.id,
+                    isTr: isTr,
+                  ),
+                  onClear: plannedRecipe == null
+                      ? null
+                      : () {
+                          provider.clearPlannedRecipeForMeal(slot.id);
+                        },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          _SectionTitle(
             title: isTr ? 'Asistan tercihleri' : 'Assistant preferences',
             subtitle: isTr
-                ? 'Bildirim ve kisilesme davranisini hazirla.'
-                : 'Prepare notifications and personalization behavior.',
+                ? 'Bildirim ve kişiselleştirme davranışını hazırla.'
+                : 'Prepare notification and personalization behavior.',
           ),
           const SizedBox(height: 12),
           Card(
@@ -115,13 +154,13 @@ class SmartKitchenScreen extends StatelessWidget {
                   },
                   title: Text(
                     isTr
-                        ? 'Aksam arabada oneriler hazir olsun'
-                        : 'Prepare evening commute suggestions',
+                        ? 'Öğünden önce öneriler hazır olsun'
+                        : 'Prepare suggestions before meals',
                   ),
                   subtitle: Text(
                     isTr
-                        ? 'Aksam yemegi icin secenekler ve eksik urunler one ciksin.'
-                        : 'Surface dinner options and missing items before you get home.',
+                        ? 'Sıradaki öğün için seçenekler ve eksik malzemeler önceden görünsün.'
+                        : 'Surface meal options and missing ingredients ahead of time.',
                   ),
                 ),
                 const Divider(height: 1),
@@ -132,13 +171,13 @@ class SmartKitchenScreen extends StatelessWidget {
                   },
                   title: Text(
                     isTr
-                        ? 'Sabah kahvalti hatirlatmasi'
-                        : 'Morning breakfast nudges',
+                        ? 'Erken saatli öğünleri hatırlat'
+                        : 'Remind early-hour meals',
                   ),
                   subtitle: Text(
                     isTr
-                        ? 'Cocuk okula gitmeden once kahvalti planini hatirlat.'
-                        : 'Remind breakfast before school-time mornings.',
+                        ? 'Erken planlanan öğünleri zamanı gelmeden hatırlat.'
+                        : 'Remind meals planned for earlier hours before they start.',
                   ),
                 ),
                 const Divider(height: 1),
@@ -149,12 +188,12 @@ class SmartKitchenScreen extends StatelessWidget {
                   },
                   title: Text(
                     isTr
-                        ? 'Market fiyat karsilastirma hazirligi'
+                        ? 'Market fiyat karşılaştırma hazırlığı'
                         : 'Market price comparison prep',
                   ),
                   subtitle: Text(
                     isTr
-                        ? 'Entegrasyon baglandiginda market secimini buradan yonetecegiz.'
+                        ? 'Entegrasyon bağlandığında market seçimini buradan yöneteceğiz.'
                         : 'When integrations land, market selection will be managed here.',
                   ),
                 ),
@@ -165,13 +204,11 @@ class SmartKitchenScreen extends StatelessWidget {
                     provider.setCampaignAlertsEnabled(value);
                   },
                   title: Text(
-                    isTr
-                        ? 'Kampanya alarmi hazirligi'
-                        : 'Campaign alert prep',
+                    isTr ? 'Kampanya alarmı hazırlığı' : 'Campaign alert prep',
                   ),
                   subtitle: Text(
                     isTr
-                        ? 'Kampanya takibi acildiginda hangi marketlerin izlenecegi kayitli kalir.'
+                        ? 'Kampanya takibi açıldığında hangi marketlerin izleneceği kayıtlı kalır.'
                         : 'Preferred markets will already be saved once campaign tracking is connected.',
                   ),
                 ),
@@ -201,16 +238,16 @@ class SmartKitchenScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _SectionTitle(
-            title: isTr ? 'Siradaki ogun plani' : 'Next meal plan',
+            title: isTr ? 'Planlamak için öneriler' : 'Suggestions for planning',
             subtitle: isTr
-                ? '${provider.getMealLabel(nextMealId)} icin oneriler ve aciklar'
-                : 'Suggestions and gaps for ${provider.getMealLabel(nextMealId).toLowerCase()}',
+                ? '${provider.getPlannerMealLabel(nextMealId)} için öneriler'
+                : 'Suggestions for ${provider.getPlannerMealLabel(nextMealId).toLowerCase()}',
           ),
           const SizedBox(height: 12),
           if (suggestions.isEmpty)
             _InfoCard(
               message: isTr
-                  ? 'Tarif verisi yuklendikten sonra burada kisilesmis oneriler goreceksin.'
+                  ? 'Tarif verisi yüklendikten sonra burada kişiselleşmiş öneriler göreceksin.'
                   : 'Personalized suggestions will appear here once recipe data is loaded.',
             )
           else
@@ -232,56 +269,65 @@ class SmartKitchenScreen extends StatelessWidget {
             ),
           const SizedBox(height: 8),
           _SectionTitle(
-            title: isTr ? 'Eksik alisveris listesi' : 'Missing shopping list',
+            title: isTr
+                ? 'Planlanan öğünler için eksik alışveriş listesi'
+                : 'Missing shopping list for planned meals',
             subtitle: isTr
-                ? 'Siradaki ogun icin eksik kalanlar.'
-                : 'Missing items for the next meal.',
+                ? 'Seçtiğin tariflere göre eksik kalanları burada topluyoruz.'
+                : 'We gather missing items here based on your selected recipes.',
           ),
           const SizedBox(height: 12),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: shoppingList.isEmpty
+              child: !hasAnyPlannedMeal
                   ? Text(
                       isTr
-                          ? 'Secili malzemelerinle en az bir oneriyi hemen yapabiliyorsun.'
-                          : 'You can already cook at least one suggestion with your current ingredients.',
+                          ? 'Önce bir öğün için tarif seç. Alışveriş listesi seçtiğin planlara göre oluşacak.'
+                          : 'Pick a recipe for at least one meal first. The shopping list will be built from your plan.',
                     )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: shoppingList
-                          .map(
-                            (item) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.shopping_bag_outlined,
-                                    size: 18,
-                                    color: theme.colorScheme.primary,
+                  : plannedShoppingSummary.isEmpty
+                      ? Text(
+                          isTr
+                              ? 'Planladığın öğünler için seçili malzemelerin yeterli görünüyor.'
+                              : 'Your current ingredients look enough for the meals you planned.',
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: plannedShoppingSummary
+                              .map(
+                                (item) => Padding(
+                                  padding:
+                                      const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.shopping_bag_outlined,
+                                        size: 18,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: Text(item)),
+                                    ],
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: Text(item)),
-                                ],
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
+                                ),
+                              )
+                              .toList(),
+                        ),
             ),
           ),
           const SizedBox(height: 20),
           _SectionTitle(
-            title: isTr ? 'Hatirlatma onizlemesi' : 'Reminder preview',
+            title: isTr ? 'Hatırlatma önizlemesi' : 'Reminder preview',
             subtitle: isTr
-                ? 'Bildirim motorunu bu plana baglayacagiz.'
-                : 'The notification engine will be connected to this plan.',
+                ? 'Bildirim motoru bu plana göre çalışacak.'
+                : 'The notification engine will follow this plan.',
           ),
           const SizedBox(height: 12),
           if (reminderPreviews.isEmpty)
             _InfoCard(
               message: isTr
-                  ? 'En az bir ogunu aktiflestir; bir sonraki hatirlatma burada gorunsun.'
+                  ? 'En az bir öğünü aktifleştir; bir sonraki hatırlatma burada görünsün.'
                   : 'Enable at least one meal to see the next reminder.',
             )
           else
@@ -311,6 +357,106 @@ class SmartKitchenScreen extends StatelessWidget {
 
     if (picked == null) return;
     onSelected(picked.hour * 60 + picked.minute);
+  }
+
+  Future<void> _showMealPicker(
+    BuildContext context, {
+    required AppProvider provider,
+    required String mealId,
+    required bool isTr,
+  }) async {
+    final locale = isTr ? 'tr' : 'en';
+    final candidates = provider.getMealPlanCandidates(mealId, limit: 8);
+    final selectedIds = provider.selectedIngredientIds.toList();
+    final selectedRecipeId = provider.getPlannedRecipe(mealId)?.id;
+    final mealLabel = _mealLabelText(mealId, isTr);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isTr
+                      ? '$mealLabel için tarif seç'
+                      : 'Choose a recipe for $mealLabel',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isTr
+                      ? 'Seçtiğin tarif bu öğünün alışveriş eksiğini belirleyecek.'
+                      : 'The recipe you choose will define the shopping gap for this meal.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                if (candidates.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      isTr
+                          ? 'Şu anda öneri hazırlayamadım. Malzeme seçimini güncelleyip tekrar dene.'
+                          : 'No suggestions are ready right now. Update your ingredients and try again.',
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: candidates.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final recipe = candidates[index];
+                        final missingCount = recipe
+                            .getMissingIngredients(selectedIds)
+                            .length;
+                        final isSelected = recipe.id == selectedRecipeId;
+
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Text(
+                            recipe.imageEmoji,
+                            style: const TextStyle(fontSize: 28),
+                          ),
+                          title: Text(recipe.getName(locale)),
+                          subtitle: Text(
+                            isTr
+                                ? '${recipe.totalTimeMinutes} dk • $missingCount eksik'
+                                : '${recipe.totalTimeMinutes} min • $missingCount missing',
+                          ),
+                          trailing: isSelected
+                              ? Icon(
+                                  Icons.check_circle,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
+                              : null,
+                          onTap: () async {
+                            await provider.setPlannedRecipeForMeal(
+                              mealId,
+                              recipe.id,
+                            );
+                            if (!bottomSheetContext.mounted) return;
+                            Navigator.pop(bottomSheetContext);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -439,11 +585,11 @@ class _MealRoutineCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(_iconForMeal(slot.id), color: theme.colorScheme.primary),
+                Icon(_mealIcon(slot.id), color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    _mealLabel(slot.id, isTr),
+                    _mealLabelText(slot.id, isTr),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -460,7 +606,7 @@ class _MealRoutineCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _TimeButton(
-                    label: isTr ? 'Hafta ici' : 'Weekdays',
+                    label: isTr ? 'Hafta içi' : 'Weekdays',
                     timeText: _formatMinutes(context, slot.weekdayMinutes),
                     onTap: onPickWeekday,
                   ),
@@ -479,7 +625,7 @@ class _MealRoutineCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  isTr ? 'Hatirlatma once:' : 'Remind before:',
+                  isTr ? 'Hatırlatma süresi:' : 'Remind before:',
                   style: theme.textTheme.bodyMedium,
                 ),
                 const Spacer(),
@@ -507,35 +653,104 @@ class _MealRoutineCard extends StatelessWidget {
     );
   }
 
-  IconData _iconForMeal(String mealId) {
-    switch (mealId) {
-      case 'breakfast':
-        return Icons.wb_sunny_outlined;
-      case 'lunch':
-        return Icons.lunch_dining_outlined;
-      case 'dinner':
-      default:
-        return Icons.nightlight_round;
-    }
-  }
-
-  String _mealLabel(String mealId, bool isTr) {
-    switch (mealId) {
-      case 'breakfast':
-        return isTr ? 'Kahvalti' : 'Breakfast';
-      case 'lunch':
-        return isTr ? 'Oglen yemegi' : 'Lunch';
-      case 'dinner':
-      default:
-        return isTr ? 'Aksam yemegi' : 'Dinner';
-    }
-  }
-
   String _formatMinutes(BuildContext context, int minutes) {
     final localizations = MaterialLocalizations.of(context);
     return localizations.formatTimeOfDay(
       TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60),
       alwaysUse24HourFormat: true,
+    );
+  }
+}
+
+class _MealPlanCard extends StatelessWidget {
+  final bool isTr;
+  final String mealLabel;
+  final String? recipeName;
+  final int missingCount;
+  final VoidCallback onPick;
+  final VoidCallback? onClear;
+
+  const _MealPlanCard({
+    required this.isTr,
+    required this.mealLabel,
+    required this.recipeName,
+    required this.missingCount,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.restaurant_menu, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    mealLabel,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (onClear != null)
+                  IconButton(
+                    onPressed: onClear,
+                    tooltip: isTr ? 'Planı temizle' : 'Clear plan',
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              recipeName == null
+                  ? (isTr
+                      ? 'Bu öğün için önce bir tarif seç.'
+                      : 'Pick a recipe for this meal first.')
+                  : recipeName!,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight:
+                    recipeName == null ? FontWeight.w500 : FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              recipeName == null
+                  ? (isTr
+                      ? 'Seçtiğin tarif eksik malzemeleri ve alışveriş listesini belirler.'
+                      : 'The recipe you choose determines the missing ingredients and shopping list.')
+                  : missingCount == 0
+                      ? (isTr
+                          ? 'Seçili malzemelerin bu plan için yeterli görünüyor.'
+                          : 'Your current ingredients look enough for this plan.')
+                      : (isTr
+                          ? '$missingCount eksik malzeme var.'
+                          : '$missingCount missing ingredients.'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: onPick,
+              icon: const Icon(Icons.edit_outlined),
+              label: Text(
+                recipeName == null
+                    ? (isTr ? 'Tarif seç' : 'Choose recipe')
+                    : (isTr ? 'Tarifi değiştir' : 'Change recipe'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -605,7 +820,10 @@ class _SuggestionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
-                  child: Text(recipe.imageEmoji, style: const TextStyle(fontSize: 28)),
+                  child: Text(
+                    recipe.imageEmoji,
+                    style: const TextStyle(fontSize: 28),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -626,14 +844,15 @@ class _SuggestionCard extends StatelessWidget {
                       children: [
                         _Badge(
                           icon: Icons.schedule,
-                          label: '${recipe.totalTimeMinutes} ${isTr ? 'dk' : 'min'}',
+                          label:
+                              '${recipe.totalTimeMinutes} ${isTr ? 'dk' : 'min'}',
                         ),
                         _Badge(
                           icon: suggestion.canCookNow
                               ? Icons.check_circle
                               : Icons.shopping_bag_outlined,
                           label: suggestion.canCookNow
-                              ? (isTr ? 'Hazir' : 'Ready')
+                              ? (isTr ? 'Hazır' : 'Ready')
                               : (isTr
                                   ? '${suggestion.missingItems.length} eksik'
                                   : '${suggestion.missingItems.length} missing'),
@@ -725,29 +944,17 @@ class _ReminderCard extends StatelessWidget {
         leading: const Icon(Icons.notifications_active_outlined),
         title: Text(
           isTr
-              ? '${_mealLabel(preview.mealId)} icin $reminderText'
-              : '$reminderText for ${_mealLabel(preview.mealId)}',
+              ? '${_mealLabelText(preview.mealId, true)} için $reminderText'
+              : '$reminderText for ${_mealLabelText(preview.mealId, false)}',
         ),
         subtitle: Text(
           isTr
-              ? '$mealText yemeginden ${preview.leadMinutes} dk once'
+              ? '$mealText öğününden ${preview.leadMinutes} dk önce'
               : '${preview.leadMinutes} min before the $mealText meal',
         ),
         trailing: Icon(Icons.chevron_right, color: theme.colorScheme.outline),
       ),
     );
-  }
-
-  String _mealLabel(String mealId) {
-    switch (mealId) {
-      case 'breakfast':
-        return isTr ? 'kahvalti' : 'breakfast';
-      case 'lunch':
-        return isTr ? 'ogle yemegi' : 'lunch';
-      case 'dinner':
-      default:
-        return isTr ? 'aksam yemegi' : 'dinner';
-    }
   }
 }
 
@@ -772,5 +979,29 @@ class _InfoCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+String _mealLabelText(String mealId, bool isTr) {
+  switch (mealId) {
+    case 'breakfast':
+      return isTr ? 'Kahvaltı' : 'Breakfast';
+    case 'lunch':
+      return isTr ? 'Öğle yemeği' : 'Lunch';
+    case 'dinner':
+    default:
+      return isTr ? 'Akşam yemeği' : 'Dinner';
+  }
+}
+
+IconData _mealIcon(String mealId) {
+  switch (mealId) {
+    case 'breakfast':
+      return Icons.wb_sunny_outlined;
+    case 'lunch':
+      return Icons.lunch_dining_outlined;
+    case 'dinner':
+    default:
+      return Icons.nightlight_round;
   }
 }
