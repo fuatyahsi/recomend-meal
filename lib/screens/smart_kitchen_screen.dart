@@ -81,8 +81,12 @@ class SmartKitchenScreen extends StatelessWidget {
                 slot.id,
                 limit: 3,
               );
-              final missingCount =
-                  provider.getShoppingItemsForMeal(slot.id).length;
+              final missingCount = provider
+                  .getShoppingItemsForMeal(slot.id)
+                  .fold<int>(
+                    0,
+                    (sum, item) => sum + item.missingCount,
+                  );
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -109,6 +113,9 @@ class SmartKitchenScreen extends StatelessWidget {
                   ),
                   onAddSuggestion: (recipeId) {
                     provider.setPlannedRecipeForMeal(slot.id, recipeId);
+                  },
+                  onConsumeMenu: () {
+                    provider.consumePlannedRecipesForMeal(slot.id);
                   },
                 ),
               );
@@ -700,11 +707,15 @@ class _SuggestionSpotlightCard extends StatelessWidget {
             else
               ...suggestions.map((suggestion) {
                 final recipe = suggestion.recipe;
+                final missingUnits = suggestion.missingItems.fold<int>(
+                  0,
+                  (sum, item) => sum + item.missingCount,
+                );
                 final statusText = suggestion.canCookNow
                     ? (isTr ? 'Dolapta hazır' : 'Ready from pantry')
                     : (isTr
-                        ? '${suggestion.missingItems.length} eksik'
-                        : '${suggestion.missingItems.length} missing');
+                        ? '$missingUnits birim eksik'
+                        : '$missingUnits units missing');
 
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -739,6 +750,7 @@ class _MealPlanCard extends StatelessWidget {
   final List<PersonalizedRecipeSuggestion> suggestedRecipes;
   final int missingCount;
   final VoidCallback onManageMenu;
+  final VoidCallback onConsumeMenu;
   final ValueChanged<String> onRemoveRecipe;
   final ValueChanged<Recipe> onPreviewRecipe;
   final ValueChanged<String> onAddSuggestion;
@@ -750,6 +762,7 @@ class _MealPlanCard extends StatelessWidget {
     required this.suggestedRecipes,
     required this.missingCount,
     required this.onManageMenu,
+    required this.onConsumeMenu,
     required this.onRemoveRecipe,
     required this.onPreviewRecipe,
     required this.onAddSuggestion,
@@ -825,9 +838,21 @@ class _MealPlanCard extends StatelessWidget {
             _InfoBadge(
               icon: Icons.shopping_bag_outlined,
               label: isTr
-                  ? '$missingCount eksik malzeme'
-                  : '$missingCount missing ingredients',
+                  ? '$missingCount stok birimi eksik'
+                  : '$missingCount stock units missing',
             ),
+            if (plannedRecipes.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: onConsumeMenu,
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: Text(
+                  isTr
+                      ? 'Bu menüyü pişirdim, dolaptan düş'
+                      : 'Cooked this menu, deduct from pantry',
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             Text(
               isTr ? 'Önerilen menü parçaları' : 'Suggested menu ideas',
@@ -849,11 +874,15 @@ class _MealPlanCard extends StatelessWidget {
               Column(
                 children: suggestedRecipes.map((suggestion) {
                   final recipe = suggestion.recipe;
+                  final missingUnits = suggestion.missingItems.fold<int>(
+                    0,
+                    (sum, item) => sum + item.missingCount,
+                  );
                   final statusLabel = suggestion.canCookNow
                       ? (isTr ? 'Dolapta hazır' : 'Ready from pantry')
                       : (isTr
-                          ? '${suggestion.missingItems.length} eksik'
-                          : '${suggestion.missingItems.length} missing');
+                          ? '$missingUnits birim eksik'
+                          : '$missingUnits units missing');
 
                   return ListTile(
                     contentPadding: EdgeInsets.zero,

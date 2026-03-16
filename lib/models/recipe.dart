@@ -139,6 +139,81 @@ class RecipeIngredient {
 
   String getAmount(String locale) => locale == 'tr' ? amountTr : amountEn;
 
+  int get estimatedStockUnits => _estimateStockUnits(amountTr);
+
+  static int estimateStockUnitsFromText(String amount) {
+    return _estimateStockUnits(amount);
+  }
+
+  static int _estimateStockUnits(String amount) {
+    final normalized = amount.toLowerCase().trim();
+    final numericMatch = RegExp(r'(\d+[.,]?\d*|\d+/\d+)').firstMatch(normalized);
+    final rawValue = numericMatch?.group(1);
+    final parsedValue = _parseNumericValue(rawValue);
+
+    if (normalized.contains('adet') ||
+        normalized.contains('piece') ||
+        normalized.contains('dilim') ||
+        normalized.contains('slice') ||
+        normalized.contains('diş') ||
+        normalized.contains('clove') ||
+        normalized.contains('fileto') ||
+        normalized.contains('fillet') ||
+        normalized.contains('baş') ||
+        normalized.contains('head')) {
+      return parsedValue.ceil().clamp(1, 99);
+    }
+
+    if (normalized.contains('gram')) {
+      return (parsedValue / 100).ceil().clamp(1, 99);
+    }
+
+    if (normalized.contains('kg') || normalized.contains('kilogram')) {
+      return (parsedValue * 10).ceil().clamp(1, 99);
+    }
+
+    if (normalized.contains('litre') || normalized.contains('liter')) {
+      return (parsedValue * 4).ceil().clamp(1, 99);
+    }
+
+    if (normalized.contains('ml')) {
+      return (parsedValue / 250).ceil().clamp(1, 99);
+    }
+
+    if (normalized.contains('su barda') ||
+        normalized.contains('cup') ||
+        normalized.contains('paket') ||
+        normalized.contains('pack') ||
+        normalized.contains('avuç') ||
+        normalized.contains('handful')) {
+      return parsedValue.ceil().clamp(1, 99);
+    }
+
+    if (normalized.contains('yemek kaşı') ||
+        normalized.contains('tablespoon') ||
+        normalized.contains('tatlı kaşı') ||
+        normalized.contains('teaspoon') ||
+        normalized.contains('çay kaşı')) {
+      return (parsedValue / 2).ceil().clamp(1, 99);
+    }
+
+    return parsedValue.ceil().clamp(1, 99);
+  }
+
+  static double _parseNumericValue(String? rawValue) {
+    if (rawValue == null || rawValue.isEmpty) return 1;
+    if (rawValue.contains('/')) {
+      final parts = rawValue.split('/');
+      if (parts.length == 2) {
+        final numerator = double.tryParse(parts[0]) ?? 1;
+        final denominator = double.tryParse(parts[1]) ?? 1;
+        if (denominator == 0) return 1;
+        return numerator / denominator;
+      }
+    }
+    return double.tryParse(rawValue.replaceAll(',', '.')) ?? 1;
+  }
+
   /// Porsiyon çarpanına göre miktarı hesapla
   String getScaledAmount(String locale, double multiplier) {
     final amount = locale == 'tr' ? amountTr : amountEn;

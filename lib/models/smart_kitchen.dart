@@ -224,11 +224,19 @@ class SmartKitchenPreferences {
 
 class SmartShoppingItem {
   final Ingredient ingredient;
-  final RecipeIngredient requirement;
+  final RecipeIngredient? requirement;
+  final int requiredCount;
+  final int availableCount;
+  final int missingCount;
+  final List<String> recipeNames;
 
   const SmartShoppingItem({
     required this.ingredient,
-    required this.requirement,
+    this.requirement,
+    required this.requiredCount,
+    required this.availableCount,
+    required this.missingCount,
+    this.recipeNames = const [],
   });
 }
 

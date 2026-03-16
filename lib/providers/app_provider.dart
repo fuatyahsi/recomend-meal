@@ -169,36 +169,20 @@ class AppProvider extends ChangeNotifier {
     int limit = 3,
   }) {
     final targetMealId = mealId ?? getNextPlannedMealId();
-    final selectedIds = selectedIngredientIds.toList();
 
     final suggestions = _recipeService.recipes
         .where((recipe) => _isRecipeSuitableForMeal(targetMealId, recipe))
         .map((recipe) {
-      final missingItems = recipe
-          .getMissingIngredients(selectedIds)
-          .map((requirement) {
-            final ingredient =
-                _recipeService.getIngredientById(requirement.ingredientId);
-            if (ingredient == null) return null;
-            return SmartShoppingItem(
-              ingredient: ingredient,
-              requirement: requirement,
-            );
-          })
-          .whereType<SmartShoppingItem>()
-          .toList();
-
-      final matchPercent = selectedIds.isEmpty
-          ? 0
-          : (recipe.getMatchPercentage(selectedIds) * 100).round();
-      final canCookNow = recipe.canMakeWith(selectedIds);
+      final missingItems = _getMissingItemsForRecipe(recipe);
+      final matchPercent = _getRecipeCoveragePercent(recipe);
+      final canCookNow = missingItems.isEmpty;
       final categoryBonus =
           _preferredCategoriesForMeal(targetMealId).contains(recipe.category)
               ? 40
               : 0;
       final pantryBonus = canCookNow
           ? 36
-          : selectedIds.isEmpty
+          : selectedIngredientIds.isEmpty
               ? 12
               : (matchPercent / 3).round();
       final speedBonus =
@@ -291,6 +275,28 @@ class AppProvider extends ChangeNotifier {
         .where((suggestion) => !selectedRecipeIds.contains(suggestion.recipe.id))
         .take(limit)
         .toList();
+  }
+
+  Future<void> consumePlannedRecipesForMeal(String mealId) async {
+    final recipes = getPlannedRecipes(mealId);
+    if (recipes.isEmpty) return;
+
+    final requiredCounts = _getCombinedRequiredCounts(recipes);
+    for (final entry in requiredCounts.entries) {
+      final currentCount = getIngredientCount(entry.key);
+      if (currentCount <= 0) continue;
+      final nextCount = currentCount - entry.value;
+      if (nextCount > 0) {
+        _pantryItemCounts[entry.key] = nextCount;
+      } else {
+        _pantryItemCounts.remove(entry.key);
+      }
+    }
+
+    _updateMatchingRecipes();
+    await _savePreferences();
+    await _refreshSmartKitchenNotifications();
+    notifyListeners();
   }
 
   Future<void> setMealSlotEnabled(String mealId, bool enabled) async {
@@ -473,21 +479,39 @@ class AppProvider extends ChangeNotifier {
     final plannedRecipes = getPlannedRecipes(mealId);
     if (plannedRecipes.isEmpty) return const [];
 
-    return plannedRecipes
-        .expand(
-          (recipe) => recipe.getMissingIngredients(selectedIngredientIds.toList()),
-        )
-        .map((requirement) {
-          final ingredient =
-              _recipeService.getIngredientById(requirement.ingredientId);
-          if (ingredient == null) return null;
-          return SmartShoppingItem(
-            ingredient: ingredient,
-            requirement: requirement,
-          );
-        })
-        .whereType<SmartShoppingItem>()
-        .toList();
+    final combinedCounts = _getCombinedRequiredCounts(plannedRecipes);
+    final recipeNamesByIngredient = <String, Set<String>>{};
+
+    for (final recipe in plannedRecipes) {
+      final recipeName = recipe.getName(languageCode);
+      for (final requirement in recipe.ingredients.where(
+        (ingredient) => !ingredient.isOptional,
+      )) {
+        recipeNamesByIngredient
+            .putIfAbsent(requirement.ingredientId, () => <String>{})
+            .add(recipeName);
+      }
+    }
+
+    return combinedCounts.entries.map((entry) {
+      final ingredient = _recipeService.getIngredientById(entry.key);
+      if (ingredient == null) return null;
+      final availableCount = getIngredientCount(entry.key);
+      final missingCount = (entry.value - availableCount).clamp(0, 999);
+      if (missingCount == 0) return null;
+      return SmartShoppingItem(
+        ingredient: ingredient,
+        requiredCount: entry.value,
+        availableCount: availableCount,
+        missingCount: missingCount,
+        recipeNames: (recipeNamesByIngredient[entry.key] ?? const <String>{})
+            .toList()
+          ..sort(),
+      );
+    }).whereType<SmartShoppingItem>().toList()
+      ..sort(
+        (a, b) => b.missingCount.compareTo(a.missingCount),
+      );
   }
 
   List<String> getPlannedShoppingSummary() {
@@ -497,20 +521,15 @@ class AppProvider extends ChangeNotifier {
     for (final slot in _smartKitchenPreferences.mealSlots.where(
       (slot) => slot.enabled && getPlannedRecipes(slot.id).isNotEmpty,
     )) {
-      for (final recipe in getPlannedRecipes(slot.id)) {
-        for (final requirement
-            in recipe.getMissingIngredients(selectedIngredientIds.toList())) {
-          final ingredient =
-              _recipeService.getIngredientById(requirement.ingredientId);
-          if (ingredient == null) continue;
-
-          final line =
-              '${getPlannerMealLabel(slot.id)} • ${recipe.getName(languageCode)} • '
-              '${ingredient.getName(languageCode)} • '
-              '${requirement.getAmount(languageCode)}';
-          if (seenItems.add(line)) {
-            summary.add(line);
-          }
+      for (final item in getShoppingItemsForMeal(slot.id)) {
+        final recipeLabel = item.recipeNames.join(', ');
+        final line =
+            '${getPlannerMealLabel(slot.id)} • ${item.ingredient.getName(languageCode)} • '
+            '${item.missingCount} '
+            '${languageCode == 'tr' ? 'stok birimi eksik' : 'stock units missing'}'
+            '${recipeLabel.isEmpty ? '' : ' • $recipeLabel'}';
+        if (seenItems.add(line)) {
+          summary.add(line);
         }
       }
     }
@@ -540,6 +559,84 @@ class AppProvider extends ChangeNotifier {
       default:
         return ['main', 'soup', 'appetizer', 'side'];
     }
+  }
+
+  int _getRecipeCoveragePercent(Recipe recipe) {
+    final requiredCounts = _getRequiredCountsForRecipe(recipe);
+    if (requiredCounts.isEmpty) return 0;
+
+    var requiredTotal = 0;
+    var availableTotal = 0;
+
+    for (final entry in requiredCounts.entries) {
+      final required = entry.value;
+      final available = getIngredientCount(entry.key);
+      requiredTotal += required;
+      availableTotal += available.clamp(0, required);
+    }
+
+    if (requiredTotal == 0) return 0;
+    return ((availableTotal / requiredTotal) * 100).round();
+  }
+
+  List<SmartShoppingItem> _getMissingItemsForRecipe(Recipe recipe) {
+    final recipeName = recipe.getName(languageCode);
+    final requiredCounts = _getRequiredCountsForRecipe(recipe);
+    final requirementsByIngredient = <String, RecipeIngredient>{};
+
+    for (final requirement in recipe.ingredients.where(
+      (ingredient) => !ingredient.isOptional,
+    )) {
+      requirementsByIngredient.putIfAbsent(
+        requirement.ingredientId,
+        () => requirement,
+      );
+    }
+
+    return requiredCounts.entries.map((entry) {
+      final ingredient = _recipeService.getIngredientById(entry.key);
+      if (ingredient == null) return null;
+      final availableCount = getIngredientCount(entry.key);
+      final missingCount = (entry.value - availableCount).clamp(0, 999);
+      if (missingCount == 0) return null;
+      return SmartShoppingItem(
+        ingredient: ingredient,
+        requirement: requirementsByIngredient[entry.key],
+        requiredCount: entry.value,
+        availableCount: availableCount,
+        missingCount: missingCount,
+        recipeNames: [recipeName],
+      );
+    }).whereType<SmartShoppingItem>().toList();
+  }
+
+  Map<String, int> _getCombinedRequiredCounts(List<Recipe> recipes) {
+    final combined = <String, int>{};
+    for (final recipe in recipes) {
+      final recipeCounts = _getRequiredCountsForRecipe(recipe);
+      for (final entry in recipeCounts.entries) {
+        combined.update(
+          entry.key,
+          (value) => value + entry.value,
+          ifAbsent: () => entry.value,
+        );
+      }
+    }
+    return combined;
+  }
+
+  Map<String, int> _getRequiredCountsForRecipe(Recipe recipe) {
+    final counts = <String, int>{};
+    for (final requirement in recipe.ingredients.where(
+      (ingredient) => !ingredient.isOptional,
+    )) {
+      counts.update(
+        requirement.ingredientId,
+        (value) => value + requirement.estimatedStockUnits,
+        ifAbsent: () => requirement.estimatedStockUnits,
+      );
+    }
+    return counts;
   }
 
   bool _isRecipeSuitableForMeal(String mealId, Recipe recipe) {
@@ -668,7 +765,10 @@ class AppProvider extends ChangeNotifier {
                       : '${plannedRecipes.length} recipes';
           final missingCount = plannedRecipes.isEmpty
               ? 0
-              : getShoppingItemsForMeal(preview.mealId).length;
+              : getShoppingItemsForMeal(preview.mealId).fold<int>(
+                  0,
+                  (sum, item) => sum + item.missingCount,
+                );
           final mealLabel = getPlannerMealLabel(preview.mealId);
 
           final title = languageCode == 'tr'
