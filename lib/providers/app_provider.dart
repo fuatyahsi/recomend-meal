@@ -14,7 +14,7 @@ class AppProvider extends ChangeNotifier {
   bool _isLoading = true;
   Locale _locale = const Locale('tr');
   bool _isDarkMode = false;
-  final Set<String> _selectedIngredientIds = {};
+  final Map<String, int> _pantryItemCounts = {};
   final Set<String> _favoriteRecipeIds = {};
   List<RecipeMatch> _matchingRecipes = [];
   SmartKitchenPreferences _smartKitchenPreferences =
@@ -25,12 +25,30 @@ class AppProvider extends ChangeNotifier {
   String get languageCode => _locale.languageCode;
   bool get isDarkMode => _isDarkMode;
   RecipeService get recipeService => _recipeService;
-  Set<String> get selectedIngredientIds => _selectedIngredientIds;
+  Set<String> get selectedIngredientIds => _pantryItemCounts.entries
+      .where((entry) => entry.value > 0)
+      .map((entry) => entry.key)
+      .toSet();
   Set<String> get favoriteRecipeIds => _favoriteRecipeIds;
   List<RecipeMatch> get matchingRecipes => _matchingRecipes;
-  int get selectedCount => _selectedIngredientIds.length;
+  int get selectedCount => selectedIngredientIds.length;
   SmartKitchenPreferences get smartKitchenPreferences =>
       _smartKitchenPreferences;
+  List<PantryStockItem> get pantryItems {
+    final items = _pantryItemCounts.entries
+        .where((entry) => entry.value > 0)
+        .map((entry) {
+          final ingredient = _recipeService.getIngredientById(entry.key);
+          if (ingredient == null) return null;
+          return PantryStockItem(ingredient: ingredient, count: entry.value);
+        })
+        .whereType<PantryStockItem>()
+        .toList()
+      ..sort((a, b) => a.ingredient.getName(languageCode).compareTo(
+            b.ingredient.getName(languageCode),
+          ));
+    return items;
+  }
 
   Future<void> initialize() async {
     try {
@@ -75,11 +93,34 @@ class AppProvider extends ChangeNotifier {
   }
 
   void toggleIngredient(String ingredientId) {
-    if (_selectedIngredientIds.contains(ingredientId)) {
-      _selectedIngredientIds.remove(ingredientId);
+    if (isIngredientSelected(ingredientId)) {
+      _pantryItemCounts.remove(ingredientId);
     } else {
-      _selectedIngredientIds.add(ingredientId);
+      _pantryItemCounts[ingredientId] = 1;
     }
+    _persistPantryState();
+  }
+
+  void incrementIngredient(String ingredientId) {
+    _pantryItemCounts[ingredientId] = getIngredientCount(ingredientId) + 1;
+    _persistPantryState();
+  }
+
+  void decrementIngredient(String ingredientId) {
+    final currentCount = getIngredientCount(ingredientId);
+    if (currentCount <= 1) {
+      _pantryItemCounts.remove(ingredientId);
+    } else {
+      _pantryItemCounts[ingredientId] = currentCount - 1;
+    }
+    _persistPantryState();
+  }
+
+  int getIngredientCount(String ingredientId) {
+    return _pantryItemCounts[ingredientId] ?? 0;
+  }
+
+  void _persistPantryState() {
     _updateMatchingRecipes();
     _savePreferences();
     _refreshSmartKitchenNotifications();
@@ -87,11 +128,11 @@ class AppProvider extends ChangeNotifier {
   }
 
   bool isIngredientSelected(String ingredientId) {
-    return _selectedIngredientIds.contains(ingredientId);
+    return getIngredientCount(ingredientId) > 0;
   }
 
   void clearSelectedIngredients() {
-    _selectedIngredientIds.clear();
+    _pantryItemCounts.clear();
     _matchingRecipes = [];
     _savePreferences();
     _refreshSmartKitchenNotifications();
@@ -100,7 +141,7 @@ class AppProvider extends ChangeNotifier {
 
   void _updateMatchingRecipes() {
     _matchingRecipes = _recipeService.getMatchingRecipes(
-      _selectedIngredientIds.toList(),
+      selectedIngredientIds.toList(),
     );
   }
 
@@ -128,9 +169,11 @@ class AppProvider extends ChangeNotifier {
     int limit = 3,
   }) {
     final targetMealId = mealId ?? getNextPlannedMealId();
-    final selectedIds = _selectedIngredientIds.toList();
+    final selectedIds = selectedIngredientIds.toList();
 
-    final suggestions = _recipeService.recipes.map((recipe) {
+    final suggestions = _recipeService.recipes
+        .where((recipe) => _isRecipeSuitableForMeal(targetMealId, recipe))
+        .map((recipe) {
       final missingItems = recipe
           .getMissingIngredients(selectedIds)
           .map((requirement) {
@@ -231,7 +274,7 @@ class AppProvider extends ChangeNotifier {
     return recipes.isEmpty ? null : recipes.first;
   }
 
-  List<Recipe> getMealPlanCandidates(String mealId, {int limit = 6}) {
+  List<Recipe> getMealPlanCandidates(String mealId, {int limit = 24}) {
     return getPersonalizedSuggestions(mealId: mealId, limit: limit)
         .map((suggestion) => suggestion.recipe)
         .toList();
@@ -239,12 +282,12 @@ class AppProvider extends ChangeNotifier {
 
   List<PersonalizedRecipeSuggestion> getMenuSuggestionsForMeal(
     String mealId, {
-    int limit = 3,
+    int limit = 4,
   }) {
     final selectedRecipeIds =
         (_smartKitchenPreferences.plannedRecipeIdsByMeal[mealId] ?? const [])
             .toSet();
-    return getPersonalizedSuggestions(mealId: mealId, limit: limit + 3)
+    return getPersonalizedSuggestions(mealId: mealId, limit: limit + 6)
         .where((suggestion) => !selectedRecipeIds.contains(suggestion.recipe.id))
         .take(limit)
         .toList();
@@ -432,8 +475,7 @@ class AppProvider extends ChangeNotifier {
 
     return plannedRecipes
         .expand(
-          (recipe) =>
-              recipe.getMissingIngredients(_selectedIngredientIds.toList()),
+          (recipe) => recipe.getMissingIngredients(selectedIngredientIds.toList()),
         )
         .map((requirement) {
           final ingredient =
@@ -457,7 +499,7 @@ class AppProvider extends ChangeNotifier {
     )) {
       for (final recipe in getPlannedRecipes(slot.id)) {
         for (final requirement
-            in recipe.getMissingIngredients(_selectedIngredientIds.toList())) {
+            in recipe.getMissingIngredients(selectedIngredientIds.toList())) {
           final ingredient =
               _recipeService.getIngredientById(requirement.ingredientId);
           if (ingredient == null) continue;
@@ -498,6 +540,56 @@ class AppProvider extends ChangeNotifier {
       default:
         return ['main', 'soup', 'appetizer', 'side'];
     }
+  }
+
+  bool _isRecipeSuitableForMeal(String mealId, Recipe recipe) {
+    switch (mealId) {
+      case 'breakfast':
+        return recipe.category == 'breakfast' ||
+            recipe.category == 'beverage' ||
+            _matchesAnyTag(
+              recipe,
+              ['kahvalti', 'kahvaltı', 'breakfast', 'brunch'],
+            );
+      case 'lunch':
+        if (_matchesAnyTag(recipe, ['kahvalti', 'kahvaltı', 'breakfast'])) {
+          return false;
+        }
+        return ['main', 'soup', 'salad', 'side', 'appetizer']
+            .contains(recipe.category);
+      case 'dinner':
+      default:
+        if (_matchesAnyTag(recipe, ['kahvalti', 'kahvaltı', 'breakfast'])) {
+          return false;
+        }
+        return ['main', 'appetizer', 'salad', 'soup', 'side', 'dessert']
+            .contains(recipe.category);
+    }
+  }
+
+  bool _matchesAnyTag(Recipe recipe, List<String> expectedTags) {
+    final recipeTags = recipe.tags.map(_normalizeText).toSet();
+    for (final expectedTag in expectedTags) {
+      if (recipeTags.contains(_normalizeText(expectedTag))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _normalizeText(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c')
+        .replaceAll('â', 'a')
+        .replaceAll('î', 'i')
+        .replaceAll('û', 'u')
+        .trim();
   }
 
   ReminderPreview? _nextReminderForSlot(MealRoutineSlot slot, DateTime now) {
@@ -610,8 +702,21 @@ class AppProvider extends ChangeNotifier {
       _isDarkMode = prefs.getBool('darkMode') ?? false;
       final favs = prefs.getStringList('favorites') ?? [];
       _favoriteRecipeIds.addAll(favs);
-      final selected = prefs.getStringList('selectedIngredients') ?? [];
-      _selectedIngredientIds.addAll(selected);
+      final pantryRaw = prefs.getString('pantryItemCounts');
+      if (pantryRaw != null && pantryRaw.isNotEmpty) {
+        final decoded = json.decode(pantryRaw) as Map<String, dynamic>;
+        for (final entry in decoded.entries) {
+          final parsedValue = entry.value;
+          if (parsedValue is num && parsedValue > 0) {
+            _pantryItemCounts[entry.key] = parsedValue.round();
+          }
+        }
+      } else {
+        final selected = prefs.getStringList('selectedIngredients') ?? [];
+        for (final ingredientId in selected) {
+          _pantryItemCounts[ingredientId] = 1;
+        }
+      }
 
       final smartKitchenRaw = prefs.getString('smartKitchenPreferences');
       if (smartKitchenRaw != null && smartKitchenRaw.isNotEmpty) {
@@ -636,7 +741,11 @@ class AppProvider extends ChangeNotifier {
       await prefs.setStringList('favorites', _favoriteRecipeIds.toList());
       await prefs.setStringList(
         'selectedIngredients',
-        _selectedIngredientIds.toList(),
+        selectedIngredientIds.toList(),
+      );
+      await prefs.setString(
+        'pantryItemCounts',
+        json.encode(_pantryItemCounts),
       );
       await prefs.setString(
         'smartKitchenPreferences',

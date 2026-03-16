@@ -50,7 +50,12 @@ class MoodRecipeEngine {
       descTr: 'Özel biri için özel bir menü',
       descEn: 'A special menu for someone special',
       color: 0xFFEC407A,
-      filter: MoodFilter(maxTime: 0, difficulties: ['medium', 'hard'], categories: ['main', 'dessert', 'appetizer']),
+      filter: MoodFilter(
+        maxTime: 0,
+        difficulties: ['medium', 'hard'],
+        categories: ['main', 'dessert', 'appetizer'],
+        requiredTags: ['romantik', 'romantic', 'ozel-aksam'],
+      ),
     ),
     MoodOption(
       id: 'quick',
@@ -122,10 +127,14 @@ class MoodFilter {
   final int maxTime; // 0 = no limit
   final List<String> difficulties; // empty = all
   final List<String> categories; // empty = all
+  final List<String> requiredTags; // empty = all
+  final List<String> blockedTags; // empty = none
 
   const MoodFilter({
     required this.maxTime,
     required this.difficulties,
     required this.categories,
+    this.requiredTags = const [],
+    this.blockedTags = const [],
   });
 }

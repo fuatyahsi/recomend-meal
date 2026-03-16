@@ -23,6 +23,13 @@ class SmartKitchenScreen extends StatelessWidget {
     final reminderPreviews = provider.getUpcomingReminderPreviews(limit: 3);
     final plannedShoppingSummary = provider.getPlannedShoppingSummary();
     final pantryCount = provider.selectedCount;
+    final pantryItems = provider.pantryItems;
+    final featuredMealId = provider.getNextPlannedMealId();
+    final featuredMealLabel = provider.getPlannerMealLabel(featuredMealId);
+    final featuredSuggestions = provider.getMenuSuggestionsForMeal(
+      featuredMealId,
+      limit: 4,
+    );
     final hasAnyPlannedMeal = prefs.mealSlots.any(
       (slot) => provider.getPlannedRecipes(slot.id).isNotEmpty,
     );
@@ -43,6 +50,21 @@ class SmartKitchenScreen extends StatelessWidget {
             subtitle: isTr
                 ? 'Kahvaltı, öğle ve akşam için menünü oluştur. Uygulama dolabındaki malzemelere göre öneri sunsun, eksikleri çıkarsın ve alışveriş listesini hazırlasın.'
                 : 'Create menus for breakfast, lunch, and dinner. Let the app suggest options from your pantry, find the gaps, and prepare the shopping list.',
+          ),
+          const SizedBox(height: 16),
+          _SuggestionSpotlightCard(
+            isTr: isTr,
+            mealLabel: featuredMealLabel,
+            suggestions: featuredSuggestions,
+            onPreviewRecipe: (recipe) => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RecipeDetailScreen(recipe: recipe),
+              ),
+            ),
+            onAddSuggestion: (recipeId) {
+              provider.setPlannedRecipeForMeal(featuredMealId, recipeId);
+            },
           ),
           const SizedBox(height: 16),
           _SectionTitle(
@@ -134,6 +156,38 @@ class SmartKitchenScreen extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  if (pantryItems.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: pantryItems.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = pantryItems[index];
+                          return _PantryPreviewTile(
+                            item: item,
+                            locale: provider.languageCode,
+                            onIncrement: () =>
+                                provider.incrementIngredient(item.ingredient.id),
+                            onDecrement: () =>
+                                provider.decrementIngredient(item.ingredient.id),
+                          );
+                        },
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      isTr
+                          ? 'Henüz dolap listesi yok. Önce mevcut malzemelerini ekle.'
+                          : 'Your pantry list is empty. Add what you already have first.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   FilledButton.tonalIcon(
                     onPressed: () => Navigator.push(
@@ -388,7 +442,7 @@ class SmartKitchenScreen extends StatelessWidget {
     required bool isTr,
   }) async {
     final locale = isTr ? 'tr' : 'en';
-    final candidates = provider.getMealPlanCandidates(mealId, limit: 10);
+    final candidates = provider.getMealPlanCandidates(mealId, limit: 24);
     final selectedRecipeIds =
         provider.getPlannedRecipes(mealId).map((recipe) => recipe.id).toSet();
 
@@ -583,6 +637,101 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+class _SuggestionSpotlightCard extends StatelessWidget {
+  final bool isTr;
+  final String mealLabel;
+  final List<PersonalizedRecipeSuggestion> suggestions;
+  final ValueChanged<Recipe> onPreviewRecipe;
+  final ValueChanged<String> onAddSuggestion;
+
+  const _SuggestionSpotlightCard({
+    required this.isTr,
+    required this.mealLabel,
+    required this.suggestions,
+    required this.onPreviewRecipe,
+    required this.onAddSuggestion,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr
+                        ? '$mealLabel için menü öner'
+                        : 'Menu ideas for $mealLabel',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Önce menüyü seçmeye başla. Eklediklerin alışveriş listesine otomatik yansısın.'
+                  : 'Start building the menu first. Added recipes will feed the shopping list automatically.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (suggestions.isEmpty)
+              Text(
+                isTr
+                    ? 'Bu öğün için yeni öneri hazırlanamadı.'
+                    : 'No menu suggestion is ready for this meal yet.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+            else
+              ...suggestions.map((suggestion) {
+                final recipe = suggestion.recipe;
+                final statusText = suggestion.canCookNow
+                    ? (isTr ? 'Dolapta hazır' : 'Ready from pantry')
+                    : (isTr
+                        ? '${suggestion.missingItems.length} eksik'
+                        : '${suggestion.missingItems.length} missing');
+
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Text(
+                    recipe.imageEmoji,
+                    style: const TextStyle(fontSize: 26),
+                  ),
+                  title: Text(recipe.getName(isTr ? 'tr' : 'en')),
+                  subtitle: Text(
+                    isTr
+                        ? '${recipe.totalTimeMinutes} dk • $statusText'
+                        : '${recipe.totalTimeMinutes} min • $statusText',
+                  ),
+                  trailing: IconButton(
+                    onPressed: () => onAddSuggestion(recipe.id),
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                  onTap: () => onPreviewRecipe(recipe),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MealPlanCard extends StatelessWidget {
   final bool isTr;
   final String mealLabel;
@@ -728,6 +877,56 @@ class _MealPlanCard extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PantryPreviewTile extends StatelessWidget {
+  final PantryStockItem item;
+  final String locale;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  const _PantryPreviewTile({
+    required this.item,
+    required this.locale,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Text(item.ingredient.icon, style: const TextStyle(fontSize: 24)),
+      title: Text(item.ingredient.getName(locale)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: onDecrement,
+            icon: const Icon(Icons.remove_circle_outline),
+            color: theme.colorScheme.primary,
+          ),
+          Container(
+            constraints: const BoxConstraints(minWidth: 34),
+            alignment: Alignment.center,
+            child: Text(
+              '${item.count}',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onIncrement,
+            icon: const Icon(Icons.add_circle_outline),
+            color: theme.colorScheme.primary,
+          ),
+        ],
       ),
     );
   }

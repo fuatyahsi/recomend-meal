@@ -100,7 +100,7 @@ class SmartKitchenPreferences {
   });
 
   factory SmartKitchenPreferences.defaults() {
-    return SmartKitchenPreferences(
+    return const SmartKitchenPreferences(
       mealSlots: [
         MealRoutineSlot(
           id: 'breakfast',
@@ -229,6 +229,16 @@ class SmartShoppingItem {
   const SmartShoppingItem({
     required this.ingredient,
     required this.requirement,
+  });
+}
+
+class PantryStockItem {
+  final Ingredient ingredient;
+  final int count;
+
+  const PantryStockItem({
+    required this.ingredient,
+    required this.count,
   });
 }
 

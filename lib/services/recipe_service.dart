@@ -22,10 +22,21 @@ class RecipeService {
         ingredientsList.map((e) => Ingredient.fromJson(e)).toList();
 
     // Load recipes
-    final recipesJson =
-        await rootBundle.loadString('assets/data/recipes.json');
-    final List<dynamic> recipesList = json.decode(recipesJson);
-    _recipes = recipesList.map((e) => Recipe.fromJson(e)).toList();
+    final recipeFiles = [
+      'assets/data/recipes.json',
+      'assets/data/recipes_extra.json',
+    ];
+    final recipeMaps = <Map<String, dynamic>>[];
+
+    for (final recipeFile in recipeFiles) {
+      final recipesJson = await rootBundle.loadString(recipeFile);
+      final List<dynamic> recipesList = json.decode(recipesJson);
+      recipeMaps.addAll(
+        recipesList.map((entry) => entry as Map<String, dynamic>),
+      );
+    }
+
+    _recipes = recipeMaps.map(Recipe.fromJson).toList();
 
     _isLoaded = true;
   }

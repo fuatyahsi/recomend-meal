@@ -97,12 +97,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final locale = provider.languageCode;
     final isTr = locale == 'tr';
     final isPremium = context.watch<AuthProvider>().isPremium;
-    final nextMealId = provider.getNextPlannedMealId();
-    final nextMealRecipes = provider.getPlannedRecipes(nextMealId);
-    final plannedMissingCount = provider.getPlannedShoppingSummary().length;
-    final plannedMenuCount = provider.getPlannedMenuCount();
-    final plannedMealCount = provider.getPlannedMealCount();
-    final nextReminder = provider.nextReminderPreview;
 
     final allRecipes = provider.recipeService.recipes;
     final popularRecipes = allRecipes.length > 8 ? allRecipes.sublist(0, 8) : allRecipes;
@@ -217,24 +211,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _SmartKitchenLauncherCard(
                       isTr: isTr,
-                      nextMealLabel: provider.getPlannerMealLabel(nextMealId),
-                      nextRecipeName: nextMealRecipes.isEmpty
-                          ? null
-                          : nextMealRecipes.first.getName(locale),
-                      plannedMenuCount: plannedMenuCount,
-                      plannedMealCount: plannedMealCount,
-                      missingCount:
-                          plannedMenuCount == 0 ? 0 : plannedMissingCount,
-                      pantryCount: provider.selectedCount,
-                      reminderText: nextReminder == null
-                          ? null
-                          : MaterialLocalizations.of(context).formatTimeOfDay(
-                              TimeOfDay(
-                                hour: nextReminder.remindAt.hour,
-                                minute: nextReminder.remindAt.minute,
-                              ),
-                              alwaysUse24HourFormat: true,
-                            ),
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -809,24 +785,10 @@ class _HeroCTACard extends StatelessWidget {
 // ── Category Chip - Glass Style ──
 class _SmartKitchenLauncherCard extends StatelessWidget {
   final bool isTr;
-  final String nextMealLabel;
-  final String? nextRecipeName;
-  final int plannedMenuCount;
-  final int plannedMealCount;
-  final int missingCount;
-  final int pantryCount;
-  final String? reminderText;
   final VoidCallback onTap;
 
   const _SmartKitchenLauncherCard({
     required this.isTr,
-    required this.nextMealLabel,
-    required this.nextRecipeName,
-    required this.plannedMenuCount,
-    required this.plannedMealCount,
-    required this.missingCount,
-    required this.pantryCount,
-    required this.reminderText,
     required this.onTap,
   });
 
@@ -890,13 +852,9 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          reminderText == null
-                              ? (isTr
-                                  ? '$nextMealLabel için menünü oluştur'
-                                  : 'Build your menu for $nextMealLabel')
-                              : (isTr
-                                  ? '$nextMealLabel için $reminderText hatırlatması hazır'
-                                  : '$reminderText reminder ready for $nextMealLabel'),
+                          isTr
+                              ? 'Önce menünü kur, sonra saatini ve hatırlatmalarını ayarla'
+                              : 'Build your menu first, then set times and reminders',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.white.withOpacity(0.86),
                           ),
@@ -909,83 +867,18 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                plannedMenuCount == 0
-                    ? (isTr
-                        ? 'Önce kahvaltı, öğle ve akşam için menünü oluştur. Sonra süreleri ve hatırlatmaları birlikte hazırlayalım.'
-                        : 'Create menus for breakfast, lunch, and dinner first. Then let us prepare timings and reminders.')
-                    : (isTr
-                        ? '$plannedMealCount öğünde $plannedMenuCount tarif planlandı${nextRecipeName == null ? '' : '. Sıradaki tarif: $nextRecipeName'}'
-                        : '$plannedMenuCount recipes are planned across $plannedMealCount meals${nextRecipeName == null ? '' : '. Next up: $nextRecipeName'}'),
+                isTr
+                    ? '1. Kahvaltı, öğle ve akşam için menü oluştur.\n2. Dolabındaki malzemeleri güncel tut.\n3. Eksikleri gör, alışveriş listesini çıkar ve hatırlatma kur.'
+                    : '1. Build menus for breakfast, lunch, and dinner.\n2. Keep your pantry updated.\n3. Review missing items, create the shopping list, and set reminders.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
+                  height: 1.45,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _HomeBadge(
-                    icon: Icons.restaurant_outlined,
-                    label: nextMealLabel,
-                  ),
-                  _HomeBadge(
-                    icon: Icons.shopping_bag_outlined,
-                    label: isTr
-                        ? plannedMenuCount == 0
-                            ? 'Önce menü seç'
-                            : '$missingCount eksik ürün'
-                        : plannedMenuCount == 0
-                            ? 'Choose menus first'
-                            : '$missingCount missing items',
-                  ),
-                  _HomeBadge(
-                    icon: Icons.kitchen_outlined,
-                    label: isTr
-                        ? 'Dolap: $pantryCount malzeme'
-                        : 'Pantry: $pantryCount items',
-                  ),
-                ],
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HomeBadge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _HomeBadge({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }

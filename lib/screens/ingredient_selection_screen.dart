@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/ingredient.dart';
+import '../models/smart_kitchen.dart';
 import '../providers/app_provider.dart';
 import 'recipe_list_screen.dart';
 
@@ -34,6 +35,7 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
     final allIngredients = provider.recipeService.ingredients;
     final grouped = provider.recipeService.getIngredientsByCategory();
     final categories = grouped.keys.toList();
+    final pantryItems = provider.pantryItems;
 
     // Filter ingredients
     List<Ingredient> filteredIngredients;
@@ -148,6 +150,17 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
               ),
             ),
 
+          if (pantryItems.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: _PantryListCard(
+                locale: locale,
+                pantryItems: pantryItems,
+                onIncrement: provider.incrementIngredient,
+                onDecrement: provider.decrementIngredient,
+              ),
+            ),
+
           const SizedBox(height: 8),
 
           // Ingredient Grid
@@ -165,10 +178,12 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
                 final ingredient = filteredIngredients[index];
                 final isSelected =
                     provider.isIngredientSelected(ingredient.id);
+                final count = provider.getIngredientCount(ingredient.id);
                 return _IngredientCard(
                   ingredient: ingredient,
                   locale: locale,
                   isSelected: isSelected,
+                  count: count,
                   onTap: () => provider.toggleIngredient(ingredient.id),
                 );
               },
@@ -207,12 +222,14 @@ class _IngredientCard extends StatelessWidget {
   final Ingredient ingredient;
   final String locale;
   final bool isSelected;
+  final int count;
   final VoidCallback onTap;
 
   const _IngredientCard({
     required this.ingredient,
     required this.locale,
     required this.isSelected,
+    required this.count,
     required this.onTap,
   });
 
@@ -265,14 +282,155 @@ class _IngredientCard extends StatelessWidget {
             if (isSelected)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Icon(
-                  Icons.check_circle,
-                  color: theme.colorScheme.primary,
-                  size: 18,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${count}x',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PantryListCard extends StatelessWidget {
+  final String locale;
+  final List<PantryStockItem> pantryItems;
+  final ValueChanged<String> onIncrement;
+  final ValueChanged<String> onDecrement;
+
+  const _PantryListCard({
+    required this.locale,
+    required this.pantryItems,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isTr = locale == 'tr';
+    final itemCount = pantryItems.length;
+    final calculatedHeight =
+        (itemCount * 56.0).clamp(56.0, 280.0).toDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.kitchen_outlined,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isTr ? 'Dolaptaki malzemeler' : 'Pantry items',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isTr
+                ? 'Kullandıkça azalt, aldıkça artır. Menü ve alışveriş listesi buna göre güncellensin.'
+                : 'Decrease items as you use them and increase them as you restock.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: calculatedHeight),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: pantryItems.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final item = pantryItems[index];
+                return _PantryListTile(
+                  item: item,
+                  locale: locale,
+                  onIncrement: () => onIncrement(item.ingredient.id),
+                  onDecrement: () => onDecrement(item.ingredient.id),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PantryListTile extends StatelessWidget {
+  final PantryStockItem item;
+  final String locale;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  const _PantryListTile({
+    required this.item,
+    required this.locale,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Text(item.ingredient.icon, style: const TextStyle(fontSize: 24)),
+      title: Text(item.ingredient.getName(locale)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: onDecrement,
+            icon: const Icon(Icons.remove_circle_outline),
+            color: theme.colorScheme.primary,
+          ),
+          Container(
+            constraints: const BoxConstraints(minWidth: 34),
+            alignment: Alignment.center,
+            child: Text(
+              '${item.count}',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onIncrement,
+            icon: const Icon(Icons.add_circle_outline),
+            color: theme.colorScheme.primary,
+          ),
+        ],
       ),
     );
   }

@@ -50,8 +50,40 @@ class _MoodRecipesScreenState extends State<MoodRecipesScreen>
           !filter.categories.contains(recipe.category)) {
         return false;
       }
+      // Required tags
+      if (filter.requiredTags.isNotEmpty &&
+          !_containsAnyTag(recipe.tags, filter.requiredTags)) {
+        return false;
+      }
+      // Blocked tags
+      if (filter.blockedTags.isNotEmpty &&
+          _containsAnyTag(recipe.tags, filter.blockedTags)) {
+        return false;
+      }
       return true;
     }).toList();
+  }
+
+  bool _containsAnyTag(List<String> recipeTags, List<String> expectedTags) {
+    final normalizedRecipeTags = recipeTags.map(_normalizeTag).toSet();
+    for (final expectedTag in expectedTags) {
+      if (normalizedRecipeTags.contains(_normalizeTag(expectedTag))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _normalizeTag(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c')
+        .trim();
   }
 
   void _selectMood(MoodOption mood) {
