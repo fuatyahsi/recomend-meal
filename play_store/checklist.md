@@ -12,6 +12,8 @@
 - `Google` provider acik
 - Android SHA-1 ve SHA-256 Firebase'e ekli
 - Guncel `android/app/google-services.json` projede
+- Release keystore SHA-1 ve SHA-256 degerleri de Firebase'e ekli
+- `play_store/google_signin_setup.md` adimlari tamamlandi
 
 ## Play Console
 - Uygulama kategorisi: `Food & Drink`

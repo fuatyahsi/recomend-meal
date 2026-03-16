@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
+
 import '../../l10n/app_localizations.dart';
+import '../../providers/auth_provider.dart';
 import '../main_shell.dart';
 import 'login_screen.dart';
 
@@ -78,10 +79,14 @@ class _SignupScreenState extends State<SignupScreen> {
                 Center(
                   child: Column(
                     children: [
-                      const Text('👨‍🍳', style: TextStyle(fontSize: 60)),
+                      Icon(
+                        Icons.person_add_alt_1_rounded,
+                        size: 60,
+                        color: theme.colorScheme.primary,
+                      ),
                       const SizedBox(height: 8),
                       Text(
-                        isTr ? 'Yeni Hesap Oluştur' : 'Create New Account',
+                        isTr ? 'Yeni Hesap Olustur' : 'Create New Account',
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -89,7 +94,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 4),
                       Text(
                         isTr
-                            ? 'Toplulukla tariflerini paylaş!'
+                            ? 'Toplulukla tariflerini paylas!'
                             : 'Share your recipes with the community!',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
@@ -99,7 +104,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
                 if (auth.error != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -108,26 +112,28 @@ class _SignupScreenState extends State<SignupScreen> {
                       color: Colors.red.shade50,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(auth.error!,
-                        style: TextStyle(color: Colors.red.shade800)),
+                    child: Text(
+                      auth.error!,
+                      style: TextStyle(color: Colors.red.shade800),
+                    ),
                   ),
-
-                // Name
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
                     labelText: isTr ? 'Ad Soyad' : 'Full Name',
                     prefixIcon: const Icon(Icons.person_outline),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? (isTr ? 'İsim gerekli' : 'Name required')
-                      : null,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return isTr ? 'Isim gerekli' : 'Name required';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 14),
-
-                // Email
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -135,65 +141,68 @@ class _SignupScreenState extends State<SignupScreen> {
                     labelText: 'E-posta / Email',
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
                       return isTr ? 'E-posta gerekli' : 'Email required';
                     }
-                    if (!v.contains('@')) {
-                      return isTr ? 'Geçerli e-posta girin' : 'Enter valid email';
+                    if (!value.contains('@')) {
+                      return isTr
+                          ? 'Gecerli e-posta girin'
+                          : 'Enter valid email';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 14),
-
-                // Password
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscure,
                   decoration: InputDecoration(
-                    labelText: isTr ? 'Şifre' : 'Password',
+                    labelText: isTr ? 'Sifre' : 'Password',
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(
-                          _obscure ? Icons.visibility_off : Icons.visibility),
+                        _obscure ? Icons.visibility_off : Icons.visibility,
+                      ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  validator: (v) {
-                    if (v == null || v.length < 6) {
+                  validator: (value) {
+                    if (value == null || value.length < 6) {
                       return isTr
-                          ? 'Şifre en az 6 karakter olmalı'
+                          ? 'Sifre en az 6 karakter olmali'
                           : 'Password must be at least 6 characters';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 14),
-
-                // Confirm Password
                 TextFormField(
                   controller: _confirmController,
                   obscureText: true,
                   decoration: InputDecoration(
-                    labelText: isTr ? 'Şifre Tekrar' : 'Confirm Password',
+                    labelText: isTr ? 'Sifre Tekrar' : 'Confirm Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  validator: (v) {
-                    if (v != _passwordController.text) {
-                      return isTr ? 'Şifreler eşleşmiyor' : 'Passwords do not match';
+                  validator: (value) {
+                    if (value != _passwordController.text) {
+                      return isTr
+                          ? 'Sifreler eslesmiyor'
+                          : 'Passwords do not match';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 24),
-
                 SizedBox(
                   height: 52,
                   child: ElevatedButton(
@@ -202,34 +211,49 @@ class _SignupScreenState extends State<SignupScreen> {
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: theme.colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: auth.isLoading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : Text(
-                            isTr ? 'Kayıt Ol' : 'Sign Up',
+                            isTr ? 'Kayit Ol' : 'Sign Up',
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(isTr ? 'Zaten hesabın var mı?' : 'Already have an account?'),
+                    Text(
+                      isTr
+                          ? 'Zaten hesabin var mi?'
+                          : 'Already have an account?',
+                    ),
                     TextButton(
-                      onPressed: () => Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        isTr ? 'Giris Yap' : 'Sign In',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      child: Text(isTr ? 'Giriş Yap' : 'Sign In',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),

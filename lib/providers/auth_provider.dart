@@ -222,6 +222,8 @@ class AuthProvider extends ChangeNotifier {
       case 'invalid-credential':
       case 'invalid-login-credentials':
         return 'E-posta veya sifre hatali / Invalid email or password';
+      case 'account-exists-with-different-credential':
+        return 'Bu e-posta farkli bir giris yontemiyle kayitli. Once mevcut yontemle giris yapip sonra Google hesabini baglaman gerekiyor.';
       case 'user-disabled':
         return 'Bu hesap devre disi / This account is disabled';
       case 'network-request-failed':

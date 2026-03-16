@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
+
 import '../../l10n/app_localizations.dart';
+import '../../providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -27,24 +28,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final isTr = AppLocalizations.of(context).languageCode == 'tr';
 
     return Scaffold(
-      appBar: AppBar(title: Text(isTr ? 'Şifre Sıfırla' : 'Reset Password')),
+      appBar: AppBar(
+        title: Text(isTr ? 'Sifre Sifirla' : 'Reset Password'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
-            const Center(child: Text('🔑', style: TextStyle(fontSize: 60))),
+            Center(
+              child: Icon(
+                Icons.lock_reset_rounded,
+                size: 60,
+                color: theme.colorScheme.primary,
+              ),
+            ),
             const SizedBox(height: 20),
             Text(
               isTr
-                  ? 'E-posta adresini gir, şifre sıfırlama bağlantısı gönderelim.'
+                  ? 'E-posta adresini gir, sifre sifirlama baglantisi gonderelim.'
                   : 'Enter your email and we will send a password reset link.',
               style: theme.textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-
             if (_sent)
               Container(
                 padding: const EdgeInsets.all(16),
@@ -54,7 +62,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 child: Text(
                   isTr
-                      ? 'Şifre sıfırlama bağlantısı gönderildi! E-postanı kontrol et.'
+                      ? 'Sifre sifirlama baglantisi gonderildi. E-postani kontrol et.'
                       : 'Password reset link sent! Check your email.',
                   style: TextStyle(color: Colors.green.shade800),
                   textAlign: TextAlign.center,
@@ -68,7 +76,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   labelText: 'E-posta / Email',
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -80,28 +89,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       : () async {
                           final success = await auth
                               .resetPassword(_emailController.text.trim());
-                          if (success) setState(() => _sent = true);
+                          if (success) {
+                            setState(() => _sent = true);
+                          }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: auth.isLoading
                       ? const CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white)
-                      : Text(isTr ? 'Gönder' : 'Send'),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        )
+                      : Text(isTr ? 'Gonder' : 'Send'),
                 ),
               ),
             ],
-
             if (auth.error != null && !_sent)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: Text(auth.error!,
-                    style: TextStyle(color: Colors.red.shade700),
-                    textAlign: TextAlign.center),
+                child: Text(
+                  auth.error!,
+                  style: TextStyle(color: Colors.red.shade700),
+                  textAlign: TextAlign.center,
+                ),
               ),
           ],
         ),

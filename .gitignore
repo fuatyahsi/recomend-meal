@@ -47,6 +47,9 @@ app.*.map.json
 /android/captures/
 /android/gradlew
 /android/gradlew.bat
+/android/key.properties
+/android/*.jks
+/android/*.keystore
 /android/local.properties
 /android/**/GeneratedPluginRegistrant.*
 /ios/Flutter/App.framework

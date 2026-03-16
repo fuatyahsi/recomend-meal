@@ -6,7 +6,7 @@ import '../models/user_model.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
 
   User? get currentFirebaseUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -63,6 +63,11 @@ class AuthService {
 
   // --- Sign Out ---
   Future<void> signOut() async {
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {
+      // Ignore disconnect errors if there is no active Google session.
+    }
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
