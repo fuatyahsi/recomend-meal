@@ -6,7 +6,9 @@ void main() {
     final original = SmartKitchenPreferences.defaults().copyWith(
       campaignAlertsEnabled: true,
       preferredMarkets: const ['Migros', 'A101'],
-      plannedRecipeIds: const {'dinner': 'mercimek-corbasi'},
+      plannedRecipeIdsByMeal: const {
+        'dinner': ['mercimek-corbasi', 'coban-salata'],
+      },
     ).replaceSlot(
       SmartKitchenPreferences.defaults()
           .slotById('dinner')
@@ -17,8 +19,27 @@ void main() {
 
     expect(restored.campaignAlertsEnabled, isTrue);
     expect(restored.preferredMarkets, ['Migros', 'A101']);
-    expect(restored.plannedRecipeIds['dinner'], 'mercimek-corbasi');
+    expect(
+      restored.plannedRecipeIdsByMeal['dinner'],
+      ['mercimek-corbasi', 'coban-salata'],
+    );
     expect(restored.slotById('dinner').weekdayMinutes, 1140);
     expect(restored.slotById('dinner').leadMinutes, 45);
+  });
+
+  test('smart kitchen preferences migrate legacy single recipe plans', () {
+    final restored = SmartKitchenPreferences.fromJson({
+      'mealSlots': [],
+      'plannedRecipeIds': {
+        'breakfast': 'menemen',
+        'dinner': 'mercimek-corbasi',
+      },
+    });
+
+    expect(restored.plannedRecipeIdsByMeal['breakfast'], ['menemen']);
+    expect(
+      restored.plannedRecipeIdsByMeal['dinner'],
+      ['mercimek-corbasi'],
+    );
   });
 }

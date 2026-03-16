@@ -98,9 +98,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isTr = locale == 'tr';
     final isPremium = context.watch<AuthProvider>().isPremium;
     final nextMealId = provider.getNextPlannedMealId();
-    final plannedRecipe = provider.getPlannedRecipe(nextMealId);
-    final plannedMissingCount =
-        provider.getShoppingItemsForMeal(nextMealId).length;
+    final nextMealRecipes = provider.getPlannedRecipes(nextMealId);
+    final plannedMissingCount = provider.getPlannedShoppingSummary().length;
+    final plannedMenuCount = provider.getPlannedMenuCount();
+    final plannedMealCount = provider.getPlannedMealCount();
     final nextReminder = provider.nextReminderPreview;
 
     final allRecipes = provider.recipeService.recipes;
@@ -216,10 +217,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _SmartKitchenLauncherCard(
                       isTr: isTr,
-                      mealLabel: provider.getPlannerMealLabel(nextMealId),
-                      plannedRecipeName: plannedRecipe?.getName(locale),
+                      nextMealLabel: provider.getPlannerMealLabel(nextMealId),
+                      nextRecipeName: nextMealRecipes.isEmpty
+                          ? null
+                          : nextMealRecipes.first.getName(locale),
+                      plannedMenuCount: plannedMenuCount,
+                      plannedMealCount: plannedMealCount,
                       missingCount:
-                          plannedRecipe == null ? 0 : plannedMissingCount,
+                          plannedMenuCount == 0 ? 0 : plannedMissingCount,
+                      pantryCount: provider.selectedCount,
                       reminderText: nextReminder == null
                           ? null
                           : MaterialLocalizations.of(context).formatTimeOfDay(
@@ -803,17 +809,23 @@ class _HeroCTACard extends StatelessWidget {
 // ── Category Chip - Glass Style ──
 class _SmartKitchenLauncherCard extends StatelessWidget {
   final bool isTr;
-  final String mealLabel;
-  final String? plannedRecipeName;
+  final String nextMealLabel;
+  final String? nextRecipeName;
+  final int plannedMenuCount;
+  final int plannedMealCount;
   final int missingCount;
+  final int pantryCount;
   final String? reminderText;
   final VoidCallback onTap;
 
   const _SmartKitchenLauncherCard({
     required this.isTr,
-    required this.mealLabel,
-    required this.plannedRecipeName,
+    required this.nextMealLabel,
+    required this.nextRecipeName,
+    required this.plannedMenuCount,
+    required this.plannedMealCount,
     required this.missingCount,
+    required this.pantryCount,
     required this.reminderText,
     required this.onTap,
   });
@@ -880,11 +892,11 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                         Text(
                           reminderText == null
                               ? (isTr
-                                  ? '$mealLabel için planını hazırla'
-                                  : 'Plan your next $mealLabel')
+                                  ? '$nextMealLabel için menünü oluştur'
+                                  : 'Build your menu for $nextMealLabel')
                               : (isTr
-                                  ? '$mealLabel için $reminderText hatırlatması hazır'
-                                  : '$reminderText reminder ready for $mealLabel'),
+                                  ? '$nextMealLabel için $reminderText hatırlatması hazır'
+                                  : '$reminderText reminder ready for $nextMealLabel'),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.white.withOpacity(0.86),
                           ),
@@ -897,13 +909,13 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                plannedRecipeName == null
+                plannedMenuCount == 0
                     ? (isTr
-                        ? 'Önce sıradaki öğün için tarif seç, sonra eksikleri ve hatırlatmaları birlikte hazırlayalım.'
-                        : 'Pick a recipe for the next meal first, then let us prepare the reminders and shopping gaps.')
+                        ? 'Önce kahvaltı, öğle ve akşam için menünü oluştur. Sonra süreleri ve hatırlatmaları birlikte hazırlayalım.'
+                        : 'Create menus for breakfast, lunch, and dinner first. Then let us prepare timings and reminders.')
                     : (isTr
-                        ? 'Planlanan tarif: $plannedRecipeName'
-                        : 'Planned recipe: $plannedRecipeName'),
+                        ? '$plannedMealCount öğünde $plannedMenuCount tarif planlandı${nextRecipeName == null ? '' : '. Sıradaki tarif: $nextRecipeName'}'
+                        : '$plannedMenuCount recipes are planned across $plannedMealCount meals${nextRecipeName == null ? '' : '. Next up: $nextRecipeName'}'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -916,21 +928,23 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                 children: [
                   _HomeBadge(
                     icon: Icons.restaurant_outlined,
-                    label: mealLabel,
+                    label: nextMealLabel,
                   ),
                   _HomeBadge(
                     icon: Icons.shopping_bag_outlined,
                     label: isTr
-                        ? plannedRecipeName == null
-                            ? 'Önce tarif seç'
+                        ? plannedMenuCount == 0
+                            ? 'Önce menü seç'
                             : '$missingCount eksik ürün'
-                        : plannedRecipeName == null
-                            ? 'Choose recipe first'
-                        : '$missingCount missing items',
+                        : plannedMenuCount == 0
+                            ? 'Choose menus first'
+                            : '$missingCount missing items',
                   ),
                   _HomeBadge(
-                    icon: Icons.notifications_active_outlined,
-                    label: isTr ? 'Rutin + hatırlatma' : 'Routine + reminders',
+                    icon: Icons.kitchen_outlined,
+                    label: isTr
+                        ? 'Dolap: $pantryCount malzeme'
+                        : 'Pantry: $pantryCount items',
                   ),
                 ],
               ),
