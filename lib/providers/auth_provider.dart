@@ -213,6 +213,8 @@ class AuthProvider extends ChangeNotifier {
         return 'Gecersiz e-posta / Invalid email';
       case 'weak-password':
         return 'Sifre cok zayif / Password too weak';
+      case 'operation-not-allowed':
+        return 'Bu giris yontemi Firebase Authentication tarafinda kapali. Firebase Console > Authentication > Sign-in method icinden etkinlestirmen gerekiyor.';
       case 'user-not-found':
         return 'Kullanici bulunamadi / User not found';
       case 'wrong-password':
@@ -226,6 +228,8 @@ class AuthProvider extends ChangeNotifier {
         return 'Ag baglantisi hatasi / Network request failed';
       case 'too-many-requests':
         return 'Cok fazla deneme. Lutfen bekleyin / Too many attempts';
+      case 'app-not-authorized':
+        return 'Bu Android buildi Firebase/Google girisi icin yetkili degil. SHA-1 ve SHA-256 degerlerini Firebase Android uygulamasina ekleyip google-services.json dosyasini yenilemelisin.';
       default:
         return 'Bir hata olustu / An error occurred ($code)';
     }
@@ -242,6 +246,10 @@ class AuthProvider extends ChangeNotifier {
       return 'Google girisi bu Android buildi icin yapilandirilmamis. Firebase Android uygulamasina SHA-1/SHA-256 ekleyip google-services.json dosyasini yeniden indirmelisin.';
     }
 
+    if (rawMessage.contains('app-not-authorized')) {
+      return 'Bu Android buildi Google girisi icin yetkili degil. Firebase Android uygulamasina SHA-1/SHA-256 ekleyip google-services.json dosyasini yeniden indirmelisin.';
+    }
+
     if (rawMessage.contains('canceled') || rawMessage.contains('cancelled')) {
       return 'Google girisi iptal edildi / Google sign-in cancelled';
     }
@@ -254,6 +262,10 @@ class AuthProvider extends ChangeNotifier {
 
     if (message.contains('apiexception: 10')) {
       return 'Google girisi bu Android buildi icin yapilandirilmamis. Firebase Android uygulamasina SHA-1/SHA-256 ekleyip google-services.json dosyasini yeniden indirmelisin.';
+    }
+
+    if (message.contains('app-not-authorized')) {
+      return 'Bu Android buildi Google girisi icin yetkili degil. Firebase Android uygulamasina SHA-1/SHA-256 ekleyip google-services.json dosyasini yeniden indirmelisin.';
     }
 
     if (message.contains('canceled') || message.contains('cancelled')) {

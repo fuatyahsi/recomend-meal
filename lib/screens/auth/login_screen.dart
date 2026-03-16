@@ -55,6 +55,31 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    final auth = context.read<AuthProvider>();
+    final success = await auth.signInWithGoogle();
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
+      );
+      return;
+    }
+
+    if (auth.error == null) {
+      final isTr = AppLocalizations.of(context).languageCode == 'tr';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isTr ? 'Google ile giris yapilamadi.' : 'Google sign-in failed.',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -223,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: OutlinedButton.icon(
                     onPressed: auth.isLoading
                         ? null
-                        : () => auth.signInWithGoogle(),
+                        : _signInWithGoogle,
                     icon: const Text('G', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     label: Text(
                       isTr ? 'Google ile Giriş Yap' : 'Sign in with Google',
