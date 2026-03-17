@@ -15,11 +15,21 @@ class RecipeService {
     if (_isLoaded) return;
 
     // Load ingredients
-    final ingredientsJson =
-        await rootBundle.loadString('assets/data/ingredients.json');
-    final List<dynamic> ingredientsList = json.decode(ingredientsJson);
-    _ingredients =
-        ingredientsList.map((e) => Ingredient.fromJson(e)).toList();
+    final ingredientFiles = [
+      'assets/data/ingredients.json',
+      'assets/data/ingredients_extra.json',
+    ];
+    final ingredientMaps = <Map<String, dynamic>>[];
+
+    for (final ingredientFile in ingredientFiles) {
+      final ingredientsJson = await rootBundle.loadString(ingredientFile);
+      final List<dynamic> ingredientsList = json.decode(ingredientsJson);
+      ingredientMaps.addAll(
+        ingredientsList.map((entry) => entry as Map<String, dynamic>),
+      );
+    }
+
+    _ingredients = ingredientMaps.map(Ingredient.fromJson).toList();
 
     // Load recipes
     final recipeFiles = [
