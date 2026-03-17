@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../models/ingredient.dart';
 import '../models/kitchen_intelligence.dart';
 import '../models/recipe.dart';
@@ -5,6 +7,144 @@ import '../models/smart_kitchen.dart';
 import '../utils/mood_recipes.dart';
 
 class KitchenIntelligenceService {
+  static const _receiptIgnoredPhrases = [
+    'toplam',
+    'ara toplam',
+    'genel toplam',
+    'kdv',
+    'tarih',
+    'saat',
+    'fis no',
+    'fatura no',
+    'kasa',
+    'kasiyer',
+    'nakit',
+    'kart',
+    'visa',
+    'mastercard',
+    'temassiz',
+    'odeme',
+    'para ustu',
+    'tesekkur',
+    'tesekkurler',
+    'tic a s',
+    'ticaret',
+    'san ve tic',
+    'www',
+    'tel',
+    'magaza',
+    'sube',
+    'adres',
+    'provizyon',
+    'slip',
+    'onay',
+    'iade',
+    'satis',
+    'pos',
+    'z no',
+    'fiş',
+    'fis',
+    'no:',
+  ];
+
+  static const _receiptNoiseWords = {
+    'adet',
+    'ad',
+    'kg',
+    'gr',
+    'g',
+    'gram',
+    'ml',
+    'cl',
+    'lt',
+    'l',
+    'paket',
+    'pkt',
+    'pk',
+    'x',
+    'xl',
+    'm',
+    's',
+    'buyuk',
+    'kucuk',
+    'orta',
+    'organik',
+    'kampanya',
+    'indirim',
+    'net',
+    'brut',
+    'yuzde',
+    'yagli',
+    'tam',
+    'yarim',
+    'az',
+    'lu',
+    'li',
+  };
+
+  static const _receiptAliasesByIngredientId = {
+    'egg': ['yumurta', 'yumrta', '10 lu yumurta', '15 li yumurta'],
+    'tomato': ['domates', 'salkim domates', 'ceri domates'],
+    'onion': ['sogan', 'kuru sogan'],
+    'garlic': ['sarimsak'],
+    'potato': ['patates'],
+    'cucumber': ['salatalik'],
+    'pepper_green': ['yesil biber', 'sivri biber'],
+    'red_pepper': ['kirmizi biber'],
+    'capia_pepper': ['kapya biber'],
+    'milk': ['sut'],
+    'yogurt': ['yogurt'],
+    'cheese_white': ['beyaz peynir', 'peynir'],
+    'cheese_kashar': ['kasar', 'kasar peyniri', 'tost peyniri'],
+    'cream_cheese': ['krem peynir'],
+    'butter': ['tereyagi'],
+    'cream': ['krema'],
+    'olive_oil': [
+      'zeytinyagi',
+      'zeytin yagi',
+      'zeytnyagi',
+      'zeytinyag',
+      'sizma zeytinyagi',
+    ],
+    'sunflower_oil': ['aycicek yagi', 'aycicek yag'],
+    'tomato_paste': ['salca', 'domates salcasi', 'biber salcasi'],
+    'rice': ['pirinc', 'baldo pirinc'],
+    'bulgur': ['bulgur'],
+    'pasta': ['makarna', 'spagetti', 'burgu makarna'],
+    'bread': ['ekmek', 'somun', 'baget'],
+    'flour': ['un'],
+    'lentil_red': ['kirmizi mercimek'],
+    'lentil_green': ['yesil mercimek'],
+    'chickpea': ['nohut'],
+    'white_bean': ['kuru fasulye'],
+    'black_pepper': ['karabiber'],
+    'red_pepper_flakes': ['pul biber'],
+    'parsley': ['maydanoz'],
+    'dill': ['dereotu'],
+    'mint_dried': ['kuru nane'],
+    'oregano': ['kekik'],
+    'chicken': ['tavuk'],
+    'chicken_breast': [
+      'tavuk gogsu',
+      'tavk gogsu',
+      'tavuk fileto',
+    ],
+    'ground_beef': ['kiyma', 'dana kiyma'],
+    'beef_cubes': ['kusbasi', 'dana kusbasi'],
+    'fish': ['balik'],
+    'salmon': ['somon'],
+    'tuna': ['ton baligi'],
+    'olive': ['zeytin'],
+    'lemon': ['limon'],
+    'apple': ['elma'],
+    'banana': ['muz'],
+    'strawberry': ['cilek'],
+    'walnut': ['ceviz'],
+    'honey': ['bal'],
+    'sugar': ['seker'],
+    'tea': ['cay', 'siyah cay'],
+  };
+
   static const markets = [
     'A101',
     'BIM',
@@ -245,41 +385,51 @@ class KitchenIntelligenceService {
     String locale,
   ) {
     final lines = rawText
-        .split(RegExp(r'[\n,;]'))
+        .split(RegExp(r'[\n\r]+'))
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .toList();
     final matchedIngredients = <Ingredient>[];
     final unmatched = <String>[];
+    final aliases = _buildReceiptAliases(ingredients);
+    var processedLineCount = 0;
+    var scoreTotal = 0.0;
 
     for (final line in lines) {
-      final normalizedLine = _normalize(line);
-      Ingredient? bestMatch;
-      for (final ingredient in ingredients) {
-        final names = [
-          _normalize(ingredient.id),
-          _normalize(ingredient.nameTr),
-          _normalize(ingredient.nameEn),
-        ];
-        if (names.any(
-          (name) =>
-              normalizedLine.contains(name) || name.contains(normalizedLine),
-        )) {
-          bestMatch = ingredient;
-          break;
-        }
+      final normalizedRawLine = _normalizeReceiptInput(line);
+      if (_shouldIgnoreReceiptLine(normalizedRawLine)) {
+        continue;
       }
-      if (bestMatch != null) {
-        if (!matchedIngredients.any((item) => item.id == bestMatch!.id)) {
-          matchedIngredients.add(bestMatch);
-        }
-      } else {
+
+      final cleanedLine = _cleanReceiptLine(line);
+      final normalizedLine = _normalizeReceiptInput(cleanedLine);
+      if (normalizedLine.isEmpty || _shouldIgnoreReceiptLine(normalizedLine)) {
+        continue;
+      }
+
+      processedLineCount += 1;
+      final match = _findBestReceiptMatch(normalizedLine, aliases);
+      if (match == null) {
         unmatched.add(line);
+        continue;
+      }
+
+      scoreTotal += match.score;
+      if (!matchedIngredients.any(
+        (item) => item.id == match.alias.ingredient.id,
+      )) {
+        matchedIngredients.add(match.alias.ingredient);
       }
     }
 
+    final coverage = processedLineCount == 0
+        ? 0.0
+        : matchedIngredients.length / processedLineCount;
+    final quality =
+        processedLineCount == 0 ? 0.0 : scoreTotal / (processedLineCount * 100);
     final confidence =
-        lines.isEmpty ? 0 : matchedIngredients.length / lines.length;
+        ((coverage * 0.55) + (quality * 0.45)).clamp(0, 1).toDouble();
+
     return ReceiptScanResult(
       matchedIngredients: matchedIngredients,
       unmatchedLines: unmatched,
@@ -504,6 +654,318 @@ class KitchenIntelligenceService {
     return 'comfort';
   }
 
+  List<_ReceiptAlias> _buildReceiptAliases(Iterable<Ingredient> ingredients) {
+    return ingredients.map((ingredient) {
+      final phrases = <String>{
+        _normalizeReceiptInput(ingredient.id.replaceAll('_', ' ')),
+        _normalizeReceiptInput(ingredient.nameTr),
+        _normalizeReceiptInput(ingredient.nameEn),
+        ...?_receiptAliasesByIngredientId[ingredient.id]?.map(
+          _normalizeReceiptInput,
+        ),
+      }..removeWhere((phrase) => phrase.isEmpty);
+
+      final tokens = <String>{};
+      for (final phrase in phrases) {
+        tokens.addAll(_tokenizeReceiptText(phrase));
+      }
+
+      return _ReceiptAlias(
+        ingredient: ingredient,
+        phrases: phrases.toList()..sort((a, b) => b.length.compareTo(a.length)),
+        tokens: tokens,
+      );
+    }).toList();
+  }
+
+  _ReceiptMatch? _findBestReceiptMatch(
+    String normalizedLine,
+    List<_ReceiptAlias> aliases,
+  ) {
+    final lineTokens = _tokenizeReceiptText(normalizedLine);
+    if (lineTokens.isEmpty) {
+      return null;
+    }
+
+    _ReceiptMatch? bestMatch;
+    for (final alias in aliases) {
+      final score = _scoreReceiptAlias(
+        normalizedLine: normalizedLine,
+        lineTokens: lineTokens,
+        alias: alias,
+      );
+      if (score < 38) {
+        continue;
+      }
+      if (bestMatch == null || score > bestMatch.score) {
+        bestMatch = _ReceiptMatch(alias: alias, score: score);
+      }
+    }
+
+    return bestMatch;
+  }
+
+  double _scoreReceiptAlias({
+    required String normalizedLine,
+    required Set<String> lineTokens,
+    required _ReceiptAlias alias,
+  }) {
+    var score = 0.0;
+    final compactLine = normalizedLine.replaceAll(' ', '');
+
+    for (final phrase in alias.phrases) {
+      if (phrase.isEmpty) {
+        continue;
+      }
+      final compactPhrase = phrase.replaceAll(' ', '');
+      if (normalizedLine == phrase) {
+        score = score < 100 ? 100 : score;
+      } else if (normalizedLine.contains(phrase) && phrase.length >= 4) {
+        final phraseTokenCount = _tokenizeReceiptText(phrase).length;
+        final phraseScore = 68 + (phraseTokenCount * 6);
+        if (phraseScore > score) {
+          score = phraseScore.toDouble();
+        }
+      } else if (compactPhrase.length >= 5 &&
+          compactLine.contains(compactPhrase)) {
+        final phraseTokenCount = _tokenizeReceiptText(phrase).length;
+        final phraseScore = 62 + (phraseTokenCount * 5);
+        if (phraseScore > score) {
+          score = phraseScore.toDouble();
+        }
+      }
+    }
+
+    final overlap = lineTokens.intersection(alias.tokens);
+    if (overlap.isNotEmpty) {
+      score += overlap.length * 17;
+      final longestTokenLength = overlap.fold<int>(
+        0,
+        (max, token) => token.length > max ? token.length : max,
+      );
+      score += (longestTokenLength / 2).clamp(0, 10);
+    }
+
+    var fuzzyTokenMatches = 0;
+    var fuzzySimilarityTotal = 0.0;
+    for (final aliasToken in alias.tokens.difference(overlap)) {
+      var bestSimilarity = 0.0;
+      for (final lineToken in lineTokens) {
+        final similarity = _calculateTokenSimilarity(aliasToken, lineToken);
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity;
+        }
+      }
+      if (bestSimilarity >= 0.72) {
+        fuzzyTokenMatches += 1;
+        fuzzySimilarityTotal += bestSimilarity;
+      }
+    }
+
+    if (fuzzyTokenMatches > 0) {
+      score += fuzzyTokenMatches * 11;
+      score += fuzzySimilarityTotal * 9;
+    }
+
+    for (final phrase in alias.phrases) {
+      final phraseTokens = _tokenizeReceiptText(phrase);
+      final coveredPhraseTokens = phraseTokens.where((token) {
+        if (lineTokens.contains(token)) {
+          return true;
+        }
+        return lineTokens.any(
+          (lineToken) => _calculateTokenSimilarity(token, lineToken) >= 0.8,
+        );
+      });
+      if (phraseTokens.isNotEmpty &&
+          coveredPhraseTokens.length == phraseTokens.length) {
+        score += 22;
+        break;
+      }
+    }
+
+    if (lineTokens.length > 4 && overlap.length == 1) {
+      score -= 6;
+    }
+    if (overlap.length == 1 && overlap.first.length <= 3) {
+      score -= 12;
+    }
+
+    return score;
+  }
+
+  double _calculateTokenSimilarity(String left, String right) {
+    if (left == right) {
+      return 1;
+    }
+    if (left.length < 2 || right.length < 2) {
+      return 0;
+    }
+    if (left.contains(right) || right.contains(left)) {
+      final shorterLength = math.min(left.length, right.length);
+      final longerLength = math.max(left.length, right.length);
+      if (shorterLength >= 3) {
+        return shorterLength / longerLength;
+      }
+    }
+
+    final distance = _levenshteinDistance(left, right);
+    final longestLength = math.max(left.length, right.length);
+    return 1 - (distance / longestLength);
+  }
+
+  int _levenshteinDistance(String left, String right) {
+    if (left.isEmpty) {
+      return right.length;
+    }
+    if (right.isEmpty) {
+      return left.length;
+    }
+
+    var previous = List<int>.generate(right.length + 1, (index) => index);
+
+    for (var i = 0; i < left.length; i++) {
+      final current = List<int>.filled(right.length + 1, 0);
+      current[0] = i + 1;
+
+      for (var j = 0; j < right.length; j++) {
+        final cost = left[i] == right[j] ? 0 : 1;
+        final deletion = previous[j + 1] + 1;
+        final insertion = current[j] + 1;
+        final substitution = previous[j] + cost;
+        current[j + 1] = math.min(
+          math.min(deletion, insertion),
+          substitution,
+        );
+      }
+
+      previous = current;
+    }
+
+    return previous.last;
+  }
+
+  String _cleanReceiptLine(String line) {
+    var cleaned = _normalizeReceiptInput(line);
+    cleaned = cleaned.replaceAll(RegExp(r'\b\d+[.,]\d{2}\b'), ' ');
+    cleaned = cleaned.replaceAll(
+      RegExp(r'\b\d+\s*(adet|ad|kg|gr|g|gram|ml|cl|lt|l|paket|pkt|pk|x)\b'),
+      ' ',
+    );
+    cleaned = cleaned.replaceAll(RegExp(r'\b\d+\b'), ' ');
+    cleaned = cleaned.replaceAll(RegExp(r'[%*#/_+=]+'), ' ');
+
+    final filteredTokens = _tokenizeReceiptText(cleaned)
+        .where((token) => !_receiptNoiseWords.contains(token))
+        .toList();
+    return filteredTokens.join(' ');
+  }
+
+  bool _shouldIgnoreReceiptLine(String normalizedLine) {
+    if (normalizedLine.isEmpty) {
+      return true;
+    }
+    final tokens = _tokenizeReceiptText(normalizedLine);
+    if (tokens.isEmpty) {
+      return true;
+    }
+    final meaningfulTokens = tokens
+        .where(
+          (token) =>
+              !_receiptNoiseWords.contains(token) &&
+              !RegExp(r'^\d+$').hasMatch(token),
+        )
+        .toList();
+    if (meaningfulTokens.isEmpty) {
+      return true;
+    }
+    final containsIgnoredPhrase =
+        _receiptIgnoredPhrases.any(normalizedLine.contains);
+    final containsKnownMarket =
+        markets.map(_normalizeReceiptInput).any(normalizedLine.contains);
+    if (containsIgnoredPhrase &&
+        (meaningfulTokens.length <= 1 ||
+            (containsKnownMarket && meaningfulTokens.length <= 2))) {
+      return true;
+    }
+    final hasLetters = RegExp(r'[a-z]').hasMatch(normalizedLine);
+    final hasDigits = RegExp(r'\d').hasMatch(normalizedLine);
+    if (!hasLetters && hasDigits) {
+      return true;
+    }
+    return false;
+  }
+
+  Set<String> _tokenizeReceiptText(String input) {
+    return input
+        .split(' ')
+        .map((token) => _stemReceiptToken(token))
+        .where((token) => token.length >= 2)
+        .toSet();
+  }
+
+  String _stemReceiptToken(String token) {
+    var value = token.trim();
+    if (value.length <= 4) {
+      return value;
+    }
+
+    const suffixes = [
+      'leri',
+      'lari',
+      'lerin',
+      'larin',
+      'lik',
+      'luk',
+      'siz',
+      'suz',
+      'dan',
+      'den',
+      'nin',
+      'dir',
+      'tir',
+      'si',
+      'su',
+      'li',
+      'lu',
+      'ci',
+      'cu',
+      'yi',
+      'yu',
+      'i',
+      'u',
+    ];
+
+    for (final suffix in suffixes) {
+      if (value.endsWith(suffix) && value.length - suffix.length >= 4) {
+        value = value.substring(0, value.length - suffix.length);
+        break;
+      }
+    }
+
+    return value;
+  }
+
+  String _normalizeReceiptInput(String input) {
+    return input
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c')
+        .replaceAll('Ã„Â±', 'i')
+        .replaceAll('Ã„Å¸', 'g')
+        .replaceAll('ÃƒÂ¼', 'u')
+        .replaceAll('Ã…Å¸', 's')
+        .replaceAll('ÃƒÂ¶', 'o')
+        .replaceAll('ÃƒÂ§', 'c')
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   String _normalize(String input) {
     return input
         .toLowerCase()
@@ -568,4 +1030,26 @@ class KitchenIntelligenceService {
     }
     return 360;
   }
+}
+
+class _ReceiptAlias {
+  final Ingredient ingredient;
+  final List<String> phrases;
+  final Set<String> tokens;
+
+  const _ReceiptAlias({
+    required this.ingredient,
+    required this.phrases,
+    required this.tokens,
+  });
+}
+
+class _ReceiptMatch {
+  final _ReceiptAlias alias;
+  final double score;
+
+  const _ReceiptMatch({
+    required this.alias,
+    required this.score,
+  });
 }
