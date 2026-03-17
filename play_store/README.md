@@ -9,7 +9,7 @@ Hazirlanan dosyalar:
 - `google_signin_setup.md` : Debug ve release Google giris ayarlari
 
 Gorsel varliklar:
-- Uygulama ikon kaynagi: `assets/images/app_icon_source.png`
+- Uygulama ikon kaynagi: `assets/images/app_icon_source.jpeg`
 - Feature graphic: `assets/images/play_feature_graphic.png`
 
 Ikonlari uretmek icin:
