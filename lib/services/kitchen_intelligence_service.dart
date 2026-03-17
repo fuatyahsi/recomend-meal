@@ -168,37 +168,57 @@ class KitchenIntelligenceService {
   }
 
   List<MarketBasketComparison> buildMarketComparisons(
-    List<SmartShoppingItem> items,
-  ) {
+    List<SmartShoppingItem> items, {
+    List<RemoteMarketQuote> remoteQuotes = const [],
+    List<String>? preferredMarkets,
+  }) {
     if (items.isEmpty) return const [];
 
-    final results = markets.map((market) {
+    final availableMarkets =
+        preferredMarkets != null && preferredMarkets.isNotEmpty
+            ? preferredMarkets
+            : markets;
+
+    final results = availableMarkets.map((market) {
       final deals = items.map((shoppingItem) {
-        final unitPrice = _unitPriceForMarket(shoppingItem.ingredient, market);
+        RemoteMarketQuote? liveQuote;
+        for (final quote in remoteQuotes) {
+          if (quote.market == market &&
+              quote.ingredientId == shoppingItem.ingredient.id) {
+            liveQuote = quote;
+            break;
+          }
+        }
+        final unitPrice = liveQuote?.unitPrice ??
+            _unitPriceForMarket(shoppingItem.ingredient, market);
         final totalPrice = unitPrice * shoppingItem.missingCount;
-        final isCampaign =
-            _stableHash('${shoppingItem.ingredient.id}-$market') % 5 == 0;
+        final isCampaign = liveQuote?.isCampaign ??
+            (_stableHash('${shoppingItem.ingredient.id}-$market') % 5 == 0);
         return MarketItemDeal(
           shoppingItem: shoppingItem,
           market: market,
           unitPrice: unitPrice,
           totalPrice: isCampaign ? totalPrice * 0.88 : totalPrice,
           isCampaign: isCampaign,
-          campaignLabelTr:
-              isCampaign ? 'Haftanin kampanyasi' : 'Standart raf fiyati',
-          campaignLabelEn:
-              isCampaign ? 'Weekly campaign' : 'Regular shelf price',
+          isLiveData: liveQuote != null,
+          campaignLabelTr: liveQuote?.campaignLabelTr ??
+              (isCampaign ? 'Haftanin kampanyasi' : 'Standart raf fiyati'),
+          campaignLabelEn: liveQuote?.campaignLabelEn ??
+              (isCampaign ? 'Weekly campaign' : 'Regular shelf price'),
         );
       }).toList();
 
       final totalPrice =
           deals.fold<double>(0, (sum, deal) => sum + deal.totalPrice);
+      final hasLiveData = deals.any((deal) => deal.isLiveData);
       return MarketBasketComparison(
         market: market,
         deals: deals,
         totalPrice: totalPrice,
         campaignCount: deals.where((deal) => deal.isCampaign).length,
         estimatedSavingsVsHighest: 0,
+        isLiveData: hasLiveData,
+        sourceLabel: hasLiveData ? 'Live feed' : 'Estimated',
       );
     }).toList()
       ..sort((a, b) => a.totalPrice.compareTo(b.totalPrice));
@@ -212,6 +232,8 @@ class KitchenIntelligenceService {
             totalPrice: comparison.totalPrice,
             campaignCount: comparison.campaignCount,
             estimatedSavingsVsHighest: highest - comparison.totalPrice,
+            isLiveData: comparison.isLiveData,
+            sourceLabel: comparison.sourceLabel,
           ),
         )
         .toList();
@@ -262,6 +284,8 @@ class KitchenIntelligenceService {
       matchedIngredients: matchedIngredients,
       unmatchedLines: unmatched,
       confidence: confidence.clamp(0, 1).toDouble(),
+      rawText: rawText,
+      detectedStore: _detectStore(rawText),
     );
   }
 
@@ -320,6 +344,9 @@ class KitchenIntelligenceService {
       shareCaptionEn:
           'I analyzed my plate with FridgeChef. The next round is going bigger.',
       matchedRecipes: matchedRecipes,
+      estimatedCalories: _estimateCaloriesFromPrompt(prompt),
+      analysisPrompt: prompt,
+      confidence: matchedRecipes.isEmpty ? 0.32 : 0.72,
     );
   }
 
@@ -497,5 +524,48 @@ class KitchenIntelligenceService {
       hash = (hash + input.codeUnitAt(i) * (i + 1)) % 100000;
     }
     return hash;
+  }
+
+  String? _detectStore(String rawText) {
+    final normalized = _normalize(rawText);
+    if (normalized.contains('migros')) {
+      return 'Migros';
+    }
+    if (normalized.contains('carrefoursa')) {
+      return 'CarrefourSA';
+    }
+    if (normalized.contains('a101')) {
+      return 'A101';
+    }
+    if (normalized.contains('bim')) {
+      return 'BIM';
+    }
+    if (normalized.contains('sok')) {
+      return 'SOK';
+    }
+    return null;
+  }
+
+  int _estimateCaloriesFromPrompt(String prompt) {
+    final normalized = _normalize(prompt);
+    if (normalized.contains('salata') || normalized.contains('salad')) {
+      return 220;
+    }
+    if (normalized.contains('corba') || normalized.contains('soup')) {
+      return 190;
+    }
+    if (normalized.contains('makarna') || normalized.contains('pasta')) {
+      return 540;
+    }
+    if (normalized.contains('pilav') || normalized.contains('rice')) {
+      return 410;
+    }
+    if (normalized.contains('somon') || normalized.contains('salmon')) {
+      return 340;
+    }
+    if (normalized.contains('burger') || normalized.contains('pizza')) {
+      return 720;
+    }
+    return 360;
   }
 }

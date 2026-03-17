@@ -87,6 +87,8 @@ class SmartKitchenPreferences {
   final bool priceComparisonEnabled;
   final bool campaignAlertsEnabled;
   final List<String> preferredMarkets;
+  final String marketFeedUrl;
+  final String marketFeedLabel;
   final Map<String, List<String>> plannedRecipeIdsByMeal;
 
   const SmartKitchenPreferences({
@@ -96,6 +98,8 @@ class SmartKitchenPreferences {
     required this.priceComparisonEnabled,
     required this.campaignAlertsEnabled,
     required this.preferredMarkets,
+    required this.marketFeedUrl,
+    required this.marketFeedLabel,
     required this.plannedRecipeIdsByMeal,
   });
 
@@ -129,6 +133,8 @@ class SmartKitchenPreferences {
       priceComparisonEnabled: false,
       campaignAlertsEnabled: false,
       preferredMarkets: ['Migros', 'CarrefourSA'],
+      marketFeedUrl: '',
+      marketFeedLabel: '',
       plannedRecipeIdsByMeal: {},
     );
   }
@@ -147,6 +153,8 @@ class SmartKitchenPreferences {
     bool? priceComparisonEnabled,
     bool? campaignAlertsEnabled,
     List<String>? preferredMarkets,
+    String? marketFeedUrl,
+    String? marketFeedLabel,
     Map<String, List<String>>? plannedRecipeIdsByMeal,
   }) {
     return SmartKitchenPreferences(
@@ -160,6 +168,8 @@ class SmartKitchenPreferences {
       campaignAlertsEnabled:
           campaignAlertsEnabled ?? this.campaignAlertsEnabled,
       preferredMarkets: preferredMarkets ?? this.preferredMarkets,
+      marketFeedUrl: marketFeedUrl ?? this.marketFeedUrl,
+      marketFeedLabel: marketFeedLabel ?? this.marketFeedLabel,
       plannedRecipeIdsByMeal:
           plannedRecipeIdsByMeal ?? this.plannedRecipeIdsByMeal,
     );
@@ -177,9 +187,10 @@ class SmartKitchenPreferences {
     final rawPlannedRecipes = json['plannedRecipeIdsByMeal'];
     if (rawPlannedRecipes is Map<String, dynamic>) {
       for (final entry in rawPlannedRecipes.entries) {
-        plannedRecipeIdsByMeal[entry.key] = (entry.value as List<dynamic>? ?? const [])
-            .map((value) => value.toString())
-            .toList();
+        plannedRecipeIdsByMeal[entry.key] =
+            (entry.value as List<dynamic>? ?? const [])
+                .map((value) => value.toString())
+                .toList();
       }
     } else {
       final legacyPlannedRecipes = json['plannedRecipeIds'];
@@ -200,13 +211,13 @@ class SmartKitchenPreferences {
       eveningDriveHomeSuggestions:
           json['eveningDriveHomeSuggestions'] as bool? ?? true,
       schoolBreakfastNudges: json['schoolBreakfastNudges'] as bool? ?? true,
-      priceComparisonEnabled:
-          json['priceComparisonEnabled'] as bool? ?? false,
-      campaignAlertsEnabled:
-          json['campaignAlertsEnabled'] as bool? ?? false,
+      priceComparisonEnabled: json['priceComparisonEnabled'] as bool? ?? false,
+      campaignAlertsEnabled: json['campaignAlertsEnabled'] as bool? ?? false,
       preferredMarkets:
           (json['preferredMarkets'] as List<dynamic>? ?? const ['Migros'])
               .cast<String>(),
+      marketFeedUrl: json['marketFeedUrl'] as String? ?? '',
+      marketFeedLabel: json['marketFeedLabel'] as String? ?? '',
       plannedRecipeIdsByMeal: plannedRecipeIdsByMeal,
     );
   }
@@ -218,6 +229,8 @@ class SmartKitchenPreferences {
         'priceComparisonEnabled': priceComparisonEnabled,
         'campaignAlertsEnabled': campaignAlertsEnabled,
         'preferredMarkets': preferredMarkets,
+        'marketFeedUrl': marketFeedUrl,
+        'marketFeedLabel': marketFeedLabel,
         'plannedRecipeIdsByMeal': plannedRecipeIdsByMeal,
       };
 }

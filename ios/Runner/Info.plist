@@ -41,6 +41,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>FridgeChef uses speech recognition for hands-free voice commands during cooking.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>FridgeChef needs microphone access for voice-controlled cooking mode.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>FridgeChef uses the camera to scan receipts and analyze plated meals.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FridgeChef needs photo library access to import receipt and meal images for analysis.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

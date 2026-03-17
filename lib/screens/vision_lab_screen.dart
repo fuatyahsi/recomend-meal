@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../models/kitchen_intelligence.dart';
@@ -16,8 +19,56 @@ class VisionLabScreen extends StatefulWidget {
 class _VisionLabScreenState extends State<VisionLabScreen> {
   final TextEditingController _receiptController = TextEditingController();
   final TextEditingController _plateController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isScanning = false;
   bool _isAnalyzing = false;
+
+  Future<void> _pickReceiptImage(
+    AppProvider provider,
+    ImageSource source,
+  ) async {
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      maxWidth: 1800,
+      imageQuality: 88,
+    );
+    if (picked == null) return;
+    setState(() => _isScanning = true);
+    try {
+      await provider.analyzeReceiptImage(picked.path);
+      if (mounted) {
+        _receiptController.text = provider.lastReceiptScanResult?.rawText ?? '';
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isScanning = false);
+      }
+    }
+  }
+
+  Future<void> _pickPlateImage(
+    AppProvider provider,
+    ImageSource source,
+  ) async {
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      maxWidth: 1800,
+      imageQuality: 88,
+    );
+    if (picked == null) return;
+    setState(() => _isAnalyzing = true);
+    try {
+      await provider.analyzePlateImage(picked.path);
+      if (mounted) {
+        _plateController.text =
+            provider.lastPlateAnalysisResult?.analysisPrompt ?? '';
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAnalyzing = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -74,6 +125,19 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
                 : 'Paste receipt text and auto-add matched ingredients to your pantry.',
             child: Column(
               children: [
+                _ImageActionRow(
+                  isTr: isTr,
+                  isBusy: _isScanning,
+                  onCamera: () =>
+                      _pickReceiptImage(provider, ImageSource.camera),
+                  onGallery: () =>
+                      _pickReceiptImage(provider, ImageSource.gallery),
+                ),
+                if (receiptResult?.capturedImagePath != null) ...[
+                  const SizedBox(height: 12),
+                  _PickedImagePreview(path: receiptResult!.capturedImagePath!),
+                ],
+                const SizedBox(height: 12),
                 TextField(
                   controller: _receiptController,
                   minLines: 4,
@@ -127,6 +191,18 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
                 : 'Describe the dish and get likely matches, mood fit, and a share caption.',
             child: Column(
               children: [
+                _ImageActionRow(
+                  isTr: isTr,
+                  isBusy: _isAnalyzing,
+                  onCamera: () => _pickPlateImage(provider, ImageSource.camera),
+                  onGallery: () =>
+                      _pickPlateImage(provider, ImageSource.gallery),
+                ),
+                if (plateResult?.capturedImagePath != null) ...[
+                  const SizedBox(height: 12),
+                  _PickedImagePreview(path: plateResult!.capturedImagePath!),
+                ],
+                const SizedBox(height: 12),
                 TextField(
                   controller: _plateController,
                   minLines: 4,
@@ -231,8 +307,8 @@ class _VisionHeroCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             isTr
-                ? 'Bugun metin tabanli akiyor: fis veya tabak aciklamasi ver, dolap, mood ve tarif motoru birlikte calissin. Sonraki fazda bunu kamera/OCR hattina tasiyabiliriz.'
-                : 'This MVP runs on text today: provide receipt or plate notes and let pantry, mood, and recipe engines work together.',
+                ? 'Artik hem metin hem gorsel akisi var: fis fotografi cek, tabagi analiz et, dolap, mood ve tarif motoru birlikte calissin.'
+                : 'Vision now supports both text and image flows: scan a receipt, analyze a plate, and let pantry, mood, and recipe engines work together.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.9),
               height: 1.5,
@@ -296,6 +372,62 @@ class _LabCard extends StatelessWidget {
   }
 }
 
+class _ImageActionRow extends StatelessWidget {
+  final bool isTr;
+  final bool isBusy;
+  final VoidCallback onCamera;
+  final VoidCallback onGallery;
+
+  const _ImageActionRow({
+    required this.isTr,
+    required this.isBusy,
+    required this.onCamera,
+    required this.onGallery,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: isBusy ? null : onCamera,
+            icon: const Icon(Icons.photo_camera_outlined),
+            label: Text(isTr ? 'Kamera' : 'Camera'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: isBusy ? null : onGallery,
+            icon: const Icon(Icons.photo_library_outlined),
+            label: Text(isTr ? 'Galeri' : 'Gallery'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PickedImagePreview extends StatelessWidget {
+  final String path;
+
+  const _PickedImagePreview({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.file(
+        File(path),
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+}
+
 class _ReceiptResultCard extends StatelessWidget {
   final bool isTr;
   final ReceiptScanResult result;
@@ -326,6 +458,17 @@ class _ReceiptResultCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+          if (result.detectedStore != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Algilanan market: ${result.detectedStore}'
+                  : 'Detected store: ${result.detectedStore}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           if (result.matchedIngredients.isEmpty)
             Text(
@@ -344,6 +487,34 @@ class _ReceiptResultCard extends StatelessWidget {
                 );
               }).toList(),
             ),
+          if (result.detectedLabels.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              isTr ? 'Gorsel ipuclari' : 'Visual hints',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: result.detectedLabels
+                  .map((label) => Chip(label: Text(label)))
+                  .toList(),
+            ),
+          ],
+          if (result.rawText.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              isTr ? 'OCR metni' : 'OCR text',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(result.rawText),
+          ],
           if (result.unmatchedLines.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
@@ -394,6 +565,40 @@ class _PlateResultCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(result.summary(isTr ? 'tr' : 'en')),
           const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(
+                avatar:
+                    const Icon(Icons.local_fire_department_outlined, size: 16),
+                label: Text(
+                  isTr
+                      ? '~${result.estimatedCalories} kcal'
+                      : '~${result.estimatedCalories} kcal',
+                ),
+              ),
+              Chip(
+                avatar: const Icon(Icons.speed_outlined, size: 16),
+                label: Text(
+                  isTr
+                      ? '%${(result.confidence * 100).round()} guven'
+                      : '%${(result.confidence * 100).round()} confidence',
+                ),
+              ),
+            ],
+          ),
+          if (result.detectedLabels.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: result.detectedLabels
+                  .map((label) => Chip(label: Text(label)))
+                  .toList(),
+            ),
+          ],
+          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -407,6 +612,17 @@ class _PlateResultCard extends StatelessWidget {
               ),
             ),
           ),
+          if (result.analysisPrompt.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              isTr ? 'Analiz istemi' : 'Analysis prompt',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(result.analysisPrompt),
+          ],
           if (result.matchedRecipes.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(

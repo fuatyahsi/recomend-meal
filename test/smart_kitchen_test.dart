@@ -2,23 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fridge_chef/models/smart_kitchen.dart';
 
 void main() {
-  test('smart kitchen preferences preserve meal routines after serialization', () {
-    final original = SmartKitchenPreferences.defaults().copyWith(
-      campaignAlertsEnabled: true,
-      preferredMarkets: const ['Migros', 'A101'],
-      plannedRecipeIdsByMeal: const {
-        'dinner': ['mercimek-corbasi', 'coban-salata'],
-      },
-    ).replaceSlot(
-      SmartKitchenPreferences.defaults()
-          .slotById('dinner')
-          .copyWith(weekdayMinutes: 1140, leadMinutes: 45),
-    );
+  test('smart kitchen preferences preserve meal routines after serialization',
+      () {
+    final original = SmartKitchenPreferences.defaults()
+        .copyWith(
+          campaignAlertsEnabled: true,
+          preferredMarkets: const ['Migros', 'A101'],
+          marketFeedUrl: 'https://example.com/feed.json',
+          marketFeedLabel: 'FridgeChef Live',
+          plannedRecipeIdsByMeal: const {
+            'dinner': ['mercimek-corbasi', 'coban-salata'],
+          },
+        )
+        .replaceSlot(
+          SmartKitchenPreferences.defaults()
+              .slotById('dinner')
+              .copyWith(weekdayMinutes: 1140, leadMinutes: 45),
+        );
 
     final restored = SmartKitchenPreferences.fromJson(original.toJson());
 
     expect(restored.campaignAlertsEnabled, isTrue);
     expect(restored.preferredMarkets, ['Migros', 'A101']);
+    expect(restored.marketFeedUrl, 'https://example.com/feed.json');
+    expect(restored.marketFeedLabel, 'FridgeChef Live');
     expect(
       restored.plannedRecipeIdsByMeal['dinner'],
       ['mercimek-corbasi', 'coban-salata'],

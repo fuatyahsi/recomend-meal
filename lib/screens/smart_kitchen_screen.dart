@@ -32,6 +32,7 @@ class SmartKitchenScreen extends StatelessWidget {
     final weeklyChallenges = provider.weeklyChallengeProgress;
     final rescueSuggestions = provider.wasteRescueSuggestions;
     final marketComparisons = provider.getMarketComparisons();
+    final marketSyncStatus = provider.marketSyncStatus;
     final digitalTwinZones = provider.digitalTwinZones;
     final flavorPairings = provider.flavorPairings;
     final weeklyDigest = provider.getWeeklyMenuDigest();
@@ -314,6 +315,8 @@ class SmartKitchenScreen extends StatelessWidget {
           _MarketComparisonCard(
             isTr: isTr,
             comparisons: marketComparisons,
+            syncStatus: marketSyncStatus,
+            onRefresh: () => provider.refreshMarketWatch(),
           ),
           const SizedBox(height: 16),
           _DigitalTwinCard(
@@ -481,11 +484,97 @@ class SmartKitchenScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showMarketFeedConfig(
+                        context,
+                        provider: provider,
+                        isTr: isTr,
+                      ),
+                      icon: const Icon(Icons.link_rounded),
+                      label: Text(
+                        isTr
+                            ? 'Canli market feed ayarla'
+                            : 'Configure live market feed',
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showMarketFeedConfig(
+    BuildContext context, {
+    required AppProvider provider,
+    required bool isTr,
+  }) async {
+    final urlController = TextEditingController(
+      text: provider.smartKitchenPreferences.marketFeedUrl,
+    );
+    final labelController = TextEditingController(
+      text: provider.smartKitchenPreferences.marketFeedLabel,
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            isTr ? 'Canli market feed' : 'Live market feed',
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelController,
+                decoration: InputDecoration(
+                  labelText: isTr ? 'Kaynak etiketi' : 'Source label',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                minLines: 2,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: isTr ? 'JSON feed URL' : 'JSON feed URL',
+                  hintText: 'https://example.com/fridgechef-market-feed.json',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(isTr ? 'Vazgec' : 'Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await provider.setMarketFeedConfig(
+                  feedUrl: urlController.text,
+                  feedLabel: labelController.text,
+                );
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+                if (provider.smartKitchenPreferences.priceComparisonEnabled &&
+                    urlController.text.trim().isNotEmpty) {
+                  await provider.refreshMarketWatch();
+                }
+              },
+              child: Text(isTr ? 'Kaydet' : 'Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1609,10 +1698,14 @@ class _ZeroWasteCard extends StatelessWidget {
 class _MarketComparisonCard extends StatelessWidget {
   final bool isTr;
   final List<MarketBasketComparison> comparisons;
+  final MarketSyncStatus syncStatus;
+  final Future<void> Function() onRefresh;
 
   const _MarketComparisonCard({
     required this.isTr,
     required this.comparisons,
+    required this.syncStatus,
+    required this.onRefresh,
   });
 
   @override
@@ -1637,6 +1730,14 @@ class _MarketComparisonCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                IconButton(
+                  onPressed: syncStatus.isLoading ? null : onRefresh,
+                  icon: Icon(
+                    syncStatus.isLoading
+                        ? Icons.hourglass_top_rounded
+                        : Icons.refresh_rounded,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1648,6 +1749,25 @@ class _MarketComparisonCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            if (syncStatus.sourceLabel.isNotEmpty ||
+                syncStatus.message != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                syncStatus.message ??
+                    (syncStatus.usedLiveData
+                        ? (isTr
+                            ? '${syncStatus.sourceLabel} ile canli veri kullaniliyor.'
+                            : 'Using live data from ${syncStatus.sourceLabel}.')
+                        : (isTr
+                            ? 'Tahmini fiyat modeli aktif.'
+                            : 'Estimated pricing model is active.')),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: syncStatus.usedLiveData
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             if (comparisons.isEmpty)
               Text(
@@ -1663,8 +1783,8 @@ class _MarketComparisonCard extends StatelessWidget {
                   title: Text(comparison.market),
                   subtitle: Text(
                     isTr
-                        ? '${comparison.campaignCount} kampanya, ${comparison.deals.length} urun'
-                        : '${comparison.campaignCount} campaigns, ${comparison.deals.length} items',
+                        ? '${comparison.campaignCount} kampanya, ${comparison.deals.length} urun • ${comparison.isLiveData ? 'canli' : 'tahmini'}'
+                        : '${comparison.campaignCount} campaigns, ${comparison.deals.length} items • ${comparison.isLiveData ? 'live' : 'estimated'}',
                   ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

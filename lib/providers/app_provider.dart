@@ -10,6 +10,8 @@ import '../models/recipe.dart';
 import '../models/smart_kitchen.dart';
 import '../services/kitchen_intelligence_service.dart';
 import '../services/kitchen_rpg_service.dart';
+import '../services/kitchen_vision_service.dart';
+import '../services/market_watch_service.dart';
 import '../services/notification_service.dart';
 import '../services/recipe_service.dart';
 import '../utils/mood_recipes.dart';
@@ -19,6 +21,8 @@ class AppProvider extends ChangeNotifier {
   final KitchenIntelligenceService _kitchenIntelligenceService =
       KitchenIntelligenceService();
   final KitchenRpgService _kitchenRpgService = KitchenRpgService();
+  final KitchenVisionService _kitchenVisionService = KitchenVisionService();
+  final MarketWatchService _marketWatchService = MarketWatchService();
 
   bool _isLoading = true;
   Locale _locale = const Locale('tr');
@@ -33,6 +37,8 @@ class AppProvider extends ChangeNotifier {
   String? _activeMoodId;
   ReceiptScanResult? _lastReceiptScanResult;
   PlateAnalysisResult? _lastPlateAnalysisResult;
+  List<RemoteMarketQuote> _remoteMarketQuotes = const [];
+  MarketSyncStatus _marketSyncStatus = const MarketSyncStatus.idle();
 
   bool get isLoading => _isLoading;
   Locale get locale => _locale;
@@ -52,6 +58,7 @@ class AppProvider extends ChangeNotifier {
   String? get activeMoodId => _activeMoodId;
   ReceiptScanResult? get lastReceiptScanResult => _lastReceiptScanResult;
   PlateAnalysisResult? get lastPlateAnalysisResult => _lastPlateAnalysisResult;
+  MarketSyncStatus get marketSyncStatus => _marketSyncStatus;
   String get kitchenLevelTitle =>
       _kitchenRpgService.titleForLevel(_kitchenRpgProfile.level, languageCode);
   List<PantryStockItem> get pantryItems {
@@ -104,6 +111,14 @@ class AppProvider extends ChangeNotifier {
       await _refreshSmartKitchenNotifications();
     } catch (e) {
       debugPrint('Smart kitchen notification sync error: $e');
+    }
+    try {
+      if (_smartKitchenPreferences.priceComparisonEnabled &&
+          _smartKitchenPreferences.marketFeedUrl.trim().isNotEmpty) {
+        await refreshMarketWatch(silent: true);
+      }
+    } catch (e) {
+      debugPrint('Market watch sync error: $e');
     }
     _isLoading = false;
     notifyListeners();
@@ -231,12 +246,28 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> analyzeReceiptText(String rawText) async {
+  Future<void> analyzeReceiptText(
+    String rawText, {
+    String? capturedImagePath,
+    String? detectedStore,
+    List<String> detectedLabels = const [],
+  }) async {
     _lastReceiptScanResult = _kitchenIntelligenceService.analyzeReceiptText(
       rawText,
       _recipeService.ingredients,
       languageCode,
     );
+    if (_lastReceiptScanResult != null) {
+      _lastReceiptScanResult = ReceiptScanResult(
+        matchedIngredients: _lastReceiptScanResult!.matchedIngredients,
+        unmatchedLines: _lastReceiptScanResult!.unmatchedLines,
+        confidence: _lastReceiptScanResult!.confidence,
+        rawText: rawText,
+        detectedStore: detectedStore ?? _lastReceiptScanResult!.detectedStore,
+        detectedLabels: detectedLabels,
+        capturedImagePath: capturedImagePath,
+      );
+    }
 
     final now = DateTime.now();
     for (final ingredient in _lastReceiptScanResult!.matchedIngredients) {
@@ -252,15 +283,62 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> analyzePlateDescription(String prompt) async {
+  Future<void> analyzeReceiptImage(String imagePath) async {
+    final capture = await _kitchenVisionService.analyzeReceiptImage(imagePath);
+    await analyzeReceiptText(
+      capture.rawText,
+      capturedImagePath: capture.imagePath,
+      detectedStore: capture.detectedStore,
+      detectedLabels: capture.labels,
+    );
+  }
+
+  Future<void> analyzePlateDescription(
+    String prompt, {
+    String? capturedImagePath,
+    List<String> detectedLabels = const [],
+    int estimatedCalories = 0,
+    double confidence = 0,
+  }) async {
     _lastPlateAnalysisResult = _kitchenIntelligenceService.analyzeDishPrompt(
       prompt,
       _recipeService.recipes,
       languageCode,
     );
+    if (_lastPlateAnalysisResult != null) {
+      _lastPlateAnalysisResult = PlateAnalysisResult(
+        headlineTr: _lastPlateAnalysisResult!.headlineTr,
+        headlineEn: _lastPlateAnalysisResult!.headlineEn,
+        summaryTr: _lastPlateAnalysisResult!.summaryTr,
+        summaryEn: _lastPlateAnalysisResult!.summaryEn,
+        suggestedMoodId: _lastPlateAnalysisResult!.suggestedMoodId,
+        shareCaptionTr: _lastPlateAnalysisResult!.shareCaptionTr,
+        shareCaptionEn: _lastPlateAnalysisResult!.shareCaptionEn,
+        matchedRecipes: _lastPlateAnalysisResult!.matchedRecipes,
+        detectedLabels: detectedLabels,
+        estimatedCalories: estimatedCalories > 0
+            ? estimatedCalories
+            : _lastPlateAnalysisResult!.estimatedCalories,
+        analysisPrompt: prompt,
+        capturedImagePath: capturedImagePath,
+        confidence:
+            confidence > 0 ? confidence : _lastPlateAnalysisResult!.confidence,
+      );
+    }
     _recordKitchenActivity(KitchenActivityType.visionAnalysis);
     await _savePreferences();
     notifyListeners();
+  }
+
+  Future<void> analyzePlateImage(String imagePath) async {
+    final capture = await _kitchenVisionService.analyzePlateImage(imagePath);
+    await analyzePlateDescription(
+      capture.prompt,
+      capturedImagePath: capture.imagePath,
+      detectedLabels: capture.labels,
+      estimatedCalories: capture.estimatedCalories,
+      confidence: capture.confidence,
+    );
   }
 
   void clearVisionResults() {
@@ -305,6 +383,8 @@ class AppProvider extends ChangeNotifier {
   List<MarketBasketComparison> getMarketComparisons() {
     return _kitchenIntelligenceService.buildMarketComparisons(
       getCombinedShoppingItems(),
+      remoteQuotes: _remoteMarketQuotes,
+      preferredMarkets: _smartKitchenPreferences.preferredMarkets,
     );
   }
 
@@ -677,6 +757,12 @@ class AppProvider extends ChangeNotifier {
       priceComparisonEnabled: value,
     );
     await _savePreferences();
+    if (!value) {
+      _remoteMarketQuotes = const [];
+      _marketSyncStatus = const MarketSyncStatus.idle();
+    } else if (_smartKitchenPreferences.marketFeedUrl.trim().isNotEmpty) {
+      await refreshMarketWatch(silent: true);
+    }
     notifyListeners();
   }
 
@@ -699,6 +785,83 @@ class AppProvider extends ChangeNotifier {
     _smartKitchenPreferences = _smartKitchenPreferences.copyWith(
       preferredMarkets: markets,
     );
+    await _savePreferences();
+    notifyListeners();
+  }
+
+  Future<void> setMarketFeedConfig({
+    required String feedUrl,
+    required String feedLabel,
+  }) async {
+    _smartKitchenPreferences = _smartKitchenPreferences.copyWith(
+      marketFeedUrl: feedUrl.trim(),
+      marketFeedLabel: feedLabel.trim(),
+    );
+    await _savePreferences();
+    notifyListeners();
+  }
+
+  Future<void> refreshMarketWatch({bool silent = false}) async {
+    final feedUrl = _smartKitchenPreferences.marketFeedUrl.trim();
+    if (feedUrl.isEmpty) {
+      _remoteMarketQuotes = const [];
+      _marketSyncStatus = MarketSyncStatus(
+        isLoading: false,
+        usedLiveData: false,
+        sourceLabel: _smartKitchenPreferences.marketFeedLabel,
+        lastSyncedAt: null,
+        message: languageCode == 'tr'
+            ? 'Canli market feed URL ayarlanmadi.'
+            : 'No live market feed URL configured.',
+      );
+      if (!silent) {
+        notifyListeners();
+      }
+      return;
+    }
+
+    _marketSyncStatus = MarketSyncStatus(
+      isLoading: true,
+      usedLiveData: _remoteMarketQuotes.isNotEmpty,
+      sourceLabel: _smartKitchenPreferences.marketFeedLabel,
+      lastSyncedAt: _marketSyncStatus.lastSyncedAt,
+      message: null,
+    );
+    if (!silent) {
+      notifyListeners();
+    }
+
+    try {
+      final snapshot = await _marketWatchService.fetchFeed(
+        feedUrl: feedUrl,
+        ingredients: _recipeService.ingredients,
+      );
+      _remoteMarketQuotes = snapshot.quotes;
+      _marketSyncStatus = MarketSyncStatus(
+        isLoading: false,
+        usedLiveData: snapshot.quotes.isNotEmpty,
+        sourceLabel: snapshot.sourceLabel,
+        lastSyncedAt: snapshot.fetchedAt,
+        message: snapshot.quotes.isEmpty
+            ? (languageCode == 'tr'
+                ? 'Feed geldi ama eslesen urun bulunamadi.'
+                : 'Feed loaded but no matching products were found.')
+            : null,
+      );
+    } catch (error) {
+      _remoteMarketQuotes = const [];
+      _marketSyncStatus = MarketSyncStatus(
+        isLoading: false,
+        usedLiveData: false,
+        sourceLabel: _smartKitchenPreferences.marketFeedLabel,
+        lastSyncedAt: _marketSyncStatus.lastSyncedAt,
+        message: languageCode == 'tr'
+            ? 'Canli market feed okunamadi. Tahmini fiyatlara donuldu.'
+            : 'Live market feed could not be loaded. Falling back to estimated prices.',
+      );
+      debugPrint('Market watch error: $error');
+    }
+
     await _savePreferences();
     notifyListeners();
   }
@@ -1180,6 +1343,18 @@ class AppProvider extends ChangeNotifier {
       }
 
       _activeMoodId = prefs.getString('activeMoodId');
+      final marketSyncRaw = prefs.getString('marketSyncStatus');
+      if (marketSyncRaw != null && marketSyncRaw.isNotEmpty) {
+        final decoded = json.decode(marketSyncRaw) as Map<String, dynamic>;
+        _marketSyncStatus = MarketSyncStatus(
+          isLoading: false,
+          usedLiveData: decoded['usedLiveData'] as bool? ?? false,
+          sourceLabel: decoded['sourceLabel']?.toString() ?? '',
+          lastSyncedAt:
+              DateTime.tryParse(decoded['lastSyncedAt']?.toString() ?? ''),
+          message: decoded['message']?.toString(),
+        );
+      }
       final receiptRaw = prefs.getString('lastReceiptScanResult');
       if (receiptRaw != null && receiptRaw.isNotEmpty) {
         final decoded = json.decode(receiptRaw) as Map<String, dynamic>;
@@ -1197,6 +1372,13 @@ class AppProvider extends ChangeNotifier {
                   .map((value) => value.toString())
                   .toList(),
           confidence: (decoded['confidence'] as num?)?.toDouble() ?? 0,
+          rawText: decoded['rawText']?.toString() ?? '',
+          detectedStore: decoded['detectedStore']?.toString(),
+          detectedLabels:
+              (decoded['detectedLabels'] as List<dynamic>? ?? const [])
+                  .map((value) => value.toString())
+                  .toList(),
+          capturedImagePath: decoded['capturedImagePath']?.toString(),
         );
       }
 
@@ -1219,6 +1401,15 @@ class AppProvider extends ChangeNotifier {
               .map(_recipeService.getRecipeById)
               .whereType<Recipe>()
               .toList(),
+          detectedLabels:
+              (decoded['detectedLabels'] as List<dynamic>? ?? const [])
+                  .map((value) => value.toString())
+                  .toList(),
+          estimatedCalories:
+              (decoded['estimatedCalories'] as num?)?.round() ?? 0,
+          analysisPrompt: decoded['analysisPrompt']?.toString() ?? '',
+          capturedImagePath: decoded['capturedImagePath']?.toString(),
+          confidence: (decoded['confidence'] as num?)?.toDouble() ?? 0,
         );
       }
 
@@ -1258,6 +1449,15 @@ class AppProvider extends ChangeNotifier {
         'kitchenRpgProfile',
         json.encode(_kitchenRpgProfile.toJson()),
       );
+      await prefs.setString(
+        'marketSyncStatus',
+        json.encode({
+          'usedLiveData': _marketSyncStatus.usedLiveData,
+          'sourceLabel': _marketSyncStatus.sourceLabel,
+          'lastSyncedAt': _marketSyncStatus.lastSyncedAt?.toIso8601String(),
+          'message': _marketSyncStatus.message,
+        }),
+      );
       if (_activeMoodId == null) {
         await prefs.remove('activeMoodId');
       } else {
@@ -1274,6 +1474,10 @@ class AppProvider extends ChangeNotifier {
                 .toList(),
             'unmatchedLines': _lastReceiptScanResult!.unmatchedLines,
             'confidence': _lastReceiptScanResult!.confidence,
+            'rawText': _lastReceiptScanResult!.rawText,
+            'detectedStore': _lastReceiptScanResult!.detectedStore,
+            'detectedLabels': _lastReceiptScanResult!.detectedLabels,
+            'capturedImagePath': _lastReceiptScanResult!.capturedImagePath,
           }),
         );
       }
@@ -1293,6 +1497,11 @@ class AppProvider extends ChangeNotifier {
             'recipeIds': _lastPlateAnalysisResult!.matchedRecipes
                 .map((r) => r.id)
                 .toList(),
+            'detectedLabels': _lastPlateAnalysisResult!.detectedLabels,
+            'estimatedCalories': _lastPlateAnalysisResult!.estimatedCalories,
+            'analysisPrompt': _lastPlateAnalysisResult!.analysisPrompt,
+            'capturedImagePath': _lastPlateAnalysisResult!.capturedImagePath,
+            'confidence': _lastPlateAnalysisResult!.confidence,
           }),
         );
       }
