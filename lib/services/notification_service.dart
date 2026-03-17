@@ -105,11 +105,56 @@ class NotificationService {
     }
   }
 
+  Future<void> scheduleKitchenInsights(
+    List<SmartReminderNotification> notifications,
+  ) async {
+    await initialize();
+    await cancelKitchenInsights();
+
+    if (notifications.isEmpty) return;
+
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'kitchen_insights',
+        'Kitchen Insights',
+        channelDescription: 'Weekly menu, zero-waste, and mood nudges',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: DarwinNotificationDetails(),
+      macOS: DarwinNotificationDetails(),
+    );
+
+    final now = DateTime.now();
+    for (final notification in notifications) {
+      if (!notification.scheduledAt.isAfter(now)) continue;
+
+      await _plugin.zonedSchedule(
+        id: notification.id,
+        title: notification.title,
+        body: notification.body,
+        scheduledDate: tz.TZDateTime.from(notification.scheduledAt, tz.local),
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
   Future<void> cancelSmartKitchenReminders() async {
     await initialize();
     final pending = await _plugin.pendingNotificationRequests();
     for (final item in pending) {
       if (item.id >= 7000 && item.id < 9000) {
+        await _plugin.cancel(id: item.id);
+      }
+    }
+  }
+
+  Future<void> cancelKitchenInsights() async {
+    await initialize();
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final item in pending) {
+      if (item.id >= 9100 && item.id < 9300) {
         await _plugin.cancel(id: item.id);
       }
     }

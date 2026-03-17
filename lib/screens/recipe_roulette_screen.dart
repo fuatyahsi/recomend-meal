@@ -8,7 +8,7 @@ import '../providers/app_provider.dart';
 import '../utils/app_theme.dart';
 import 'recipe_detail_screen.dart';
 
-enum _RecipeGameMode { roulette, duel }
+enum _RecipeGameMode { roulette, duel, social }
 
 class RecipeRouletteScreen extends StatefulWidget {
   const RecipeRouletteScreen({super.key});
@@ -28,6 +28,9 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
   Recipe? _selectedRecipe;
   List<Recipe> _duelPair = const [];
   Recipe? _duelWinner;
+  List<Recipe> _socialPair = const [];
+  Recipe? _socialWinner;
+  String? _mysteryIngredientId;
   bool _isSpinning = false;
   double _spinTurns = 6;
 
@@ -77,8 +80,8 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
     return recipes.where((recipe) {
       final matchesCategory =
           _selectedCategory == 'all' || recipe.category == _selectedCategory;
-      final matchesDifficulty =
-          _selectedDifficulty == 'all' || recipe.difficulty == _selectedDifficulty;
+      final matchesDifficulty = _selectedDifficulty == 'all' ||
+          recipe.difficulty == _selectedDifficulty;
       final matchesTime = _maxTime == 0 || recipe.totalTimeMinutes <= _maxTime;
       return matchesCategory && matchesDifficulty && matchesTime;
     }).toList();
@@ -93,6 +96,7 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
       _selectedRecipe = recipes[_random.nextInt(recipes.length)];
       _spinTurns = 6 + _random.nextDouble() * 2;
     });
+    context.read<AppProvider>().recordRoulettePlay();
 
     _spinController
       ..reset()
@@ -113,18 +117,88 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
       _duelPair = [recipes[firstIndex], recipes[secondIndex]];
       _duelWinner = null;
     });
+    context.read<AppProvider>().recordRoulettePlay();
   }
 
   void _pickWinner(Recipe recipe) {
     setState(() => _duelWinner = recipe);
+    context.read<AppProvider>().recordRoulettePlay();
+  }
+
+  void _buildSocialBet(AppProvider provider) {
+    final recipes = _filteredRecipes;
+    if (recipes.length < 2) return;
+
+    final pantryCandidates = provider.selectedIngredientIds.isNotEmpty
+        ? provider.selectedIngredientIds.toList()
+        : provider.recipeService.ingredients
+            .take(24)
+            .map((item) => item.id)
+            .toList();
+
+    pantryCandidates.shuffle(_random);
+
+    String? chosenIngredientId;
+    List<Recipe> candidates = const [];
+
+    for (final ingredientId in pantryCandidates) {
+      final matching = recipes
+          .where(
+            (recipe) => recipe.ingredients.any(
+              (ingredient) => ingredient.ingredientId == ingredientId,
+            ),
+          )
+          .toList();
+      if (matching.length >= 2) {
+        chosenIngredientId = ingredientId;
+        candidates = matching;
+        break;
+      }
+    }
+
+    if (chosenIngredientId == null) {
+      final fallbackRecipe = recipes[_random.nextInt(recipes.length)];
+      chosenIngredientId = fallbackRecipe.ingredients.first.ingredientId;
+      candidates = recipes
+          .where(
+            (recipe) => recipe.ingredients.any(
+              (ingredient) => ingredient.ingredientId == chosenIngredientId,
+            ),
+          )
+          .toList();
+    }
+
+    if (candidates.length < 2) return;
+
+    final firstIndex = _random.nextInt(candidates.length);
+    var secondIndex = _random.nextInt(candidates.length);
+    while (secondIndex == firstIndex) {
+      secondIndex = _random.nextInt(candidates.length);
+    }
+
+    setState(() {
+      _mysteryIngredientId = chosenIngredientId;
+      _socialPair = [candidates[firstIndex], candidates[secondIndex]];
+      _socialWinner = null;
+    });
+    provider.recordRoulettePlay();
+  }
+
+  void _pickSocialWinner(Recipe recipe, AppProvider provider) {
+    setState(() => _socialWinner = recipe);
+    provider.recordRoulettePlay();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final locale = context.watch<AppProvider>().languageCode;
+    final provider = context.watch<AppProvider>();
+    final locale = provider.languageCode;
     final isTr = locale == 'tr';
     final recipes = _filteredRecipes;
+    final mysteryIngredient = _mysteryIngredientId == null
+        ? null
+        : provider.recipeService.getIngredientById(_mysteryIngredientId!);
 
     return Scaffold(
       appBar: AppBar(
@@ -148,7 +222,9 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isTr ? 'Ne pişirsem? Karar motoru' : 'What should I cook? Decision engine',
+                  isTr
+                      ? 'Ne pişirsem? Karar motoru'
+                      : 'What should I cook? Decision engine',
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -186,12 +262,22 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
                   onTap: () => setState(() => _mode = _RecipeGameMode.duel),
                 ),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ModeButton(
+                  label: isTr ? 'Social Bet' : 'Social Bet',
+                  icon: Icons.groups_2_outlined,
+                  isSelected: _mode == _RecipeGameMode.social,
+                  onTap: () => setState(() => _mode = _RecipeGameMode.social),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
             isTr ? 'Filtreler' : 'Filters',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -204,7 +290,8 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
                   child: ChoiceChip(
                     label: Text(_categoryLabel(category, isTr)),
                     selected: _selectedCategory == category,
-                    onSelected: (_) => setState(() => _selectedCategory = category),
+                    onSelected: (_) =>
+                        setState(() => _selectedCategory = category),
                   ),
                 );
               }).toList(),
@@ -221,7 +308,8 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
                     return ChoiceChip(
                       label: Text(_difficultyLabel(difficulty, isTr)),
                       selected: _selectedDifficulty == difficulty,
-                      onSelected: (_) => setState(() => _selectedDifficulty = difficulty),
+                      onSelected: (_) =>
+                          setState(() => _selectedDifficulty = difficulty),
                     );
                   }).toList(),
                 ),
@@ -230,7 +318,9 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
               DropdownButton<int>(
                 value: _maxTime,
                 items: [
-                  DropdownMenuItem(value: 0, child: Text(isTr ? 'Sure: Hepsi' : 'Time: All')),
+                  DropdownMenuItem(
+                      value: 0,
+                      child: Text(isTr ? 'Sure: Hepsi' : 'Time: All')),
                   const DropdownMenuItem(value: 15, child: Text('<= 15')),
                   const DropdownMenuItem(value: 30, child: Text('<= 30')),
                   const DropdownMenuItem(value: 45, child: Text('<= 45')),
@@ -291,11 +381,12 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
                 secondaryAction: _spin,
               ),
             ],
-          ] else ...[
+          ] else if (_mode == _RecipeGameMode.duel) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                color: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -350,6 +441,77 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
                 secondaryAction: _buildDuel,
               ),
             ],
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isTr ? 'Social Roulette' : 'Social Roulette',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isTr
+                        ? 'Ayni gizemli malzeme etrafinda iki tarifi kapistir. Sonra topluluk icin favorini sec.'
+                        : 'Pit two recipes around the same mystery ingredient and pick the social winner.',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 14),
+                  if (mysteryIngredient != null)
+                    _InfoPill(
+                      label: isTr
+                          ? 'Mystery Box: ${mysteryIngredient.getName(locale)}'
+                          : 'Mystery Box: ${mysteryIngredient.getName(locale)}',
+                    ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: recipes.length >= 2
+                        ? () => _buildSocialBet(provider)
+                        : null,
+                    icon: const Icon(Icons.campaign_outlined),
+                    label: Text(
+                      isTr ? 'Social bet olustur' : 'Create social bet',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_socialPair.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              ..._socialPair.map((recipe) {
+                final isWinner = _socialWinner?.id == recipe.id;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _DuelRecipeCard(
+                    recipe: recipe,
+                    locale: locale,
+                    isWinner: isWinner,
+                    onPickWinner: () => _pickSocialWinner(recipe, provider),
+                    actionLabel: isTr ? 'Bahsi buna ver' : 'Back this one',
+                  ),
+                );
+              }),
+            ],
+            if (_socialWinner != null) ...[
+              const SizedBox(height: 8),
+              _RecipeResultCard(
+                recipe: _socialWinner!,
+                locale: locale,
+                title: isTr ? 'Sosyal turun galibi' : 'Social round winner',
+                secondaryActionLabel:
+                    isTr ? 'Yeni mystery box' : 'New mystery box',
+                secondaryAction: () => _buildSocialBet(provider),
+              ),
+            ],
           ],
         ],
       ),
@@ -383,9 +545,21 @@ class _RecipeRouletteScreenState extends State<RecipeRouletteScreen>
   }
 
   String _difficultyLabel(String difficulty, bool isTr) {
-    const tr = {'all': 'Hepsi', 'easy': 'Kolay', 'medium': 'Orta', 'hard': 'Zor'};
-    const en = {'all': 'All', 'easy': 'Easy', 'medium': 'Medium', 'hard': 'Hard'};
-    return isTr ? (tr[difficulty] ?? difficulty) : (en[difficulty] ?? difficulty);
+    const tr = {
+      'all': 'Hepsi',
+      'easy': 'Kolay',
+      'medium': 'Orta',
+      'hard': 'Zor'
+    };
+    const en = {
+      'all': 'All',
+      'easy': 'Easy',
+      'medium': 'Medium',
+      'hard': 'Hard'
+    };
+    return isTr
+        ? (tr[difficulty] ?? difficulty)
+        : (en[difficulty] ?? difficulty);
   }
 }
 
@@ -413,6 +587,30 @@ class _ModeButton extends StatelessWidget {
       ),
       icon: Icon(icon),
       label: Text(label, textAlign: TextAlign.center),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  final String label;
+
+  const _InfoPill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -530,14 +728,16 @@ class _RecipeResultCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
           Text(recipe.imageEmoji, style: const TextStyle(fontSize: 46)),
           const SizedBox(height: 10),
           Text(
             recipe.getName(locale),
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
@@ -559,7 +759,8 @@ class _RecipeResultCard extends StatelessWidget {
                 child: FilledButton(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+                    MaterialPageRoute(
+                        builder: (_) => RecipeDetailScreen(recipe: recipe)),
                   ),
                   child: Text(isTr ? 'Tarife Git' : 'Open Recipe'),
                 ),
@@ -577,12 +778,14 @@ class _DuelRecipeCard extends StatelessWidget {
   final String locale;
   final bool isWinner;
   final VoidCallback onPickWinner;
+  final String? actionLabel;
 
   const _DuelRecipeCard({
     required this.recipe,
     required this.locale,
     required this.isWinner,
     required this.onPickWinner,
+    this.actionLabel,
   });
 
   @override
@@ -590,7 +793,10 @@ class _DuelRecipeCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isTr = locale == 'tr';
     final gradient = AppTheme.categoryGradients[recipe.category] ??
-        [theme.colorScheme.primaryContainer, theme.colorScheme.surfaceContainerHighest];
+        [
+          theme.colorScheme.primaryContainer,
+          theme.colorScheme.surfaceContainerHighest
+        ];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -617,8 +823,7 @@ class _DuelRecipeCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (isWinner)
-                const Icon(Icons.emoji_events, color: Colors.green),
+              if (isWinner) const Icon(Icons.emoji_events, color: Colors.green),
             ],
           ),
           const SizedBox(height: 10),
@@ -634,7 +839,8 @@ class _DuelRecipeCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+                    MaterialPageRoute(
+                        builder: (_) => RecipeDetailScreen(recipe: recipe)),
                   ),
                   child: Text(isTr ? 'Detay' : 'Details'),
                 ),
@@ -643,7 +849,9 @@ class _DuelRecipeCard extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   onPressed: onPickWinner,
-                  child: Text(isTr ? 'Bunu Sec' : 'Pick Winner'),
+                  child: Text(
+                    actionLabel ?? (isTr ? 'Bunu Sec' : 'Pick Winner'),
+                  ),
                 ),
               ),
             ],

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/kitchen_intelligence.dart';
+import '../models/kitchen_rpg.dart';
 import '../models/recipe.dart';
 import '../models/smart_kitchen.dart';
 import '../providers/app_provider.dart';
 import '../services/notification_service.dart';
+import '../utils/community_challenges.dart';
+import '../utils/mood_recipes.dart';
 import 'ingredient_selection_screen.dart';
 import 'recipe_detail_screen.dart';
 
@@ -24,6 +28,17 @@ class SmartKitchenScreen extends StatelessWidget {
     final plannedShoppingSummary = provider.getPlannedShoppingSummary();
     final pantryCount = provider.selectedCount;
     final pantryItems = provider.pantryItems;
+    final rpgProfile = provider.kitchenRpgProfile;
+    final weeklyChallenges = provider.weeklyChallengeProgress;
+    final rescueSuggestions = provider.wasteRescueSuggestions;
+    final marketComparisons = provider.getMarketComparisons();
+    final digitalTwinZones = provider.digitalTwinZones;
+    final flavorPairings = provider.flavorPairings;
+    final weeklyDigest = provider.getWeeklyMenuDigest();
+    final activeCommunityChallenge = CommunityChallenges.active();
+    final activeMood = provider.activeMoodId == null
+        ? null
+        : MoodRecipeEngine.getMoodById(provider.activeMoodId!);
     final featuredMealId = provider.getNextPlannedMealId();
     final featuredMealLabel = provider.getPlannerMealLabel(featuredMealId);
     final featuredSuggestions = provider.getMenuSuggestionsForMeal(
@@ -52,6 +67,28 @@ class SmartKitchenScreen extends StatelessWidget {
                 : 'Create menus for breakfast, lunch, and dinner. Let the app suggest options from your pantry, find the gaps, and prepare the shopping list.',
           ),
           const SizedBox(height: 16),
+          _RpgOverviewCard(
+            isTr: isTr,
+            level: rpgProfile.level,
+            levelTitle: provider.kitchenLevelTitle,
+            streakDays: rpgProfile.streakDays,
+            monthlySavings: provider.monthlySavingsEstimate,
+            completedChallenges:
+                weeklyChallenges.where((item) => item.completed).length,
+            challenges: weeklyChallenges,
+            activeCommunityChallenge: activeCommunityChallenge,
+          ),
+          const SizedBox(height: 16),
+          _MoodDigestCard(
+            isTr: isTr,
+            activeMoodId: provider.activeMoodId,
+            activeMood: activeMood,
+            digest: weeklyDigest,
+            onMoodSelected: (moodId) {
+              provider.setActiveMood(moodId);
+            },
+          ),
+          const SizedBox(height: 16),
           _SuggestionSpotlightCard(
             isTr: isTr,
             mealLabel: featuredMealLabel,
@@ -65,6 +102,18 @@ class SmartKitchenScreen extends StatelessWidget {
             onAddSuggestion: (recipeId) {
               provider.setPlannedRecipeForMeal(featuredMealId, recipeId);
             },
+          ),
+          const SizedBox(height: 16),
+          _ZeroWasteCard(
+            isTr: isTr,
+            monthlySavings: provider.monthlySavingsEstimate,
+            rescueSuggestions: rescueSuggestions,
+            onPreviewRecipe: (recipe) => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RecipeDetailScreen(recipe: recipe),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           _SectionTitle(
@@ -81,12 +130,11 @@ class SmartKitchenScreen extends StatelessWidget {
                 slot.id,
                 limit: 3,
               );
-              final missingCount = provider
-                  .getShoppingItemsForMeal(slot.id)
-                  .fold<int>(
-                    0,
-                    (sum, item) => sum + item.missingCount,
-                  );
+              final missingCount =
+                  provider.getShoppingItemsForMeal(slot.id).fold<int>(
+                        0,
+                        (sum, item) => sum + item.missingCount,
+                      );
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -176,10 +224,10 @@ class SmartKitchenScreen extends StatelessWidget {
                           return _PantryPreviewTile(
                             item: item,
                             locale: provider.languageCode,
-                            onIncrement: () =>
-                                provider.incrementIngredient(item.ingredient.id),
-                            onDecrement: () =>
-                                provider.decrementIngredient(item.ingredient.id),
+                            onIncrement: () => provider
+                                .incrementIngredient(item.ingredient.id),
+                            onDecrement: () => provider
+                                .decrementIngredient(item.ingredient.id),
                           );
                         },
                       ),
@@ -261,6 +309,21 @@ class SmartKitchenScreen extends StatelessWidget {
                               .toList(),
                         ),
             ),
+          ),
+          const SizedBox(height: 8),
+          _MarketComparisonCard(
+            isTr: isTr,
+            comparisons: marketComparisons,
+          ),
+          const SizedBox(height: 16),
+          _DigitalTwinCard(
+            isTr: isTr,
+            zones: digitalTwinZones,
+          ),
+          const SizedBox(height: 16),
+          _FlavorPairingCard(
+            isTr: isTr,
+            pairings: flavorPairings,
           ),
           const SizedBox(height: 8),
           _SectionTitle(
@@ -1200,6 +1263,603 @@ class _InfoBadge extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RpgOverviewCard extends StatelessWidget {
+  final bool isTr;
+  final int level;
+  final String levelTitle;
+  final int streakDays;
+  final double monthlySavings;
+  final int completedChallenges;
+  final List<KitchenWeeklyChallengeProgress> challenges;
+  final CommunityChallenge activeCommunityChallenge;
+
+  const _RpgOverviewCard({
+    required this.isTr,
+    required this.level,
+    required this.levelTitle,
+    required this.streakDays,
+    required this.monthlySavings,
+    required this.completedChallenges,
+    required this.challenges,
+    required this.activeCommunityChallenge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.sports_score_rounded,
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Kitchen RPG' : 'Kitchen RPG',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                _InfoBadge(icon: Icons.bolt, label: 'Lv.$level'),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              levelTitle,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InfoBadge(
+                  icon: Icons.local_fire_department_outlined,
+                  label: isTr
+                      ? '$streakDays gun streak'
+                      : '$streakDays day streak',
+                ),
+                _InfoBadge(
+                  icon: Icons.military_tech_outlined,
+                  label: isTr
+                      ? '$completedChallenges gorev tamam'
+                      : '$completedChallenges challenges done',
+                ),
+                _InfoBadge(
+                  icon: Icons.savings_outlined,
+                  label: isTr
+                      ? '${monthlySavings.round()} TL korundu'
+                      : '${monthlySavings.round()} TRY saved',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...challenges.take(3).map((item) {
+              final progress = item.progress.clamp(0, item.challenge.target);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.challenge.title(isTr ? 'tr' : 'en'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: item.challenge.target == 0
+                          ? 0
+                          : progress / item.challenge.target,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isTr
+                          ? '$progress / ${item.challenge.target} adim'
+                          : '$progress / ${item.challenge.target} steps',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.45,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                isTr
+                    ? 'Topluluk challenge: ${activeCommunityChallenge.titleTr}'
+                    : 'Community challenge: ${activeCommunityChallenge.titleEn}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoodDigestCard extends StatelessWidget {
+  final bool isTr;
+  final String? activeMoodId;
+  final MoodOption? activeMood;
+  final WeeklyMenuDigest digest;
+  final ValueChanged<String?> onMoodSelected;
+
+  const _MoodDigestCard({
+    required this.isTr,
+    required this.activeMoodId,
+    required this.activeMood,
+    required this.digest,
+    required this.onMoodSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.psychology_alt_outlined,
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Mood bazli menu' : 'Mood-based menu',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Bu hafta nasil hissediyorsun? Secimlerin pazar ozetine ve menu onerilerine yansisin.'
+                  : 'How are you feeling this week? Let it shape the Sunday digest and menu suggestions.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(isTr ? 'Serbest' : 'Open'),
+                      selected: activeMoodId == null,
+                      onSelected: (_) => onMoodSelected(null),
+                    ),
+                  ),
+                  ...MoodRecipeEngine.moods.map((mood) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        avatar: Text(mood.emoji),
+                        label: Text(mood.getName(isTr ? 'tr' : 'en')),
+                        selected: activeMoodId == mood.id,
+                        onSelected: (_) => onMoodSelected(mood.id),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    digest.title(isTr ? 'tr' : 'en'),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(digest.body(isTr ? 'tr' : 'en')),
+                  if (activeMood != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      isTr
+                          ? 'Aktif mood: ${activeMood!.nameTr}'
+                          : 'Active mood: ${activeMood!.nameEn}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ZeroWasteCard extends StatelessWidget {
+  final bool isTr;
+  final double monthlySavings;
+  final List<WasteRescueSuggestion> rescueSuggestions;
+  final ValueChanged<Recipe> onPreviewRecipe;
+
+  const _ZeroWasteCard({
+    required this.isTr,
+    required this.monthlySavings,
+    required this.rescueSuggestions,
+    required this.onPreviewRecipe,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.recycling_rounded, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Zero-Waste AI Co-Pilot' : 'Zero-Waste AI Co-Pilot',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                _InfoBadge(
+                  icon: Icons.savings_outlined,
+                  label: isTr
+                      ? '${monthlySavings.round()} TL'
+                      : '${monthlySavings.round()} TRY',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Riskli malzemeleri one cek, cope gitmeden menulere bagla.'
+                  : 'Bring risky items forward and connect them to menus before they are wasted.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (rescueSuggestions.isEmpty)
+              Text(
+                isTr
+                    ? 'Su an icin yuksek riskli malzeme gorunmuyor.'
+                    : 'No high-risk ingredients are visible right now.',
+              )
+            else
+              ...rescueSuggestions.map((suggestion) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Text(
+                    suggestion.riskItem.ingredient.icon,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                  title: Text(suggestion.title(isTr ? 'tr' : 'en')),
+                  subtitle: Text(suggestion.body(isTr ? 'tr' : 'en')),
+                  trailing: suggestion.rescueRecipe == null
+                      ? null
+                      : IconButton(
+                          onPressed: () =>
+                              onPreviewRecipe(suggestion.rescueRecipe!),
+                          icon: const Icon(Icons.chevron_right_rounded),
+                        ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketComparisonCard extends StatelessWidget {
+  final bool isTr;
+  final List<MarketBasketComparison> comparisons;
+
+  const _MarketComparisonCard({
+    required this.isTr,
+    required this.comparisons,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.storefront_outlined,
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Firsat kosesi' : 'Opportunity corner',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Eksik malzemeler icin market bazli basket karsilastirmasi.'
+                  : 'Market-level basket comparison for missing ingredients.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (comparisons.isEmpty)
+              Text(
+                isTr
+                    ? 'Karsilastirma icin once eksik malzeme olusmali.'
+                    : 'You need missing ingredients before comparing markets.',
+              )
+            else
+              ...comparisons.take(3).map((comparison) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.local_offer_outlined),
+                  title: Text(comparison.market),
+                  subtitle: Text(
+                    isTr
+                        ? '${comparison.campaignCount} kampanya, ${comparison.deals.length} urun'
+                        : '${comparison.campaignCount} campaigns, ${comparison.deals.length} items',
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${comparison.totalPrice.round()} TL',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (comparison.estimatedSavingsVsHighest > 0)
+                        Text(
+                          isTr
+                              ? '${comparison.estimatedSavingsVsHighest.round()} TL avantaj'
+                              : '${comparison.estimatedSavingsVsHighest.round()} TRY saved',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DigitalTwinCard extends StatelessWidget {
+  final bool isTr;
+  final List<DigitalTwinZone> zones;
+
+  const _DigitalTwinCard({
+    required this.isTr,
+    required this.zones,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.view_in_ar_outlined,
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Digital Kitchen Twin' : 'Digital Kitchen Twin',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Dolabini raf bazli gor. Bir sonraki fazda bunu AR kamera ustune tasiyabiliriz.'
+                  : 'View your pantry as fridge zones today. This is ready to graduate to AR later.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...zones.map((zone) {
+              final highRisk =
+                  zone.items.where((item) => item.isHighRisk).length;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.4,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            zone.label(isTr ? 'tr' : 'en'),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isTr
+                                ? '${zone.items.length} urun, $highRisk riskli'
+                                : '${zone.items.length} items, $highRisk risky',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 4,
+                      children: zone.items.take(4).map((item) {
+                        return CircleAvatar(
+                          radius: 14,
+                          backgroundColor: item.isHighRisk
+                              ? Colors.red.shade100
+                              : theme.colorScheme.primaryContainer,
+                          child: Text(
+                            item.ingredient.icon,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FlavorPairingCard extends StatelessWidget {
+  final bool isTr;
+  final List<FlavorPairSuggestion> pairings;
+
+  const _FlavorPairingCard({
+    required this.isTr,
+    required this.pairings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.science_outlined, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Anti-Recipe modu' : 'Anti-Recipe mode',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Tarif yerine uyumlu malzemeleri one cikar. Kendi imza tabagini kur.'
+                  : 'Promote compatible ingredients instead of a fixed recipe. Build your own signature plate.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (pairings.isEmpty)
+              Text(
+                isTr
+                    ? 'Pairing gormek icin once dolabinda birkac temel malzeme sec.'
+                    : 'Select a few pantry ingredients first to see flavor pairings.',
+              )
+            else
+              ...pairings.map((pairing) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.blur_circular_rounded),
+                  title: Text(pairing.title(isTr ? 'tr' : 'en')),
+                  subtitle: Text(pairing.body(isTr ? 'tr' : 'en')),
+                );
+              }),
+          ],
+        ),
       ),
     );
   }

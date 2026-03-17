@@ -17,6 +17,7 @@ import 'flavor_dna_screen.dart';
 import 'settings_screen.dart';
 import 'premium/premium_screen.dart';
 import 'smart_kitchen_screen.dart';
+import 'vision_lab_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,14 +32,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _heroOpacity;
 
   static const _categories = [
-    {'id': 'breakfast', 'emoji': '🍳', 'tr': 'Kahvaltı', 'en': 'Breakfast', 'color': 0xFFFFF3E0},
-    {'id': 'soup', 'emoji': '🥣', 'tr': 'Çorba', 'en': 'Soup', 'color': 0xFFE8F5E9},
-    {'id': 'main', 'emoji': '🍖', 'tr': 'Ana Yemek', 'en': 'Main', 'color': 0xFFFFEBEE},
-    {'id': 'appetizer', 'emoji': '🥟', 'tr': 'Meze', 'en': 'Appetizer', 'color': 0xFFE3F2FD},
-    {'id': 'salad', 'emoji': '🥗', 'tr': 'Salata', 'en': 'Salad', 'color': 0xFFE8F5E9},
-    {'id': 'dessert', 'emoji': '🍰', 'tr': 'Tatlı', 'en': 'Dessert', 'color': 0xFFFCE4EC},
-    {'id': 'beverage', 'emoji': '🥤', 'tr': 'İçecek', 'en': 'Beverage', 'color': 0xFFE0F7FA},
-    {'id': 'side', 'emoji': '🍚', 'tr': 'Garnitür', 'en': 'Side', 'color': 0xFFFFF8E1},
+    {
+      'id': 'breakfast',
+      'emoji': '🍳',
+      'tr': 'Kahvaltı',
+      'en': 'Breakfast',
+      'color': 0xFFFFF3E0
+    },
+    {
+      'id': 'soup',
+      'emoji': '🥣',
+      'tr': 'Çorba',
+      'en': 'Soup',
+      'color': 0xFFE8F5E9
+    },
+    {
+      'id': 'main',
+      'emoji': '🍖',
+      'tr': 'Ana Yemek',
+      'en': 'Main',
+      'color': 0xFFFFEBEE
+    },
+    {
+      'id': 'appetizer',
+      'emoji': '🥟',
+      'tr': 'Meze',
+      'en': 'Appetizer',
+      'color': 0xFFE3F2FD
+    },
+    {
+      'id': 'salad',
+      'emoji': '🥗',
+      'tr': 'Salata',
+      'en': 'Salad',
+      'color': 0xFFE8F5E9
+    },
+    {
+      'id': 'dessert',
+      'emoji': '🍰',
+      'tr': 'Tatlı',
+      'en': 'Dessert',
+      'color': 0xFFFCE4EC
+    },
+    {
+      'id': 'beverage',
+      'emoji': '🥤',
+      'tr': 'İçecek',
+      'en': 'Beverage',
+      'color': 0xFFE0F7FA
+    },
+    {
+      'id': 'side',
+      'emoji': '🍚',
+      'tr': 'Garnitür',
+      'en': 'Side',
+      'color': 0xFFFFF8E1
+    },
   ];
 
   @override
@@ -52,7 +101,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _heroController, curve: Curves.elasticOut),
     );
     _heroOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _heroController, curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
+      CurvedAnimation(
+          parent: _heroController,
+          curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
     );
     _heroController.forward();
   }
@@ -63,7 +114,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _openCategory(BuildContext context, Map<String, dynamic> cat, String locale) {
+  void _openCategory(
+      BuildContext context, Map<String, dynamic> cat, String locale) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -99,7 +151,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isPremium = context.watch<AuthProvider>().isPremium;
 
     final allRecipes = provider.recipeService.recipes;
-    final popularRecipes = allRecipes.length > 8 ? allRecipes.sublist(0, 8) : allRecipes;
+    final popularRecipes =
+        allRecipes.length > 8 ? allRecipes.sublist(0, 8) : allRecipes;
 
     return Scaffold(
       body: Stack(
@@ -145,7 +198,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             boxShadow: AppTheme.accentShadow,
                           ),
                           child: const Center(
-                            child: Text('🧑‍🍳', style: TextStyle(fontSize: 22)),
+                            child:
+                                Text('🧑‍🍳', style: TextStyle(fontSize: 22)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -188,15 +242,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           tooltip: isTr ? 'Premium' : 'Premium',
                           onPressed: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                            MaterialPageRoute(
+                                builder: (_) => const PremiumScreen()),
                           ),
                         ),
                         IconButton(
                           icon: Icon(Icons.settings_outlined,
-                              size: 22, color: theme.colorScheme.onSurfaceVariant),
+                              size: 22,
+                              color: theme.colorScheme.onSurfaceVariant),
                           onPressed: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                            MaterialPageRoute(
+                                builder: (_) => const SettingsScreen()),
                           ),
                         ),
                       ],
@@ -212,6 +269,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: _SmartKitchenLauncherCard(
                       isTr: isTr,
                       onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SmartKitchenScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 14)),
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _KitchenIntelHomeCard(
+                      isTr: isTr,
+                      level: provider.kitchenRpgProfile.level,
+                      levelTitle: provider.kitchenLevelTitle,
+                      streakDays: provider.kitchenRpgProfile.streakDays,
+                      monthlySavings: provider.monthlySavingsEstimate,
+                      completedChallenges: provider.weeklyChallengeProgress
+                          .where((item) => item.completed)
+                          .length,
+                      onOpenVision: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const VisionLabScreen(),
+                        ),
+                      ),
+                      onOpenSmartKitchen: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const SmartKitchenScreen(),
@@ -241,7 +328,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         selectedCount: provider.selectedCount,
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const IngredientSelectionScreen()),
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const IngredientSelectionScreen()),
                         ),
                       ),
                     ),
@@ -254,7 +343,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                       child: GlassCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                         borderRadius: 14,
                         gradient: LinearGradient(
                           colors: [
@@ -267,7 +357,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withOpacity(0.1),
+                                color:
+                                    theme.colorScheme.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(Icons.check_circle,
@@ -276,24 +367,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                l10n.ingredientsSelected(provider.selectedCount),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w600),
+                                l10n.ingredientsSelected(
+                                    provider.selectedCount),
+                                style: theme.textTheme.bodySmall
+                                    ?.copyWith(fontWeight: FontWeight.w600),
                               ),
                             ),
                             TextButton(
                               onPressed: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const IngredientSelectionScreen()),
+                                    builder: (_) =>
+                                        const IngredientSelectionScreen()),
                               ),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(l10n.findRecipes,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -313,11 +409,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: _FeatureButton(
                             emoji: '🎭',
                             title: isTr ? 'Ruh Haline Göre' : 'By Mood',
-                            subtitle: isTr ? 'Nasıl hissediyorsun?' : 'How do you feel?',
-                            gradientColors: const [Color(0xFFE8D5F5), Color(0xFFF3E5F5)],
+                            subtitle: isTr
+                                ? 'Nasıl hissediyorsun?'
+                                : 'How do you feel?',
+                            gradientColors: const [
+                              Color(0xFFE8D5F5),
+                              Color(0xFFF3E5F5)
+                            ],
                             onTap: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const MoodRecipesScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const MoodRecipesScreen()),
                             ),
                           ),
                         ),
@@ -325,12 +427,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Expanded(
                           child: _FeatureButton(
                             emoji: '🎼',
-                            title: isTr ? 'Mutfak Orkestra' : 'Kitchen Orchestra',
-                            subtitle: isTr ? 'Çoklu zamanlayıcı' : 'Multi-timer',
-                            gradientColors: const [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
+                            title:
+                                isTr ? 'Mutfak Orkestra' : 'Kitchen Orchestra',
+                            subtitle:
+                                isTr ? 'Çoklu zamanlayıcı' : 'Multi-timer',
+                            gradientColors: const [
+                              Color(0xFFFFE0B2),
+                              Color(0xFFFFF3E0)
+                            ],
                             onTap: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const KitchenOrchestraScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const KitchenOrchestraScreen()),
                             ),
                           ),
                         ),
@@ -351,11 +460,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: _FeatureButton(
                             emoji: '🎰',
                             title: isTr ? 'Ne Pişirsem?' : 'What to Cook?',
-                            subtitle: isTr ? 'Rulet + Tarif Duellosu' : 'Roulette + Recipe Duel',
-                            gradientColors: const [Color(0xFFFFCDD2), Color(0xFFFFEBEE)],
+                            subtitle: isTr
+                                ? 'Rulet + Tarif Duellosu'
+                                : 'Roulette + Recipe Duel',
+                            gradientColors: const [
+                              Color(0xFFFFCDD2),
+                              Color(0xFFFFEBEE)
+                            ],
                             onTap: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const RecipeRouletteScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const RecipeRouletteScreen()),
                             ),
                           ),
                         ),
@@ -364,11 +479,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: _FeatureButton(
                             emoji: '🧬',
                             title: isTr ? 'Lezzet DNA\'sı' : 'Flavor DNA',
-                            subtitle: isTr ? 'Profil analizi' : 'Profile analysis',
-                            gradientColors: const [Color(0xFFD1C4E9), Color(0xFFEDE7F6)],
+                            subtitle:
+                                isTr ? 'Profil analizi' : 'Profile analysis',
+                            gradientColors: const [
+                              Color(0xFFD1C4E9),
+                              Color(0xFFEDE7F6)
+                            ],
                             onTap: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const FlavorDNAScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const FlavorDNAScreen()),
                             ),
                           ),
                         ),
@@ -441,7 +561,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   cat: cat,
                                   count: count,
                                   locale: locale,
-                                  onTap: () => _openCategory(context, cat, locale),
+                                  onTap: () =>
+                                      _openCategory(context, cat, locale),
                                 ),
                               ),
                             ),
@@ -521,7 +642,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => RecipeDetailScreen(recipe: recipe),
+                                      builder: (_) =>
+                                          RecipeDetailScreen(recipe: recipe),
                                     ),
                                   ),
                                 ),
@@ -558,7 +680,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     color: Colors.amber.shade50,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Text('⚡', style: TextStyle(fontSize: 16)),
+                                  child: const Text('⚡',
+                                      style: TextStyle(fontSize: 16)),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -570,7 +693,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ),
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: Colors.green.shade50,
                                     borderRadius: BorderRadius.circular(10),
@@ -590,7 +714,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(height: 12),
                           AnimationLimiter(
                             child: Column(
-                              children: List.generate(quickRecipes.length, (index) {
+                              children:
+                                  List.generate(quickRecipes.length, (index) {
                                 final recipe = quickRecipes[index];
                                 return AnimationConfiguration.staggeredList(
                                   position: index,
@@ -608,7 +733,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) =>
-                                                  RecipeDetailScreen(recipe: recipe),
+                                                  RecipeDetailScreen(
+                                                      recipe: recipe),
                                             ),
                                           ),
                                         ),
@@ -657,7 +783,10 @@ class _AnimatedIconButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withOpacity(0.5),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -666,7 +795,8 @@ class _AnimatedIconButton extends StatelessWidget {
               Text(icon, style: const TextStyle(fontSize: 14)),
               const SizedBox(width: 4),
               Text(label,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700)),
             ],
           ),
         ),
@@ -884,6 +1014,171 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
   }
 }
 
+class _KitchenIntelHomeCard extends StatelessWidget {
+  final bool isTr;
+  final int level;
+  final String levelTitle;
+  final int streakDays;
+  final double monthlySavings;
+  final int completedChallenges;
+  final VoidCallback onOpenVision;
+  final VoidCallback onOpenSmartKitchen;
+
+  const _KitchenIntelHomeCard({
+    required this.isTr,
+    required this.level,
+    required this.levelTitle,
+    required this.streakDays,
+    required this.monthlySavings,
+    required this.completedChallenges,
+    required this.onOpenVision,
+    required this.onOpenSmartKitchen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF101820),
+            Color(0xFF274C77),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isTr ? 'Kitchen RPG + AI katmani' : 'Kitchen RPG + AI layer',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Lv.$level',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            levelTitle,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _HomeStatChip(
+                label:
+                    isTr ? '$streakDays gun streak' : '$streakDays day streak',
+              ),
+              _HomeStatChip(
+                label: isTr
+                    ? '$completedChallenges haftalik gorev'
+                    : '$completedChallenges weekly challenges',
+              ),
+              _HomeStatChip(
+                label: isTr
+                    ? '${monthlySavings.round()} TL korundu'
+                    : '${monthlySavings.round()} TRY saved',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            isTr
+                ? 'Fiş tarama, tabak analizi, zero-waste alarmi ve market karsilastirma ayni zeka katmanina baglandi.'
+                : 'Receipt scan, plate analysis, zero-waste alerts, and market comparison now share the same intelligence layer.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.86),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onOpenVision,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side:
+                        BorderSide(color: Colors.white.withValues(alpha: 0.28)),
+                  ),
+                  icon: const Icon(Icons.visibility_rounded),
+                  label: Text(isTr ? 'Vision Lab' : 'Vision Lab'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onOpenSmartKitchen,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                  icon: const Icon(Icons.auto_awesome),
+                  label: Text(isTr ? 'Asistani ac' : 'Open assistant'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeStatChip extends StatelessWidget {
+  final String label;
+
+  const _HomeStatChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _CategoryChip extends StatelessWidget {
   final Map<String, dynamic> cat;
   final int count;
@@ -1080,7 +1375,8 @@ class _PopularRecipeCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _getDifficultyColor(recipe.difficulty).withOpacity(0.9),
+                          color: _getDifficultyColor(recipe.difficulty)
+                              .withOpacity(0.9),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -1154,7 +1450,6 @@ class _PopularRecipeCard extends StatelessWidget {
     }
   }
 }
-
 
 // ── Feature Button (Mood / Orchestra) ──
 class _FeatureButton extends StatelessWidget {
@@ -1287,7 +1582,8 @@ class _QuickRecipeTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
-                  child: Text(recipe.imageEmoji, style: const TextStyle(fontSize: 22)),
+                  child: Text(recipe.imageEmoji,
+                      style: const TextStyle(fontSize: 22)),
                 ),
               ),
               const SizedBox(width: 14),
@@ -1315,7 +1611,8 @@ class _QuickRecipeTile extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(10),

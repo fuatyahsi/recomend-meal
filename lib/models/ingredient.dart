@@ -10,7 +10,7 @@ class Ingredient {
     required this.nameTr,
     required this.nameEn,
     required this.category,
-    this.icon = '🥘',
+    this.icon = '*',
   });
 
   factory Ingredient.fromJson(Map<String, dynamic> json) {
@@ -19,7 +19,7 @@ class Ingredient {
       nameTr: json['name_tr'] as String,
       nameEn: json['name_en'] as String,
       category: json['category'] as String,
-      icon: json['icon'] as String? ?? '🥘',
+      icon: json['icon'] as String? ?? '*',
     );
   }
 
@@ -51,6 +51,17 @@ class IngredientCategory {
   static const String oils = 'oils';
   static const String other = 'other';
 
+  static const List<String> orderedValues = [
+    vegetables,
+    fruits,
+    meat,
+    dairy,
+    grains,
+    spices,
+    oils,
+    other,
+  ];
+
   static String getNameTr(String category) {
     switch (category) {
       case vegetables:
@@ -60,15 +71,15 @@ class IngredientCategory {
       case meat:
         return 'Et & Protein';
       case dairy:
-        return 'Süt Ürünleri';
+        return 'Sut Urunleri';
       case grains:
-        return 'Tahıllar & Baklagiller';
+        return 'Tahillar & Baklagiller';
       case spices:
         return 'Baharatlar';
       case oils:
-        return 'Yağlar & Soslar';
+        return 'Yaglar & Soslar';
       case other:
-        return 'Diğer';
+        return 'Diger';
       default:
         return category;
     }
