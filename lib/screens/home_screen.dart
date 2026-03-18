@@ -283,10 +283,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Expanded(
                               child: _HomeQuickCard(
                                 icon: Icons.auto_awesome_rounded,
-                                title: isTr ? 'Menü Planım' : 'My meal plan',
+                                title: isTr
+                                    ? 'Akıllı Mutfak Asistanı'
+                                    : 'Smart Kitchen Assistant',
                                 subtitle: isTr
-                                    ? 'Öğünlerini düzenle'
-                                    : 'Organize your meals',
+                                    ? 'Menünü kur, eksikleri gör'
+                                    : 'Build your menu and review missing items',
+                                gradientColors: [
+                                  const Color(0xFF153B50),
+                                  theme.colorScheme.primary,
+                                ],
                                 isSelected: _activeHomePanel == 'planner',
                                 onTap: () => _toggleHomePanel('planner'),
                               ),
@@ -301,6 +307,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 subtitle: isTr
                                     ? 'Dolabını güncel tut'
                                     : 'Keep your pantry updated',
+                                gradientColors: const [
+                                  Color(0xFF9A5B43),
+                                  Color(0xFFE28B52),
+                                ],
                                 isSelected: _activeHomePanel == 'fridge',
                                 onTap: () => _toggleHomePanel('fridge'),
                               ),
@@ -318,6 +328,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 subtitle: isTr
                                     ? 'Pratik bölümler burada'
                                     : 'Useful sections in one place',
+                                gradientColors: const [
+                                  Color(0xFF101820),
+                                  Color(0xFF274C77),
+                                ],
                                 isSelected: _activeHomePanel == 'tools',
                                 onTap: () => _toggleHomePanel('tools'),
                               ),
@@ -330,6 +344,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 subtitle: isTr
                                     ? 'Seviye ve haftalık durum'
                                     : 'Level and weekly progress',
+                                gradientColors: const [
+                                  Color(0xFF5F3B76),
+                                  Color(0xFF9D6BCE),
+                                ],
                                 isSelected: _activeHomePanel == 'journey',
                                 onTap: () => _toggleHomePanel('journey'),
                               ),
@@ -1499,6 +1517,7 @@ class _HomeQuickCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final List<Color> gradientColors;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -1506,6 +1525,7 @@ class _HomeQuickCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.gradientColors,
     required this.isSelected,
     required this.onTap,
   });
@@ -1523,36 +1543,61 @@ class _HomeQuickCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           height: 118,
           decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer.withOpacity(0.85)
-                : theme.colorScheme.surface,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isSelected
+                  ? gradientColors
+                  : [
+                      gradientColors[0].withOpacity(0.92),
+                      gradientColors[1].withOpacity(0.82),
+                    ],
+            ),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary.withOpacity(0.35)
-                  : theme.colorScheme.outlineVariant.withOpacity(0.45),
+              color: Colors.white.withOpacity(isSelected ? 0.18 : 0.1),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isSelected ? 0.08 : 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
+                color: gradientColors.first.withOpacity(isSelected ? 0.3 : 0.2),
+                blurRadius: isSelected ? 18 : 14,
+                offset: const Offset(0, 10),
+                spreadRadius: -4,
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? theme.colorScheme.primary.withOpacity(0.12)
-                      : theme.colorScheme.primaryContainer.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: theme.colorScheme.primary),
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.16),
+                      ),
+                    ),
+                    child: Icon(icon, color: Colors.white),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
               Text(
@@ -1560,6 +1605,7 @@ class _HomeQuickCard extends StatelessWidget {
                 style: theme.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w800,
                   height: 1.2,
+                  color: Colors.white,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -1568,7 +1614,7 @@ class _HomeQuickCard extends StatelessWidget {
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: Colors.white.withOpacity(0.88),
                   height: 1.3,
                 ),
                 maxLines: 2,
@@ -1627,7 +1673,7 @@ class _PlannerDetailPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isTr ? 'Menü Planım' : 'My meal plan',
+          isTr ? 'Akıllı Mutfak Asistanı' : 'Smart Kitchen Assistant',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w800,
           ),
