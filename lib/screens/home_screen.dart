@@ -1540,8 +1540,8 @@ class _HomeQuickCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.all(14),
-          height: 118,
+          padding: const EdgeInsets.all(13),
+          height: 136,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -1617,7 +1617,7 @@ class _HomeQuickCard extends StatelessWidget {
                   color: Colors.white.withOpacity(0.88),
                   height: 1.3,
                 ),
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
