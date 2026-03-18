@@ -6,9 +6,9 @@ class KitchenRpgService {
   static const List<KitchenWeeklyChallenge> weeklyChallenges = [
     KitchenWeeklyChallenge(
       id: 'pantry_guard',
-      titleTr: 'Dolap Nobeti',
+      titleTr: 'Dolap Nöbeti',
       titleEn: 'Pantry Watch',
-      descriptionTr: 'Bu hafta dolabini 3 kez guncelle.',
+      descriptionTr: 'Bu hafta dolabını 3 kez güncelle.',
       descriptionEn: 'Update your pantry 3 times this week.',
       activityType: KitchenActivityType.pantrySync,
       target: 3,
@@ -17,9 +17,9 @@ class KitchenRpgService {
     ),
     KitchenWeeklyChallenge(
       id: 'menu_architect',
-      titleTr: 'Menu Mimari',
+      titleTr: 'Menü Mimarı',
       titleEn: 'Menu Architect',
-      descriptionTr: 'Bu hafta 4 ogun menusu planla.',
+      descriptionTr: 'Bu hafta 4 öğün menüsü planla.',
       descriptionEn: 'Plan 4 meal menus this week.',
       activityType: KitchenActivityType.mealPlan,
       target: 4,
@@ -28,9 +28,9 @@ class KitchenRpgService {
     ),
     KitchenWeeklyChallenge(
       id: 'waste_rescue',
-      titleTr: 'Israf Avcisi',
+      titleTr: 'İsraf Avcısı',
       titleEn: 'Waste Rescue',
-      descriptionTr: 'Riskli 2 malzemeyi menulere dahil ederek kurtar.',
+      descriptionTr: 'Riskli 2 malzemeyi menülere dahil ederek kurtar.',
       descriptionEn: 'Rescue 2 risky ingredients through planned meals.',
       activityType: KitchenActivityType.wasteRescue,
       target: 2,
@@ -39,9 +39,9 @@ class KitchenRpgService {
     ),
     KitchenWeeklyChallenge(
       id: 'scanner_blitz',
-      titleTr: 'Fis Blitz',
+      titleTr: 'Fiş Ustası',
       titleEn: 'Receipt Blitz',
-      descriptionTr: 'Bu hafta 2 kez fis veya tabak analizi yap.',
+      descriptionTr: 'Bu hafta 2 kez fiş veya tabak analizi yap.',
       descriptionEn: 'Run 2 receipt or plate analyses this week.',
       activityType: KitchenActivityType.receiptScan,
       target: 2,
@@ -52,7 +52,7 @@ class KitchenRpgService {
       id: 'roulette_host',
       titleTr: 'Rulet Sunucusu',
       titleEn: 'Roulette Host',
-      descriptionTr: 'Rulet ya da sosyal duelloyu 2 kez calistir.',
+      descriptionTr: 'Rulet ya da sosyal düelloyu 2 kez çalıştır.',
       descriptionEn: 'Run roulette or a social duel 2 times.',
       activityType: KitchenActivityType.roulettePlay,
       target: 2,
@@ -130,11 +130,11 @@ class KitchenRpgService {
 
   String titleForLevel(int level, String locale) {
     final titlesTr = [
-      'Acemi Cirak',
-      'Tarif Nobetcisi',
-      'Planlama Ustasi',
-      'Lezzet Avcisi',
-      'Mutfak Taktikcisi',
+      'Acemi Çırak',
+      'Tarif Nöbetçisi',
+      'Planlama Ustası',
+      'Lezzet Avcısı',
+      'Mutfak Taktikçisi',
       'Fridge Hero',
       'MasterChef Modu',
     ];

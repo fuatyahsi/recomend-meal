@@ -30,6 +30,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _heroController;
   late Animation<double> _heroScale;
   late Animation<double> _heroOpacity;
+  bool _showAssistantSteps = false;
+  bool _showHelperTools = false;
+  bool _showKitchenJourney = false;
+  final bool _showLegacyFeatureRows = false;
 
   static const _categories = [
     {
@@ -262,12 +266,121 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _HomeExpandableCard(
+                      icon: Icons.widgets_rounded,
+                      title: isTr ? 'Yardımcı araçlar' : 'Helpful tools',
+                      subtitle: isTr
+                          ? 'İhtiyacın olduğunda aç. Her araç tek bir konuda yardım eder.'
+                          : 'Open when needed. Each tool helps with one job.',
+                      isExpanded: _showHelperTools,
+                      onToggle: () => setState(
+                        () => _showHelperTools = !_showHelperTools,
+                      ),
+                      child: Column(
+                        children: [
+                          _HomeToolLink(
+                            icon: Icons.receipt_long_rounded,
+                            title: isTr ? 'Fiş okut' : 'Scan receipt',
+                            subtitle: isTr
+                                ? 'Fişteki ürünleri dolaba eklemeye yardımcı olur.'
+                                : 'Helps add receipt items to your pantry.',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const VisionLabScreen(),
+                              ),
+                            ),
+                          ),
+                          _HomeToolLink(
+                            icon: Icons.restaurant_rounded,
+                            title: isTr
+                                ? 'Yemek fotoğrafını yorumla'
+                                : 'Analyze meal photo',
+                            subtitle: isTr
+                                ? 'Yemeğin için hızlı yorum ve tahmin verir.'
+                                : 'Gives quick insight for your dish photo.',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const VisionLabScreen(),
+                              ),
+                            ),
+                          ),
+                          _HomeToolLink(
+                            icon: Icons.favorite_border_rounded,
+                            title: isTr
+                                ? 'Ruh haline göre tarif'
+                                : 'Recipes by mood',
+                            subtitle: isTr
+                                ? 'Yorgun, hafif ya da pratik öneriler gör.'
+                                : 'Browse light or practical ideas.',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MoodRecipesScreen(),
+                              ),
+                            ),
+                          ),
+                          _HomeToolLink(
+                            icon: Icons.timer_outlined,
+                            title: isTr
+                                ? 'Mutfak zamanlayıcısı'
+                                : 'Kitchen timers',
+                            subtitle: isTr
+                                ? 'Birden fazla yemeği aynı anda takip et.'
+                                : 'Track multiple dishes at the same time.',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const KitchenOrchestraScreen(),
+                              ),
+                            ),
+                          ),
+                          _HomeToolLink(
+                            icon: Icons.casino_outlined,
+                            title: isTr
+                                ? 'Bugün ne pişirsem?'
+                                : 'What should I cook?',
+                            subtitle: isTr
+                                ? 'Kararsız kalınca sana fikir verir.'
+                                : 'Helps when you cannot decide.',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RecipeRouletteScreen(),
+                              ),
+                            ),
+                          ),
+                          _HomeToolLink(
+                            icon: Icons.auto_awesome_outlined,
+                            title: isTr ? 'Damak zevkim' : 'My flavor profile',
+                            subtitle: isTr
+                                ? 'Sana uygun tatları ve tarifleri gösterir.'
+                                : 'Shows flavors that match you.',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FlavorDNAScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _SmartKitchenLauncherCard(
                       isTr: isTr,
+                      isExpanded: _showAssistantSteps,
+                      onToggleExpanded: () => setState(
+                        () => _showAssistantSteps = !_showAssistantSteps,
+                      ),
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -280,35 +393,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _KitchenIntelHomeCard(
-                      isTr: isTr,
-                      level: provider.kitchenRpgProfile.level,
-                      levelTitle: provider.kitchenLevelTitle,
-                      streakDays: provider.kitchenRpgProfile.streakDays,
-                      monthlySavings: provider.monthlySavingsEstimate,
-                      completedChallenges: provider.weeklyChallengeProgress
-                          .where((item) => item.completed)
-                          .length,
-                      onOpenVision: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const VisionLabScreen(),
-                        ),
-                      ),
-                      onOpenSmartKitchen: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SmartKitchenScreen(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                const SliverToBoxAdapter(child: SizedBox(height: 2)),
 
                 // ── Hero CTA - "Buzdolabında Ne Var?" ──
                 SliverToBoxAdapter(
@@ -400,99 +485,140 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
                 // ── Feature Buttons (Mood + Orchestra) ──
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _FeatureButton(
-                            emoji: '🎭',
-                            title: isTr ? 'Ruh Haline Göre' : 'By Mood',
-                            subtitle: isTr
-                                ? 'Nasıl hissediyorsun?'
-                                : 'How do you feel?',
-                            gradientColors: const [
-                              Color(0xFFE8D5F5),
-                              Color(0xFFF3E5F5)
-                            ],
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const MoodRecipesScreen()),
+                if (_showHelperTools && _showLegacyFeatureRows)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _FeatureButton(
+                              emoji: '💛',
+                              title: isTr
+                                  ? 'Ruh haline göre tarif'
+                                  : 'Recipes by mood',
+                              subtitle: isTr
+                                  ? 'Nasıl hissediyorsun?'
+                                  : 'How do you feel?',
+                              gradientColors: const [
+                                Color(0xFFE8D5F5),
+                                Color(0xFFF3E5F5)
+                              ],
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const MoodRecipesScreen()),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _FeatureButton(
-                            emoji: '🎼',
-                            title:
-                                isTr ? 'Mutfak Orkestra' : 'Kitchen Orchestra',
-                            subtitle:
-                                isTr ? 'Çoklu zamanlayıcı' : 'Multi-timer',
-                            gradientColors: const [
-                              Color(0xFFFFE0B2),
-                              Color(0xFFFFF3E0)
-                            ],
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      const KitchenOrchestraScreen()),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _FeatureButton(
+                              emoji: '⏱️',
+                              title: isTr
+                                  ? 'Mutfak zamanlayıcısı'
+                                  : 'Kitchen timers',
+                              subtitle: isTr
+                                  ? 'Birden fazla yemeği takip et'
+                                  : 'Track multiple dishes',
+                              gradientColors: const [
+                                Color(0xFFFFE0B2),
+                                Color(0xFFFFF3E0)
+                              ],
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const KitchenOrchestraScreen()),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                if (_showHelperTools && _showLegacyFeatureRows)
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
                 // ── Feature Buttons Row 2 (Roulette + DNA) ──
+                if (_showHelperTools && _showLegacyFeatureRows)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _FeatureButton(
+                              emoji: '🍲',
+                              title: isTr
+                                  ? 'Bugün ne pişirsem?'
+                                  : 'What should I cook?',
+                              subtitle: isTr
+                                  ? 'Kararsızsan sana fikir versin'
+                                  : 'Helps when you cannot decide',
+                              gradientColors: const [
+                                Color(0xFFFFCDD2),
+                                Color(0xFFFFEBEE)
+                              ],
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const RecipeRouletteScreen()),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _FeatureButton(
+                              emoji: '✨',
+                              title:
+                                  isTr ? 'Damak zevkim' : 'My flavor profile',
+                              subtitle: isTr
+                                  ? 'Sana uyan tatları gösterir'
+                                  : 'Shows your taste matches',
+                              gradientColors: const [
+                                Color(0xFFD1C4E9),
+                                Color(0xFFEDE7F6)
+                              ],
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const FlavorDNAScreen()),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _FeatureButton(
-                            emoji: '🎰',
-                            title: isTr ? 'Ne Pişirsem?' : 'What to Cook?',
-                            subtitle: isTr
-                                ? 'Rulet + Tarif Duellosu'
-                                : 'Roulette + Recipe Duel',
-                            gradientColors: const [
-                              Color(0xFFFFCDD2),
-                              Color(0xFFFFEBEE)
-                            ],
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const RecipeRouletteScreen()),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _FeatureButton(
-                            emoji: '🧬',
-                            title: isTr ? 'Lezzet DNA\'sı' : 'Flavor DNA',
-                            subtitle:
-                                isTr ? 'Profil analizi' : 'Profile analysis',
-                            gradientColors: const [
-                              Color(0xFFD1C4E9),
-                              Color(0xFFEDE7F6)
-                            ],
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const FlavorDNAScreen()),
-                            ),
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _HomeExpandableCard(
+                      icon: Icons.emoji_events_outlined,
+                      title: isTr
+                          ? 'Mutfaktaki ilerlemen'
+                          : 'Your kitchen progress',
+                      subtitle: isTr
+                          ? '${provider.kitchenRpgProfile.streakDays} gündür devam ediyorsun. Ayrıntıları görmek için aç.'
+                          : 'Open to see your streak and weekly progress.',
+                      isExpanded: _showKitchenJourney,
+                      onToggle: () => setState(
+                        () => _showKitchenJourney = !_showKitchenJourney,
+                      ),
+                      child: _HomeJourneySummary(
+                        isTr: isTr,
+                        level: provider.kitchenRpgProfile.level,
+                        levelTitle: provider.kitchenLevelTitle,
+                        streakDays: provider.kitchenRpgProfile.streakDays,
+                        monthlySavings: provider.monthlySavingsEstimate,
+                        completedChallenges: provider.weeklyChallengeProgress
+                            .where((item) => item.completed)
+                            .length,
+                      ),
                     ),
                   ),
                 ),
@@ -915,10 +1041,14 @@ class _HeroCTACard extends StatelessWidget {
 // ── Category Chip - Glass Style ──
 class _SmartKitchenLauncherCard extends StatelessWidget {
   final bool isTr;
+  final bool isExpanded;
+  final VoidCallback onToggleExpanded;
   final VoidCallback onTap;
 
   const _SmartKitchenLauncherCard({
     required this.isTr,
+    required this.isExpanded,
+    required this.onToggleExpanded,
     required this.onTap,
   });
 
@@ -983,7 +1113,7 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           isTr
-                              ? 'Önce menünü kur, sonra saatini ve hatırlatmalarını ayarla'
+                              ? 'Menünü planla, eksikleri gör, sonra saatini ayarla'
                               : 'Build your menu first, then set times and reminders',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.white.withOpacity(0.86),
@@ -992,20 +1122,68 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: Colors.white),
+                  IconButton(
+                    onPressed: onToggleExpanded,
+                    style: IconButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.white.withOpacity(0.12),
+                    ),
+                    icon: Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                isTr
-                    ? '1. Kahvaltı, öğle ve akşam için menü oluştur.\n2. Dolabındaki malzemeleri güncel tut.\n3. Eksikleri gör, alışveriş listesini çıkar ve hatırlatma kur.'
-                    : '1. Build menus for breakfast, lunch, and dinner.\n2. Keep your pantry updated.\n3. Review missing items, create the shopping list, and set reminders.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  height: 1.45,
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.tonalIcon(
+                  onPressed: onTap,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                  icon: const Icon(Icons.auto_awesome),
+                  label: Text(isTr ? 'Asistanı aç' : 'Open assistant'),
                 ),
               ),
+              if (isExpanded) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.14)),
+                  ),
+                  child: Column(
+                    children: [
+                      _HowItWorksStep(
+                        number: 1,
+                        text: isTr
+                            ? 'Önce kahvaltı, öğle ve akşam için menünü oluştur.'
+                            : 'Build your breakfast, lunch, and dinner menu.',
+                      ),
+                      const SizedBox(height: 10),
+                      _HowItWorksStep(
+                        number: 2,
+                        text: isTr
+                            ? 'Dolabındaki malzemeleri güncel tut.'
+                            : 'Keep your pantry updated.',
+                      ),
+                      const SizedBox(height: 10),
+                      _HowItWorksStep(
+                        number: 3,
+                        text: isTr
+                            ? 'Eksikleri gör, alışveriş listesini çıkar ve hatırlatma kur.'
+                            : 'Review missing items, create the shopping list, and set reminders.',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1014,6 +1192,7 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _KitchenIntelHomeCard extends StatelessWidget {
   final bool isTr;
   final int level;
@@ -1150,6 +1329,332 @@ class _KitchenIntelHomeCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HowItWorksStep extends StatelessWidget {
+  final int number;
+  final String text;
+
+  const _HowItWorksStep({
+    required this.number,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '$number',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeExpandableCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isExpanded;
+  final VoidCallback onToggle;
+  final Widget? child;
+
+  const _HomeExpandableCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isExpanded,
+    required this.onToggle,
+    this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withOpacity(0.65),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  isExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+          if (isExpanded && child != null) ...[
+            const SizedBox(height: 14),
+            child!,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeToolLink extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _HomeToolLink({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withOpacity(0.35),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: theme.colorScheme.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeJourneySummary extends StatelessWidget {
+  final bool isTr;
+  final int level;
+  final String levelTitle;
+  final int streakDays;
+  final double monthlySavings;
+  final int completedChallenges;
+
+  const _HomeJourneySummary({
+    required this.isTr,
+    required this.level,
+    required this.levelTitle,
+    required this.streakDays,
+    required this.monthlySavings,
+    required this.completedChallenges,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'Lv.$level',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                levelTitle,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _SoftStatChip(
+              label: isTr ? '$streakDays gün devam' : '$streakDays day streak',
+            ),
+            _SoftStatChip(
+              label: isTr
+                  ? '$completedChallenges görev tamam'
+                  : '$completedChallenges done',
+            ),
+            _SoftStatChip(
+              label: isTr
+                  ? '${monthlySavings.round()} TL korundu'
+                  : '${monthlySavings.round()} TRY saved',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          isTr
+              ? 'Yaptığın planlar ve dolap güncellemeleri burada birikir. İstersen bunu sadece ara sıra kontrol etmen yeterli.'
+              : 'Your planning and pantry updates build up here. You only need to check this once in a while.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.45,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SoftStatChip extends StatelessWidget {
+  final String label;
+
+  const _SoftStatChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
