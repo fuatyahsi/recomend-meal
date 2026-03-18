@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _showHelperTools = false;
   bool _showKitchenJourney = false;
   final bool _showLegacyFeatureRows = false;
+  String? _activeHomePanel;
 
   static const _categories = [
     {
@@ -116,6 +117,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _heroController.dispose();
     super.dispose();
+  }
+
+  void _toggleHomePanel(String panelId) {
+    setState(() {
+      _activeHomePanel = _activeHomePanel == panelId ? null : panelId;
+    });
   }
 
   void _openCategory(
@@ -265,165 +272,317 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _HomeExpandableCard(
-                      icon: Icons.widgets_rounded,
-                      title: isTr ? 'Yardımcı araçlar' : 'Helpful tools',
-                      subtitle: isTr
-                          ? 'İhtiyacın olduğunda aç. Her araç tek bir konuda yardım eder.'
-                          : 'Open when needed. Each tool helps with one job.',
-                      isExpanded: _showHelperTools,
-                      onToggle: () => setState(
-                        () => _showHelperTools = !_showHelperTools,
-                      ),
-                      child: Column(
-                        children: [
-                          _HomeToolLink(
-                            icon: Icons.receipt_long_rounded,
-                            title: isTr ? 'Fiş okut' : 'Scan receipt',
-                            subtitle: isTr
-                                ? 'Fişteki ürünleri dolaba eklemeye yardımcı olur.'
-                                : 'Helps add receipt items to your pantry.',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const VisionLabScreen(),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _HomeQuickCard(
+                                icon: Icons.auto_awesome_rounded,
+                                title: isTr ? 'Menü Planım' : 'My meal plan',
+                                subtitle: isTr
+                                    ? 'Öğünlerini düzenle'
+                                    : 'Organize your meals',
+                                isSelected: _activeHomePanel == 'planner',
+                                onTap: () => _toggleHomePanel('planner'),
                               ),
                             ),
-                          ),
-                          _HomeToolLink(
-                            icon: Icons.restaurant_rounded,
-                            title: isTr
-                                ? 'Yemek fotoğrafını yorumla'
-                                : 'Analyze meal photo',
-                            subtitle: isTr
-                                ? 'Yemeğin için hızlı yorum ve tahmin verir.'
-                                : 'Gives quick insight for your dish photo.',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const VisionLabScreen(),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _HomeQuickCard(
+                                icon: Icons.kitchen_outlined,
+                                title: isTr
+                                    ? 'Buzdolabında Ne Var?'
+                                    : 'What is in your fridge?',
+                                subtitle: isTr
+                                    ? 'Dolabını güncel tut'
+                                    : 'Keep your pantry updated',
+                                isSelected: _activeHomePanel == 'fridge',
+                                onTap: () => _toggleHomePanel('fridge'),
                               ),
                             ),
-                          ),
-                          _HomeToolLink(
-                            icon: Icons.favorite_border_rounded,
-                            title: isTr
-                                ? 'Ruh haline göre tarif'
-                                : 'Recipes by mood',
-                            subtitle: isTr
-                                ? 'Yorgun, hafif ya da pratik öneriler gör.'
-                                : 'Browse light or practical ideas.',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MoodRecipesScreen(),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _HomeQuickCard(
+                                icon: Icons.widgets_outlined,
+                                title:
+                                    isTr ? 'Lezzet Atölyesi' : 'Flavor studio',
+                                subtitle: isTr
+                                    ? 'Pratik bölümler burada'
+                                    : 'Useful sections in one place',
+                                isSelected: _activeHomePanel == 'tools',
+                                onTap: () => _toggleHomePanel('tools'),
                               ),
                             ),
-                          ),
-                          _HomeToolLink(
-                            icon: Icons.timer_outlined,
-                            title: isTr
-                                ? 'Mutfak zamanlayıcısı'
-                                : 'Kitchen timers',
-                            subtitle: isTr
-                                ? 'Birden fazla yemeği aynı anda takip et.'
-                                : 'Track multiple dishes at the same time.',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const KitchenOrchestraScreen(),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _HomeQuickCard(
+                                icon: Icons.emoji_events_outlined,
+                                title: isTr ? 'Şef Karnem' : 'Chef scorecard',
+                                subtitle: isTr
+                                    ? 'Seviye ve haftalık durum'
+                                    : 'Level and weekly progress',
+                                isSelected: _activeHomePanel == 'journey',
+                                onTap: () => _toggleHomePanel('journey'),
                               ),
                             ),
-                          ),
-                          _HomeToolLink(
-                            icon: Icons.casino_outlined,
-                            title: isTr
-                                ? 'Bugün ne pişirsem?'
-                                : 'What should I cook?',
-                            subtitle: isTr
-                                ? 'Kararsız kalınca sana fikir verir.'
-                                : 'Helps when you cannot decide.',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RecipeRouletteScreen(),
-                              ),
-                            ),
-                          ),
-                          _HomeToolLink(
-                            icon: Icons.auto_awesome_outlined,
-                            title: isTr ? 'Damak zevkim' : 'My flavor profile',
-                            subtitle: isTr
-                                ? 'Sana uygun tatları ve tarifleri gösterir.'
-                                : 'Shows flavors that match you.',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const FlavorDNAScreen(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _SmartKitchenLauncherCard(
-                      isTr: isTr,
-                      isExpanded: _showAssistantSteps,
-                      onToggleExpanded: () => setState(
-                        () => _showAssistantSteps = !_showAssistantSteps,
+                if (_activeHomePanel != null)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                      child: _HomeDetailShell(
+                        child: switch (_activeHomePanel) {
+                          'planner' => _PlannerDetailPanel(
+                              isTr: isTr,
+                              onOpen: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SmartKitchenScreen(),
+                                ),
+                              ),
+                            ),
+                          'fridge' => _FridgeDetailPanel(
+                              isTr: isTr,
+                              selectedCount: provider.selectedCount,
+                              selectedLabel: l10n
+                                  .ingredientsSelected(provider.selectedCount),
+                              findRecipesLabel: l10n.findRecipes,
+                              onOpen: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const IngredientSelectionScreen(),
+                                ),
+                              ),
+                            ),
+                          'tools' => _ToolsDetailPanel(
+                              isTr: isTr,
+                              onOpenVision: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const VisionLabScreen(),
+                                ),
+                              ),
+                              onOpenMood: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MoodRecipesScreen(),
+                                ),
+                              ),
+                              onOpenOrchestra: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const KitchenOrchestraScreen(),
+                                ),
+                              ),
+                              onOpenRoulette: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RecipeRouletteScreen(),
+                                ),
+                              ),
+                              onOpenFlavor: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FlavorDNAScreen(),
+                                ),
+                              ),
+                            ),
+                          _ => _JourneyDetailPanel(
+                              isTr: isTr,
+                              level: provider.kitchenRpgProfile.level,
+                              levelTitle: provider.kitchenLevelTitle,
+                              streakDays: provider.kitchenRpgProfile.streakDays,
+                              monthlySavings: provider.monthlySavingsEstimate,
+                              completedChallenges: provider
+                                  .weeklyChallengeProgress
+                                  .where((item) => item.completed)
+                                  .length,
+                            ),
+                        },
                       ),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SmartKitchenScreen(),
+                    ),
+                  ),
+                if (_showLegacyFeatureRows)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _HomeExpandableCard(
+                        icon: Icons.widgets_rounded,
+                        title: isTr ? 'Yardımcı araçlar' : 'Helpful tools',
+                        subtitle: isTr
+                            ? 'İhtiyacın olduğunda aç. Her araç tek bir konuda yardım eder.'
+                            : 'Open when needed. Each tool helps with one job.',
+                        isExpanded: _showHelperTools,
+                        onToggle: () => setState(
+                          () => _showHelperTools = !_showHelperTools,
+                        ),
+                        child: Column(
+                          children: [
+                            _HomeToolLink(
+                              icon: Icons.receipt_long_rounded,
+                              title: isTr ? 'Fiş okut' : 'Scan receipt',
+                              subtitle: isTr
+                                  ? 'Fişteki ürünleri dolaba eklemeye yardımcı olur.'
+                                  : 'Helps add receipt items to your pantry.',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const VisionLabScreen(),
+                                ),
+                              ),
+                            ),
+                            _HomeToolLink(
+                              icon: Icons.restaurant_rounded,
+                              title: isTr
+                                  ? 'Yemek fotoğrafını yorumla'
+                                  : 'Analyze meal photo',
+                              subtitle: isTr
+                                  ? 'Yemeğin için hızlı yorum ve tahmin verir.'
+                                  : 'Gives quick insight for your dish photo.',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const VisionLabScreen(),
+                                ),
+                              ),
+                            ),
+                            _HomeToolLink(
+                              icon: Icons.favorite_border_rounded,
+                              title: isTr
+                                  ? 'Ruh haline göre tarif'
+                                  : 'Recipes by mood',
+                              subtitle: isTr
+                                  ? 'Yorgun, hafif ya da pratik öneriler gör.'
+                                  : 'Browse light or practical ideas.',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MoodRecipesScreen(),
+                                ),
+                              ),
+                            ),
+                            _HomeToolLink(
+                              icon: Icons.timer_outlined,
+                              title: isTr
+                                  ? 'Mutfak zamanlayıcısı'
+                                  : 'Kitchen timers',
+                              subtitle: isTr
+                                  ? 'Birden fazla yemeği aynı anda takip et.'
+                                  : 'Track multiple dishes at the same time.',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const KitchenOrchestraScreen(),
+                                ),
+                              ),
+                            ),
+                            _HomeToolLink(
+                              icon: Icons.casino_outlined,
+                              title: isTr
+                                  ? 'Bugün ne pişirsem?'
+                                  : 'What should I cook?',
+                              subtitle: isTr
+                                  ? 'Kararsız kalınca sana fikir verir.'
+                                  : 'Helps when you cannot decide.',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RecipeRouletteScreen(),
+                                ),
+                              ),
+                            ),
+                            _HomeToolLink(
+                              icon: Icons.auto_awesome_outlined,
+                              title:
+                                  isTr ? 'Damak zevkim' : 'My flavor profile',
+                              subtitle: isTr
+                                  ? 'Sana uygun tatları ve tarifleri gösterir.'
+                                  : 'Shows flavors that match you.',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FlavorDNAScreen(),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 14)),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 2)),
-
-                // ── Hero CTA - "Buzdolabında Ne Var?" ──
-                SliverToBoxAdapter(
-                  child: AnimatedBuilder(
-                    animation: _heroController,
-                    builder: (context, child) => Opacity(
-                      opacity: _heroOpacity.value,
-                      child: Transform.scale(
-                        scale: _heroScale.value,
-                        child: child,
-                      ),
-                    ),
+                if (_showLegacyFeatureRows)
+                  SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _HeroCTACard(
+                      child: _SmartKitchenLauncherCard(
                         isTr: isTr,
-                        selectedCount: provider.selectedCount,
+                        isExpanded: _showAssistantSteps,
+                        onToggleExpanded: () => setState(
+                          () => _showAssistantSteps = !_showAssistantSteps,
+                        ),
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) =>
-                                  const IngredientSelectionScreen()),
+                            builder: (_) => const SmartKitchenScreen(),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+
+                if (_showLegacyFeatureRows)
+                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
+
+                if (_showLegacyFeatureRows)
+                  const SliverToBoxAdapter(child: SizedBox(height: 2)),
+
+                // ── Hero CTA - "Buzdolabında Ne Var?" ──
+                if (_showLegacyFeatureRows)
+                  SliverToBoxAdapter(
+                    child: AnimatedBuilder(
+                      animation: _heroController,
+                      builder: (context, child) => Opacity(
+                        opacity: _heroOpacity.value,
+                        child: Transform.scale(
+                          scale: _heroScale.value,
+                          child: child,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _HeroCTACard(
+                          isTr: isTr,
+                          selectedCount: provider.selectedCount,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const IngredientSelectionScreen()),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // Selected ingredients badge
-                if (provider.selectedCount > 0)
+                if (_showLegacyFeatureRows && provider.selectedCount > 0)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -482,7 +641,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                if (_showLegacyFeatureRows)
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
                 // ── Feature Buttons (Mood + Orchestra) ──
                 if (_showHelperTools && _showLegacyFeatureRows)
@@ -594,34 +754,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
 
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: _HomeExpandableCard(
-                      icon: Icons.emoji_events_outlined,
-                      title: isTr
-                          ? 'Mutfaktaki ilerlemen'
-                          : 'Your kitchen progress',
-                      subtitle: isTr
-                          ? '${provider.kitchenRpgProfile.streakDays} gündür devam ediyorsun. Ayrıntıları görmek için aç.'
-                          : 'Open to see your streak and weekly progress.',
-                      isExpanded: _showKitchenJourney,
-                      onToggle: () => setState(
-                        () => _showKitchenJourney = !_showKitchenJourney,
-                      ),
-                      child: _HomeJourneySummary(
-                        isTr: isTr,
-                        level: provider.kitchenRpgProfile.level,
-                        levelTitle: provider.kitchenLevelTitle,
-                        streakDays: provider.kitchenRpgProfile.streakDays,
-                        monthlySavings: provider.monthlySavingsEstimate,
-                        completedChallenges: provider.weeklyChallengeProgress
-                            .where((item) => item.completed)
-                            .length,
+                if (_showLegacyFeatureRows)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: _HomeExpandableCard(
+                        icon: Icons.emoji_events_outlined,
+                        title: isTr
+                            ? 'Mutfaktaki ilerlemen'
+                            : 'Your kitchen progress',
+                        subtitle: isTr
+                            ? '${provider.kitchenRpgProfile.streakDays} gündür devam ediyorsun. Ayrıntıları görmek için aç.'
+                            : 'Open to see your streak and weekly progress.',
+                        isExpanded: _showKitchenJourney,
+                        onToggle: () => setState(
+                          () => _showKitchenJourney = !_showKitchenJourney,
+                        ),
+                        child: _HomeJourneySummary(
+                          isTr: isTr,
+                          level: provider.kitchenRpgProfile.level,
+                          levelTitle: provider.kitchenLevelTitle,
+                          streakDays: provider.kitchenRpgProfile.streakDays,
+                          monthlySavings: provider.monthlySavingsEstimate,
+                          completedChallenges: provider.weeklyChallengeProgress
+                              .where((item) => item.completed)
+                              .length,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
@@ -1330,6 +1491,451 @@ class _KitchenIntelHomeCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HomeQuickCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _HomeQuickCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(14),
+          height: 118,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primaryContainer.withOpacity(0.85)
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.primary.withOpacity(0.35)
+                  : theme.colorScheme.outlineVariant.withOpacity(0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isSelected ? 0.08 : 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? theme.colorScheme.primary.withOpacity(0.12)
+                      : theme.colorScheme.primaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: theme.colorScheme.primary),
+              ),
+              const Spacer(),
+              Text(
+                title,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeDetailShell extends StatelessWidget {
+  final Widget child;
+
+  const _HomeDetailShell({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PlannerDetailPanel extends StatelessWidget {
+  final bool isTr;
+  final VoidCallback onOpen;
+
+  const _PlannerDetailPanel({
+    required this.isTr,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isTr ? 'Menü Planım' : 'My meal plan',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          isTr
+              ? 'Önce kahvaltı, öğle ve akşam menünü kur. Sonra eksikleri görüp alışveriş listesini ve saatlerini ayarla.'
+              : 'Build your meals first, then review missing items, shopping lists, and reminders.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Column(
+          children: [
+            _StepRow(
+              number: 1,
+              text: isTr
+                  ? 'Kahvaltı, öğle ve akşam için menü oluştur.'
+                  : 'Build menus for breakfast, lunch, and dinner.',
+            ),
+            const SizedBox(height: 10),
+            _StepRow(
+              number: 2,
+              text: isTr
+                  ? 'Dolabındaki malzemelere göre eksikleri gör.'
+                  : 'Review missing items based on your pantry.',
+            ),
+            const SizedBox(height: 10),
+            _StepRow(
+              number: 3,
+              text: isTr
+                  ? 'Alışveriş listeni ve hatırlatmalarını ayarla.'
+                  : 'Set your shopping list and reminders.',
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: onOpen,
+          icon: const Icon(Icons.auto_awesome),
+          label: Text(isTr ? 'Menüyü kur' : 'Open planning'),
+        ),
+      ],
+    );
+  }
+}
+
+class _FridgeDetailPanel extends StatelessWidget {
+  final bool isTr;
+  final int selectedCount;
+  final String selectedLabel;
+  final String findRecipesLabel;
+  final VoidCallback onOpen;
+
+  const _FridgeDetailPanel({
+    required this.isTr,
+    required this.selectedCount,
+    required this.selectedLabel,
+    required this.findRecipesLabel,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isTr ? 'Buzdolabında Ne Var?' : 'What is in your fridge?',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          isTr
+              ? 'Evde olanları seç. Uygulama sana uygun tarifleri ve eksiklerini göstersin.'
+              : 'Select what you have at home and the app will show matching recipes.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withOpacity(0.45),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.check_circle, color: theme.colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  selectedCount > 0
+                      ? selectedLabel
+                      : (isTr
+                          ? 'Henüz malzeme seçmedin'
+                          : 'No ingredients selected yet'),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: onOpen,
+          icon: const Icon(Icons.search_rounded),
+          label: Text(
+            selectedCount > 0
+                ? findRecipesLabel
+                : (isTr ? 'Dolabı güncelle' : 'Update pantry'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ToolsDetailPanel extends StatelessWidget {
+  final bool isTr;
+  final VoidCallback onOpenVision;
+  final VoidCallback onOpenMood;
+  final VoidCallback onOpenOrchestra;
+  final VoidCallback onOpenRoulette;
+  final VoidCallback onOpenFlavor;
+
+  const _ToolsDetailPanel({
+    required this.isTr,
+    required this.onOpenVision,
+    required this.onOpenMood,
+    required this.onOpenOrchestra,
+    required this.onOpenRoulette,
+    required this.onOpenFlavor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isTr ? 'Lezzet Atölyesi' : 'Flavor studio',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          isTr
+              ? 'İhtiyacın olduğunda açabileceğin pratik bölümler burada.'
+              : 'Practical sections you can open when needed.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _HomeToolLink(
+          icon: Icons.receipt_long_rounded,
+          title: isTr ? 'Fiş okut' : 'Scan receipt',
+          subtitle: isTr
+              ? 'Fişteki ürünleri dolaba eklemeye yardımcı olur.'
+              : 'Helps add receipt items to your pantry.',
+          onTap: onOpenVision,
+        ),
+        _HomeToolLink(
+          icon: Icons.favorite_border_rounded,
+          title: isTr ? 'Ruh haline göre tarif' : 'Recipes by mood',
+          subtitle: isTr
+              ? 'Yorgun ya da pratik günler için öneriler gör.'
+              : 'See ideas for tired or practical days.',
+          onTap: onOpenMood,
+        ),
+        _HomeToolLink(
+          icon: Icons.timer_outlined,
+          title: isTr ? 'Mutfak zamanlayıcısı' : 'Kitchen timers',
+          subtitle: isTr
+              ? 'Birden fazla yemeği aynı anda takip et.'
+              : 'Track multiple dishes at the same time.',
+          onTap: onOpenOrchestra,
+        ),
+        _HomeToolLink(
+          icon: Icons.casino_outlined,
+          title: isTr ? 'Bugün ne pişirsem?' : 'What should I cook?',
+          subtitle: isTr
+              ? 'Kararsız kaldığında sana fikir verir.'
+              : 'Helps when you cannot decide.',
+          onTap: onOpenRoulette,
+        ),
+        _HomeToolLink(
+          icon: Icons.auto_awesome_outlined,
+          title: isTr ? 'Damak zevkim' : 'My flavor profile',
+          subtitle: isTr
+              ? 'Sana uygun tatları ve tarifleri gösterir.'
+              : 'Shows flavors and meals that fit you.',
+          onTap: onOpenFlavor,
+        ),
+      ],
+    );
+  }
+}
+
+class _JourneyDetailPanel extends StatelessWidget {
+  final bool isTr;
+  final int level;
+  final String levelTitle;
+  final int streakDays;
+  final double monthlySavings;
+  final int completedChallenges;
+
+  const _JourneyDetailPanel({
+    required this.isTr,
+    required this.level,
+    required this.levelTitle,
+    required this.streakDays,
+    required this.monthlySavings,
+    required this.completedChallenges,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isTr ? 'Şef Karnem' : 'Chef scorecard',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          isTr
+              ? 'Yaptığın planlar, devam günlerin ve biriken kazanımlar burada görünür.'
+              : 'Your streak, planning progress, and wins appear here.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _HomeJourneySummary(
+          isTr: isTr,
+          level: level,
+          levelTitle: levelTitle,
+          streakDays: streakDays,
+          monthlySavings: monthlySavings,
+          completedChallenges: completedChallenges,
+        ),
+      ],
+    );
+  }
+}
+
+class _StepRow extends StatelessWidget {
+  final int number;
+  final String text;
+
+  const _StepRow({
+    required this.number,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '$number',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
