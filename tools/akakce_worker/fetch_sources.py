@@ -92,12 +92,23 @@ def fetch_html(session: requests.Session, url: str, timeout: int) -> str:
 def fetch_bytes(session: requests.Session, url: str, timeout: int) -> bytes:
     response = session.get(url, timeout=timeout, headers=DEFAULT_HEADERS)
     if response.status_code == 403:
-        fallback_payload = fetch_with_curl_cffi(url, timeout)
-        if fallback_payload is not None:
-            return fallback_payload
-        browser_payload = fetch_with_playwright(url, timeout)
-        if browser_payload is not None:
-            return browser_payload
+        print(f"[fetch_sources] requests got 403 for {url}")
+        try:
+            fallback_payload = fetch_with_curl_cffi(url, timeout)
+            if fallback_payload is not None:
+                print(f"[fetch_sources] curl_cffi succeeded for {url}")
+                return fallback_payload
+        except Exception as error:
+            print(f"[fetch_sources] curl_cffi failed for {url}: {error}")
+
+        try:
+            browser_payload = fetch_with_playwright(url, timeout)
+            if browser_payload is not None:
+                print(f"[fetch_sources] Playwright succeeded for {url}")
+                return browser_payload
+        except Exception as error:
+            print(f"[fetch_sources] Playwright failed for {url}: {error}")
+
     response.raise_for_status()
     return response.content
 
