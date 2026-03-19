@@ -231,6 +231,32 @@ def extract_detail_urls(listing_html: str) -> list[str]:
         seen.add(url)
         urls.append(url)
 
+    if urls:
+        return urls
+
+    normalized_html = (
+        listing_html.replace("\\/", "/")
+        .replace("\\u002F", "/")
+        .replace("&quot;", '"')
+    )
+    for match in re.findall(r"https://www\.akakce\.com/brosurler/[a-z0-9-]+-\d+", normalized_html):
+        url = normalize_url(match)
+        if not is_brochure_detail_url(url):
+            continue
+        if url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+
+    for match in re.findall(r"/brosurler/[a-z0-9-]+-\d+", normalized_html):
+        url = normalize_url(match)
+        if not is_brochure_detail_url(url):
+            continue
+        if url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+
     return urls
 
 
