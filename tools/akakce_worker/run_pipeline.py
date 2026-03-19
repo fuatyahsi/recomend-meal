@@ -8,8 +8,10 @@ from pathlib import Path
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run the Akakce brochure worker pipeline skeleton."
+        description="Run the market brochure worker pipeline skeleton."
     )
+    parser.add_argument("--source", choices=["akakce", "bim"], default="akakce")
+    parser.add_argument("--listing-url")
     parser.add_argument("--max-brochures", type=int, default=18)
     parser.add_argument("--download-images", action="store_true")
     parser.add_argument("--extract-items", action="store_true")
@@ -26,10 +28,13 @@ def main() -> None:
     args = build_parser().parse_args()
 
     fetch_args = ["--max-brochures", str(args.max_brochures)]
+    if args.listing_url:
+        fetch_args.extend(["--listing-url", args.listing_url])
     if args.download_images:
         fetch_args.append("--download-images")
 
-    run_step("fetch_sources.py", *fetch_args)
+    fetch_script = "fetch_bim_sources.py" if args.source == "bim" else "fetch_sources.py"
+    run_step(fetch_script, *fetch_args)
 
     if args.download_images:
         run_step("segment_pages.py")
@@ -37,7 +42,7 @@ def main() -> None:
             run_step("extract_items.py")
 
     run_step("export_feed.py")
-    print("Akakce worker pipeline finished.")
+    print(f"{args.source} worker pipeline finished.")
 
 
 if __name__ == "__main__":

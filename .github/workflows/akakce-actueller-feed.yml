@@ -1,10 +1,23 @@
-name: Akakce Actueller Feed
+name: Market Actueller Feed
 # Trigger note: keep this workflow easy to retrigger with tiny non-functional edits.
 # Debug rerun marker: 2
 
 on:
   workflow_dispatch:
     inputs:
+      source:
+        description: "Brochure source"
+        required: false
+        default: "bim"
+        type: choice
+        options:
+          - bim
+          - akakce
+      listing_url:
+        description: "Optional override listing URL"
+        required: false
+        default: ""
+        type: string
       upload_artifacts:
         description: "Upload JSON artifacts"
         required: false
@@ -63,8 +76,25 @@ jobs:
           python -c "from rapidocr import RapidOCR; print('rapidocr ok')"
           python -c "from playwright.sync_api import sync_playwright; print('playwright ok')"
 
-      - name: Run Akakce worker pipeline
-        run: python tools/akakce_worker/run_pipeline.py --max-brochures 24 --download-images --extract-items
+      - name: Resolve worker inputs
+        shell: bash
+        run: |
+          SOURCE="${{ github.event.inputs.source }}"
+          LISTING_URL="${{ github.event.inputs.listing_url }}"
+          if [ -z "$SOURCE" ]; then
+            SOURCE="bim"
+          fi
+          echo "WORKER_SOURCE=$SOURCE" >> "$GITHUB_ENV"
+          echo "WORKER_LISTING_URL=$LISTING_URL" >> "$GITHUB_ENV"
+
+      - name: Run market worker pipeline
+        shell: bash
+        run: |
+          EXTRA_ARGS=()
+          if [ -n "$WORKER_LISTING_URL" ]; then
+            EXTRA_ARGS+=(--listing-url "$WORKER_LISTING_URL")
+          fi
+          python tools/akakce_worker/run_pipeline.py --source "$WORKER_SOURCE" --max-brochures 24 --download-images --extract-items "${EXTRA_ARGS[@]}"
 
       - name: Print worker summary
         if: always()

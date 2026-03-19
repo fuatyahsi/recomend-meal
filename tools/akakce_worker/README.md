@@ -21,6 +21,9 @@ Not:
 - `fetch_sources.py`
   - Akakce liste ve detay sayfalarini okur
   - brosur ve sayfa manifesti uretir
+- `fetch_bim_sources.py`
+  - BİM resmi afis sayfasini okur
+  - brosur ve sayfa manifesti uretir
 - `segment_pages.py`
   - sayfa gorsellerini tile manifestine donusturur
 - `extract_items.py`
@@ -77,13 +80,13 @@ python tools/akakce_worker/segment_pages.py
 Tum hattin iskeletini calistirmak:
 
 ```bash
-python tools/akakce_worker/run_pipeline.py --max-brochures 24 --download-images
+python tools/akakce_worker/run_pipeline.py --source bim --max-brochures 24 --download-images
 ```
 
 Urun adaylarini da cikarmak:
 
 ```bash
-python tools/akakce_worker/run_pipeline.py --max-brochures 24 --download-images --extract-items
+python tools/akakce_worker/run_pipeline.py --source bim --max-brochures 24 --download-images --extract-items
 ```
 
 Seed URL ile:
