@@ -30,6 +30,21 @@ class ExtractItemsTest(unittest.TestCase):
         self.assertEqual("BİM Kaşar", text)
         self.assertAlmostEqual(0.8, confidence, places=2)
 
+    def test_should_ocr_crop_rejects_blank_crop(self) -> None:
+        cv2 = extract_items.ensure_cv_stack()
+        import numpy as np  # type: ignore
+
+        blank = np.full((40, 80, 3), 255, dtype=np.uint8)
+
+        self.assertFalse(
+            extract_items.should_ocr_crop(
+                cv2,
+                blank,
+                min_stddev=10.0,
+                min_foreground_ratio=0.01,
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

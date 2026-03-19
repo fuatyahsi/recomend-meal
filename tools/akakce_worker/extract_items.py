@@ -266,6 +266,55 @@ def write_crop(cv2, crop, path: Path) -> str:
     return str(path.resolve())
 
 
+def should_ocr_crop(cv2, crop, *, min_stddev: float, min_foreground_ratio: float) -> bool:
+    if crop is None or crop.size == 0:
+        return False
+
+    height, width = crop.shape[:2]
+    if height < 18 or width < 18:
+        return False
+
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    stddev = float(gray.std())
+    if stddev < min_stddev:
+        return False
+
+    _, binary = cv2.threshold(
+        gray,
+        0,
+        255,
+        cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU,
+    )
+    foreground_ratio = float(binary.mean() / 255.0)
+    if foreground_ratio < min_foreground_ratio:
+        return False
+
+    return True
+
+
+def prepare_crop_for_ocr(cv2, crop):
+    if crop is None or crop.size == 0:
+        return crop
+
+    height, width = crop.shape[:2]
+    scale = 1
+    if max(height, width) < 220:
+        scale = 2
+    if max(height, width) < 120:
+        scale = 3
+
+    if scale > 1:
+        crop = cv2.resize(
+            crop,
+            (width * scale, height * scale),
+            interpolation=cv2.INTER_CUBIC,
+        )
+
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+
 def main() -> None:
     args = build_parser().parse_args()
     cv2 = ensure_cv_stack()
@@ -312,8 +361,33 @@ def main() -> None:
                 product_crop = bgr[py : py + ph, px : px + pw]
                 price_crop = bgr[y : y + h, x : x + w]
 
-                product_text, product_confidence = run_reader(reader, product_crop)
-                price_text, price_confidence = run_reader(reader, price_crop)
+                product_text = ""
+                product_confidence = 0.0
+                price_text = ""
+                price_confidence = 0.0
+
+                if should_ocr_crop(
+                    cv2,
+                    product_crop,
+                    min_stddev=18.0,
+                    min_foreground_ratio=0.012,
+                ):
+                    product_text, product_confidence = run_reader(
+                        reader,
+                        prepare_crop_for_ocr(cv2, product_crop),
+                    )
+
+                if should_ocr_crop(
+                    cv2,
+                    price_crop,
+                    min_stddev=14.0,
+                    min_foreground_ratio=0.02,
+                ):
+                    price_text, price_confidence = run_reader(
+                        reader,
+                        prepare_crop_for_ocr(cv2, price_crop),
+                    )
+
                 price = parse_price(price_text) or parse_price(product_text)
                 title = clean_title(product_text)
 

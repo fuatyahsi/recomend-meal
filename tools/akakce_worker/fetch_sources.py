@@ -10,7 +10,7 @@ from typing import Iterable
 from urllib.parse import urljoin, urlparse
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, UnicodeDammit
 
 AKAKCE_LISTING_URL = "https://www.akakce.com/brosurler/?l=1"
 AKAKCE_BASE_URL = "https://www.akakce.com"
@@ -91,6 +91,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def fetch_html(session: requests.Session, url: str, timeout: int) -> str:
     payload = fetch_bytes(session, url, timeout)
+    return decode_html_bytes(payload)
+
+
+def decode_html_bytes(payload: bytes) -> str:
+    decoded = UnicodeDammit(payload, is_html=True).unicode_markup
+    if decoded:
+        return decoded
     return payload.decode("utf-8", errors="ignore")
 
 
