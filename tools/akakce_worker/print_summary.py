@@ -19,6 +19,7 @@ def main() -> None:
     brochures = source_manifest.get("brochures", [])
     extracted_items = extracted.get("items", [])
     feed_items = feed.get("items", [])
+    brochure_stats = extracted.get("brochureStats", [])
 
     print("=== Market Worker Summary ===")
     print(f"Source label: {source_manifest.get('sourceLabel') or feed.get('sourceLabel') or '-'}")
@@ -31,11 +32,26 @@ def main() -> None:
         )
 
     print(f"Extracted candidate count: {len(extracted_items)}")
+    if brochure_stats:
+        print(
+            "Structured item count: "
+            f"{extracted.get('structuredItemCount', 0)}"
+        )
+        print(
+            "OCR fallback item count: "
+            f"{extracted.get('ocrFallbackItemCount', 0)}"
+        )
     for item in extracted_items[:5]:
         print(
             f"- {item.get('marketName')} | "
             f"{item.get('productName')} | "
             f"{item.get('price', item.get('discountPrice'))}"
+        )
+    for stat in brochure_stats[:3]:
+        print(
+            f"  • {stat.get('brochureId')}: structured={stat.get('structuredCount')} "
+            f"poster_boxes={stat.get('posterPriceBoxCount')} "
+            f"ocr_fallback={stat.get('ocrFallbackCount')}"
         )
 
     print(f"Feed item count: {len(feed_items)}")

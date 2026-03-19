@@ -30,7 +30,7 @@ def main() -> None:
     fetch_args = ["--max-brochures", str(args.max_brochures)]
     if args.listing_url:
         fetch_args.extend(["--listing-url", args.listing_url])
-    if args.download_images and args.source != "bim":
+    if args.download_images:
         fetch_args.append("--download-images")
 
     fetch_script = "fetch_bim_sources.py" if args.source == "bim" else "fetch_sources.py"

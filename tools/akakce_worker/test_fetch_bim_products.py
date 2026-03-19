@@ -60,6 +60,27 @@ class FetchBimProductsTest(unittest.TestCase):
         )
         self.assertEqual(["Cam kavanoz"], items[0]["tags"])
 
+    def test_duplicate_detection_rejects_similar_price_and_title(self) -> None:
+        existing_items = [
+            {
+                "productName": "Dana Kangal Sucuk",
+                "discountPrice": 299.0,
+            }
+        ]
+        candidate = {
+            "productName": "DANA KANGAL SUCUK 500 G",
+            "discountPrice": 299.0,
+        }
+
+        self.assertTrue(
+            fetch_bim_products.is_duplicate_candidate(candidate, existing_items)
+        )
+
+    def test_product_name_quality_rejects_garbage(self) -> None:
+        self.assertFalse(fetch_bim_products.looks_like_product_name("X 12"))
+        self.assertFalse(fetch_bim_products.looks_like_product_name("₺ 299"))
+        self.assertTrue(fetch_bim_products.looks_like_product_name("Dana Baton Kavurma"))
+
 
 if __name__ == "__main__":
     unittest.main()
