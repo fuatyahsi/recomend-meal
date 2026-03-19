@@ -41,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum poster-only OCR products to add per brochure.",
     )
     parser.add_argument(
+        "--ocr-attempt-limit",
+        type=int,
+        default=24,
+        help="Maximum OCR title attempts per brochure for poster fallback.",
+    )
+    parser.add_argument(
         "--enable-ocr-fallback",
         action="store_true",
         default=True,
@@ -303,12 +309,112 @@ def build_ocr_fallback_item(
     }
 
 
+def clip_box(
+    *,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    image_width: int,
+    image_height: int,
+) -> tuple[int, int, int, int] | None:
+    left = max(0, x)
+    top = max(0, y)
+    right = min(image_width, x + width)
+    bottom = min(image_height, y + height)
+    if right - left < 18 or bottom - top < 18:
+        return None
+    return left, top, right - left, bottom - top
+
+
+def build_title_crop_boxes(
+    *,
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    image_width: int,
+    image_height: int,
+) -> list[tuple[int, int, int, int]]:
+    candidates = [
+        clip_box(
+            x=int(x - w * 0.25),
+            y=int(y - h * 3.2),
+            width=int(w * 2.8),
+            height=int(h * 2.7),
+            image_width=image_width,
+            image_height=image_height,
+        ),
+        clip_box(
+            x=int(x - w * 2.7),
+            y=int(y - h * 1.0),
+            width=int(w * 2.5),
+            height=int(h * 1.7),
+            image_width=image_width,
+            image_height=image_height,
+        ),
+        clip_box(
+            x=int(x + w * 0.85),
+            y=int(y - h * 1.0),
+            width=int(w * 2.4),
+            height=int(h * 1.8),
+            image_width=image_width,
+            image_height=image_height,
+        ),
+    ]
+    unique: list[tuple[int, int, int, int]] = []
+    for candidate in candidates:
+        if candidate is None or candidate in unique:
+            continue
+        unique.append(candidate)
+    return unique
+
+
+def read_best_title_from_boxes(
+    *,
+    cv2,
+    reader,
+    image,
+    boxes: list[tuple[int, int, int, int]],
+) -> tuple[str, str, float]:
+    best_title = ""
+    best_raw = ""
+    best_score = 0.0
+
+    for bx, by, bw, bh in boxes:
+        crop = image[by : by + bh, bx : bx + bw]
+        if not extract_items.should_ocr_crop(
+            cv2,
+            crop,
+            min_stddev=16.0,
+            min_foreground_ratio=0.01,
+        ):
+            continue
+
+        raw_text, confidence = extract_items.run_reader(
+            reader,
+            extract_items.prepare_crop_for_ocr(cv2, crop),
+        )
+        title = extract_items.clean_title(raw_text)
+        if not looks_like_product_name(title):
+            continue
+
+        score = confidence + min(len(tokenize_title(title)) * 0.08, 0.4)
+        if score > best_score:
+            best_title = title
+            best_raw = raw_text
+            best_score = score
+
+    return best_title, best_raw, best_score
+
+
 def extract_ocr_fallback_items(
     *,
     brochure: dict,
     structured_items: list[dict],
     max_images_per_brochure: int,
     ocr_fallback_limit: int,
+    ocr_attempt_limit: int,
     cv2,
     reader,
 ) -> tuple[list[dict], dict]:
@@ -326,8 +432,12 @@ def extract_ocr_fallback_items(
     remaining_structured_prices = build_price_counter(structured_items)
     fallback_items: list[dict] = []
     poster_price_box_count = 0
+    ocr_attempts = 0
 
     for image in local_images:
+        if len(fallback_items) >= ocr_fallback_limit or ocr_attempts >= ocr_attempt_limit:
+            break
+
         image_path = str(image.get("local_path"))
         bgr = cv2.imread(image_path)
         if bgr is None:
@@ -368,11 +478,11 @@ def extract_ocr_fallback_items(
             candidate_boxes,
             start=1,
         ):
-            if len(fallback_items) >= ocr_fallback_limit:
+            if len(fallback_items) >= ocr_fallback_limit or ocr_attempts >= ocr_attempt_limit:
                 break
 
             x, y, w, h = box
-            px, py, pw, ph = extract_items.expand_product_box(
+            title_boxes = build_title_crop_boxes(
                 x=x,
                 y=y,
                 w=w,
@@ -380,21 +490,17 @@ def extract_ocr_fallback_items(
                 image_width=page_width,
                 image_height=page_height,
             )
-            product_crop = bgr[py : py + ph, px : px + pw]
-            if not extract_items.should_ocr_crop(
-                cv2,
-                product_crop,
-                min_stddev=18.0,
-                min_foreground_ratio=0.012,
-            ):
+            if not title_boxes:
                 continue
 
-            product_text, product_confidence = extract_items.run_reader(
-                reader,
-                extract_items.prepare_crop_for_ocr(cv2, product_crop),
+            ocr_attempts += 1
+            title, product_text, title_score = read_best_title_from_boxes(
+                cv2=cv2,
+                reader=reader,
+                image=bgr,
+                boxes=title_boxes,
             )
-            title = extract_items.clean_title(product_text)
-            if not looks_like_product_name(title):
+            if not title:
                 continue
 
             candidate = build_ocr_fallback_item(
@@ -406,7 +512,7 @@ def extract_ocr_fallback_items(
                 price=price,
                 product_text=product_text,
                 price_text=price_text,
-                confidence=(product_confidence + price_confidence) / 2,
+                confidence=(title_score + price_confidence) / 2,
             )
             if is_duplicate_candidate(candidate, structured_items + fallback_items):
                 continue
@@ -468,6 +574,7 @@ def main() -> None:
                 structured_items=structured_items,
                 max_images_per_brochure=args.max_images_per_brochure,
                 ocr_fallback_limit=args.ocr_fallback_limit,
+                ocr_attempt_limit=args.ocr_attempt_limit,
                 cv2=cv2,
                 reader=reader,
             )
