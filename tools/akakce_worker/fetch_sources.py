@@ -59,6 +59,7 @@ class BrochureSource:
     market_name: str
     slug: str
     discovered_at: str
+    catalog_url: str | None = None
     valid_from: str | None = None
     valid_until: str | None = None
     image_count: int = 0

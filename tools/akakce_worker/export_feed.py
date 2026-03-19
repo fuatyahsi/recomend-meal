@@ -118,7 +118,7 @@ def main() -> None:
         items.append(normalized)
 
     feed = {
-        "sourceLabel": "Akakce Daily Brochures",
+        "sourceLabel": manifest.get("sourceLabel", "Akakce Daily Brochures"),
         "updatedAt": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
         "brochureCount": len(brochures),
         "itemCount": len(items),

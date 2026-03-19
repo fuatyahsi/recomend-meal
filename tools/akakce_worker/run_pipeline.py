@@ -30,13 +30,15 @@ def main() -> None:
     fetch_args = ["--max-brochures", str(args.max_brochures)]
     if args.listing_url:
         fetch_args.extend(["--listing-url", args.listing_url])
-    if args.download_images:
+    if args.download_images and args.source != "bim":
         fetch_args.append("--download-images")
 
     fetch_script = "fetch_bim_sources.py" if args.source == "bim" else "fetch_sources.py"
     run_step(fetch_script, *fetch_args)
 
-    if args.download_images:
+    if args.source == "bim":
+        run_step("fetch_bim_products.py", "--max-brochures", str(args.max_brochures))
+    elif args.download_images:
         run_step("segment_pages.py")
         if args.extract_items:
             run_step("extract_items.py")

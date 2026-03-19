@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import unicodedata
 from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import urljoin
@@ -32,17 +33,26 @@ TURKISH_MONTHS = {
 }
 
 GROUP_LABELS = {
-    1: "Aktüel",
-    2: "İndirim",
+    1: "Akt\u00fcel",
+    2: "\u0130ndirim",
     3: "Eve Teslim",
     4: "Bayram",
+}
+
+GROUP_ALIASES = {
+    "aktuel urunler": "aktuel",
+    "aktuel": "aktuel",
+    "indirim": "indirim",
+    "ramazan": "ramazan",
+    "bayram": "bayram",
+    "eve teslim": "eve teslim",
 }
 
 
 def build_parser() -> argparse.ArgumentParser:
     worker_root = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(
-        description="Discover official BİM brochure page images."
+        description="Discover official B\u0130M brochure page images."
     )
     parser.add_argument("--listing-url", default=BIM_LISTING_URL)
     parser.add_argument("--max-brochures", type=int, default=18)
@@ -68,21 +78,23 @@ def normalize_url(url: str) -> str:
 def normalize_text(value: str) -> str:
     translation = str.maketrans(
         {
-            "ı": "i",
-            "ğ": "g",
-            "ü": "u",
-            "ş": "s",
-            "ö": "o",
-            "ç": "c",
-            "İ": "i",
-            "Ğ": "g",
-            "Ü": "u",
-            "Ş": "s",
-            "Ö": "o",
-            "Ç": "c",
+            "\u0131": "i",
+            "\u011f": "g",
+            "\u00fc": "u",
+            "\u015f": "s",
+            "\u00f6": "o",
+            "\u00e7": "c",
+            "\u0130": "i",
+            "\u011e": "g",
+            "\u00dc": "u",
+            "\u015e": "s",
+            "\u00d6": "o",
+            "\u00c7": "c",
         }
     )
-    return value.lower().translate(translation)
+    normalized = value.translate(translation).lower()
+    normalized = unicodedata.normalize("NFKD", normalized)
+    return "".join(char for char in normalized if not unicodedata.combining(char))
 
 
 def slugify(value: str) -> str:
@@ -90,6 +102,22 @@ def slugify(value: str) -> str:
     normalized = re.sub(r"[^a-z0-9]+", "-", normalized)
     normalized = re.sub(r"-{2,}", "-", normalized)
     return normalized.strip("-")
+
+
+def canonical_group_label(value: str) -> str:
+    return GROUP_ALIASES.get(normalize_text(value), normalize_text(value))
+
+
+def build_catalog_lookup_keys(group_label: str, title: str) -> list[tuple[str, str]]:
+    group_key = canonical_group_label(group_label)
+    title_key = normalize_text(title)
+    keys = [(group_key, title_key)]
+
+    stripped = re.sub(rf"\b{re.escape(group_key)}\b", " ", title_key).strip()
+    stripped = re.sub(r"\s+", " ", stripped)
+    if stripped and stripped != title_key:
+        keys.append((group_key, stripped))
+    return keys
 
 
 def parse_date_window(label: str, default_year: int) -> tuple[date | None, date | None]:
@@ -161,6 +189,31 @@ def collect_big_image_urls(section: BeautifulSoup) -> list[str]:
     return urls
 
 
+def extract_bim_catalog_url_map(soup: BeautifulSoup) -> dict[tuple[str, str], str]:
+    table = soup.select_one("div.subMenu.aktuelsubmenu table")
+    if table is None:
+        return {}
+
+    headers = [
+        canonical_group_label(cell.get_text(" ", strip=True))
+        for cell in table.select("tr th.title")
+    ]
+    mapping: dict[tuple[str, str], str] = {}
+
+    for row in table.select("tr")[1:]:
+        for index, cell in enumerate(row.select("td.link")):
+            anchor = cell.select_one("a[href]")
+            if anchor is None or index >= len(headers):
+                continue
+            href = anchor.get("href", "").strip()
+            label = anchor.get_text(" ", strip=True)
+            if not href or not label:
+                continue
+            mapping[(headers[index], normalize_text(label))] = normalize_url(href)
+
+    return mapping
+
+
 def extract_bim_brochures(
     listing_html: str,
     *,
@@ -169,6 +222,7 @@ def extract_bim_brochures(
 ) -> list[shared.BrochureSource]:
     soup = BeautifulSoup(listing_html, "html.parser")
     sections = soup.select("div.posterArea div.genelgrup")
+    product_catalog_urls = extract_bim_catalog_url_map(soup)
     brochures: list[shared.BrochureSource] = []
     seen_ids: set[str] = set()
 
@@ -179,7 +233,7 @@ def extract_bim_brochures(
         if not title or not image_urls:
             continue
 
-        group_label = GROUP_LABELS.get(extract_group_number(section), "Aktüel")
+        group_label = GROUP_LABELS.get(extract_group_number(section), "Akt\u00fcel")
         base_id = slugify(f"bim-{group_label}-{title}") or f"bim-{index:03d}"
         brochure_id = base_id
         dedupe_counter = 2
@@ -194,14 +248,21 @@ def extract_bim_brochures(
             for image_index, image_url in enumerate(image_urls, start=1)
         ]
 
+        catalog_url = None
+        for lookup_key in build_catalog_lookup_keys(group_label, title):
+            catalog_url = product_catalog_urls.get(lookup_key)
+            if catalog_url:
+                break
+
         brochures.append(
             shared.BrochureSource(
                 brochure_id=brochure_id,
                 detail_url=image_urls[0] or listing_url,
                 title=f"{group_label} | {title}",
-                market_name="BİM",
+                market_name="B\u0130M",
                 slug=brochure_id,
                 discovered_at=discovered_at.isoformat(),
+                catalog_url=catalog_url,
                 valid_from=valid_from.isoformat() if valid_from else None,
                 valid_until=valid_until.isoformat() if valid_until else None,
                 image_count=len(images),
@@ -242,7 +303,7 @@ def main() -> None:
         ]
 
     manifest = {
-        "sourceLabel": "BİM Resmi Afişler",
+        "sourceLabel": "B\u0130M Resmi Afi\u015fler",
         "listingUrl": args.listing_url,
         "generatedAt": generated_at.isoformat() + "Z",
         "brochureCount": len(brochures),
