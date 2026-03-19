@@ -100,6 +100,11 @@ jobs:
         if: always()
         run: python tools/akakce_worker/print_summary.py
 
+      - name: Validate BİM fixtures
+        if: ${{ success() && env.WORKER_SOURCE == 'bim' }}
+        run: |
+          python tools/akakce_worker/validate_all_fixtures.py --source "$WORKER_SOURCE" --min-coverage 1.0
+
       - name: Upload worker JSON outputs
         if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.upload_artifacts == 'true' }}
         uses: actions/upload-artifact@v4

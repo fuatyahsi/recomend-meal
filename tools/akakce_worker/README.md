@@ -1,45 +1,45 @@
-# Akakce Worker
+# Market Worker
 
-Bu klasor, `Smart Aktuel Asistani` icin merkezi brosur isleme hattinin ilk surumunu tutar.
+Bu klasor, `Smart Aktuel Asistani` icin merkezi brosur ve kampanya isleme hattini tutar.
 
 Amac:
-- `https://www.akakce.com/brosurler/?l=1` listesini gunluk taramak
-- yeni brosur detay sayfalarini bulmak
-- gercek CDN gorsellerini ayiklamak
-- sayfalari urun karti seviyesine yaklasacak sekilde tile'lara bolmek
-- daha sonra takilacak OCR / CV motoru icin temiz bir manifest ve JSON feed uretmek
-
-Bu worker, telefon ustundeki tam sayfa OCR denemesinin yerini almak icin tasarlandi.
+- resmi veya dogrulanmis listing sayfalarini taramak
+- brosur veya kampanya kaynaklarini manifest haline getirmek
+- urunleri structured HTML veya hedefli OCR ile cikarmak
+- uygulamanin tuketecegi `actueller_feed.json` dosyasini uretmek
+- gorselle elle dogrulanmis fixture'larla kaliteyi sabitlemek
 
 Not:
-- GitHub-hosted runner bazen Akakce listing sayfasinda Cloudflare engeline takilir.
-- Bu durumda worker, `input/seed_urls.txt` icindeki seed URL'lerle calisabilir.
-- En guvenli seed tipi dogrudan CDN brosur gorsel URL'leridir.
+- Akakce hattinda Cloudflare engeli olabilir.
+- BİM hatti resmi afis + resmi aktuel urun HTML ile calisir.
+- Fixture dogrulamasi su an BİM icin aktiftir.
 
 ## Klasor yapisi
 
 - `fetch_sources.py`
-  - Akakce liste ve detay sayfalarini okur
-  - brosur ve sayfa manifesti uretir
+  - Akakce listing ve detay sayfalarini okur
 - `fetch_bim_sources.py`
   - BİM resmi afis sayfasini okur
-  - brosur ve sayfa manifesti uretir
+- `fetch_bim_products.py`
+  - BİM resmi aktuel urun HTML'inden urunleri ceker
+  - gerekirse poster fallback katmani icin temel hazirlar
+- `market_sources.py`
+  - resmi market kaynak registry'sini tutar
+  - BİM dogrulanmis, diger marketler discovery bekliyor
 - `segment_pages.py`
   - sayfa gorsellerini tile manifestine donusturur
 - `extract_items.py`
-  - fiyat etiketi adaylarini bulur
-  - urun crop'lari uretir
-  - OCR ile urun adi / fiyat cikarmayi dener
+  - genel OCR / price-box denemeleri icin yardimci katman
 - `export_feed.py`
-  - islenmis urunleri app'in tuketecegi JSON feed formatina cevirir
+  - cikarilan urunleri uygulama feed formatina cevirir
 - `run_pipeline.py`
-  - tum adimlari sirayla calistiran hafif orkestrator
-- `requirements.txt`
-  - worker bagimliliklari
-- `feed.example.json`
-  - hedef feed biciminin ornek cikisi
-- `input/seed_urls.example.txt`
-  - manuel / workflow_dispatch seed girisi ornegi
+  - tum adimlari sirayla calistirir
+- `fixtures/*.json`
+  - elle dogrulanmis brosur sayfa fixture'lari
+- `validate_fixture.py`
+  - tek fixture'i mevcut feed'e karsi dogrular
+- `validate_all_fixtures.py`
+  - tum fixture'lari topluca dogrular
 
 ## Kurulum
 
@@ -47,52 +47,33 @@ Not:
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r tools/akakce_worker/requirements.txt
-```
-
-OCR ve urun crop adimi icin ek stack:
-
-```bash
 pip install -r tools/akakce_worker/requirements-ocr.txt
-```
-
-Windows notu:
-- `onnxruntime` import hatasi alirsan ayni dosya zaten `msvc-runtime` kurar.
-- Gerekirse komutu `--upgrade` ile tekrar calistir:
-
-```bash
-python -m pip install --upgrade -r tools/akakce_worker/requirements-ocr.txt
 ```
 
 ## Calistirma
 
-Sadece kaynak manifesti uretmek:
-
-```bash
-python tools/akakce_worker/fetch_sources.py --max-brochures 24 --download-images
-```
-
-Tile manifesti uretmek:
-
-```bash
-python tools/akakce_worker/segment_pages.py
-```
-
-Tum hattin iskeletini calistirmak:
+BİM resmi kaynak hattini calistirmak:
 
 ```bash
 python tools/akakce_worker/run_pipeline.py --source bim --max-brochures 24 --download-images
 ```
 
-Urun adaylarini da cikarmak:
+Akakce iskelet hattini calistirmak:
 
 ```bash
-python tools/akakce_worker/run_pipeline.py --source bim --max-brochures 24 --download-images --extract-items
+python tools/akakce_worker/run_pipeline.py --source akakce --max-brochures 24 --download-images --extract-items
 ```
 
-Seed URL ile:
+Tek fixture dogrulamasi:
 
 ```bash
-python tools/akakce_worker/fetch_sources.py --seed-urls-file tools/akakce_worker/input/seed_urls.txt --download-images
+python tools/akakce_worker/validate_fixture.py --fixture tools/akakce_worker/fixtures/bim_2026_03_10_dairy_page.json
+```
+
+Tum BİM fixture'larini dogrulamak:
+
+```bash
+python tools/akakce_worker/validate_all_fixtures.py --fixture-glob "bim_*.json"
 ```
 
 ## Uretilen dosyalar
@@ -106,17 +87,18 @@ Varsayilan olarak su dosyalar `tools/akakce_worker/output/` altina yazilir:
 - `images/<brochure_id>/page_XX.jpg`
 - `crops/<brochure_id>/page_XX/product_YYY.jpg`
 
-## Sonraki teknik adim
+## Resmi market kaynagi durumu
 
-Bu iskelet bilerek iki parcayi ayri tuttu:
-
-1. Kaynak toplama ve sayfa manifesti
-2. Urun cikarma ve fiyat eslestirme
-
-Bir sonraki adimda `extract_items.py` benzeri bir katman eklenecek ve:
-- fiyat etiketi tespiti
-- urun metni OCR'i
-- marka / urun / fiyat baglama
-- guven skoru hesaplama
-
-aynı manifestin ustune oturtulacak.
+- `bim`
+  - durum: implemented
+  - kaynak: resmi afis + resmi aktuel urun HTML
+  - fixture: var
+- `a101`
+  - durum: discovery_pending
+  - hedef: resmi kampanya / afis kaynagi
+- `sok`
+  - durum: discovery_pending
+  - hedef: resmi katalog / ekstra kaynagi
+- `migros`
+  - durum: discovery_pending
+  - hedef: resmi kampanya / Migroskop benzeri kaynak
