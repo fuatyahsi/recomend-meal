@@ -192,15 +192,20 @@ def run_reader(engine, image) -> tuple[str, float]:
     if result is None:
         return "", 0.0
 
-    payload = result[0] if isinstance(result, tuple) else result
+    payload = result[0] if isinstance(result, tuple) and result else result
+    if payload is None:
+        return "", 0.0
+
     texts: list[str] = []
     confidences: list[float] = []
 
     if hasattr(payload, "txts"):
-        texts = [str(text).strip() for text in getattr(payload, "txts", []) if str(text).strip()]
+        raw_texts = getattr(payload, "txts", None) or []
+        raw_scores = getattr(payload, "scores", None) or []
+        texts = [str(text).strip() for text in raw_texts if text is not None and str(text).strip()]
         confidences = [
             float(score)
-            for score in getattr(payload, "scores", [])
+            for score in raw_scores
             if score is not None
         ]
     elif isinstance(payload, list):
