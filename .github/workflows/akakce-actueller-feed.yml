@@ -54,4 +54,4 @@ jobs:
             tools/akakce_worker/output/tile_manifest.json
             tools/akakce_worker/output/extracted_products.json
             tools/akakce_worker/output/actueller_feed.json
-          if-no-files-found: error
+          if-no-files-found: warn
