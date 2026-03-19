@@ -68,7 +68,6 @@ def ensure_rapidocr():
         from rapidocr import (  # type: ignore
             EngineType,
             LangDet,
-            LangRec,
             ModelType,
             OCRVersion,
             RapidOCR,
@@ -85,15 +84,11 @@ def ensure_rapidocr():
                 "Det.engine_type": EngineType.ONNXRUNTIME,
                 "Det.lang_type": LangDet.MULTI,
                 "Det.model_type": ModelType.MOBILE,
-                "Det.ocr_version": OCRVersion.PPOCRV5,
+                "Det.ocr_version": OCRVersion.PPOCRV4,
                 "Rec.engine_type": EngineType.ONNXRUNTIME,
-                "Rec.lang_type": LangRec.LATIN,
+                "Rec.lang_type": "latin",
                 "Rec.model_type": ModelType.MOBILE,
-                "Rec.ocr_version": OCRVersion.PPOCRV5,
-                "Cls.engine_type": EngineType.ONNXRUNTIME,
-                "Cls.lang_type": LangDet.MULTI,
-                "Cls.model_type": ModelType.MOBILE,
-                "Cls.ocr_version": OCRVersion.PPOCRV4,
+                "Rec.ocr_version": OCRVersion.PPOCRV4,
             }
         )
     except (ImportError, OSError) as error:  # pragma: no cover - runtime guidance

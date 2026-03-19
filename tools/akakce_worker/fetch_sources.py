@@ -156,11 +156,62 @@ def fetch_with_playwright(url: str, timeout: int) -> bytes | None:
         )
         page = context.new_page()
         page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+        page.wait_for_load_state("networkidle", timeout=timeout_ms)
         page.wait_for_timeout(2000)
         html = page.content()
         context.close()
         browser.close()
         return html.encode("utf-8", errors="ignore")
+
+
+def extract_detail_urls_with_playwright(url: str, timeout: int) -> list[str]:
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore
+    except ImportError:
+        return []
+
+    timeout_ms = timeout * 1000
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+            ],
+        )
+        context = browser.new_context(
+            user_agent=DEFAULT_USER_AGENT,
+            locale="tr-TR",
+            extra_http_headers={
+                "Accept-Language": DEFAULT_HEADERS["Accept-Language"],
+                "Cache-Control": DEFAULT_HEADERS["Cache-Control"],
+                "Pragma": DEFAULT_HEADERS["Pragma"],
+            },
+            viewport={"width": 1440, "height": 2400},
+        )
+        page = context.new_page()
+        page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+        page.wait_for_load_state("networkidle", timeout=timeout_ms)
+        page.mouse.wheel(0, 6000)
+        page.wait_for_timeout(1500)
+        hrefs = page.eval_on_selector_all(
+            "a[href]",
+            "elements => elements.map(element => element.href)",
+        )
+        context.close()
+        browser.close()
+
+    urls: list[str] = []
+    seen: set[str] = set()
+    for href in hrefs:
+        url = normalize_url(str(href))
+        if not is_brochure_detail_url(url):
+            continue
+        if url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+    return urls
 
 
 def extract_detail_urls(listing_html: str) -> list[str]:
@@ -401,7 +452,15 @@ def main() -> None:
 
     generated_at = datetime.utcnow().replace(microsecond=0)
     listing_html = fetch_html(session, args.listing_url, args.timeout)
-    detail_urls = extract_detail_urls(listing_html)[: args.max_brochures]
+    detail_urls = extract_detail_urls(listing_html)
+    if not detail_urls:
+      print("[fetch_sources] HTML parse returned 0 brochure links, trying Playwright DOM extraction")
+      detail_urls = extract_detail_urls_with_playwright(
+          args.listing_url,
+          args.timeout,
+      )
+    print(f"[fetch_sources] discovered {len(detail_urls)} brochure link(s)")
+    detail_urls = detail_urls[: args.max_brochures]
 
     brochures: list[BrochureSource] = []
     for detail_url in detail_urls:
