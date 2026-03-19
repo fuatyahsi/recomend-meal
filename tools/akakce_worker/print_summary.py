@@ -20,7 +20,8 @@ def main() -> None:
     extracted_items = extracted.get("items", [])
     feed_items = feed.get("items", [])
 
-    print("=== Akakce Worker Summary ===")
+    print("=== Market Worker Summary ===")
+    print(f"Source label: {source_manifest.get('sourceLabel') or feed.get('sourceLabel') or '-'}")
     print(f"Brochure count: {len(brochures)}")
     for brochure in brochures[:3]:
         print(
@@ -34,7 +35,7 @@ def main() -> None:
         print(
             f"- {item.get('marketName')} | "
             f"{item.get('productName')} | "
-            f"{item.get('price')}"
+            f"{item.get('price', item.get('discountPrice'))}"
         )
 
     print(f"Feed item count: {len(feed_items)}")

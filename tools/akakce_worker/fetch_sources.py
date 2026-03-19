@@ -10,7 +10,7 @@ from typing import Iterable
 from urllib.parse import urljoin, urlparse
 
 import requests
-from bs4 import BeautifulSoup, UnicodeDammit
+from bs4 import BeautifulSoup
 
 AKAKCE_LISTING_URL = "https://www.akakce.com/brosurler/?l=1"
 AKAKCE_BASE_URL = "https://www.akakce.com"
@@ -96,10 +96,31 @@ def fetch_html(session: requests.Session, url: str, timeout: int) -> str:
 
 
 def decode_html_bytes(payload: bytes) -> str:
-    decoded = UnicodeDammit(payload, is_html=True).unicode_markup
-    if decoded:
-        return decoded
-    return payload.decode("utf-8", errors="ignore")
+    declared = detect_declared_charset(payload)
+    candidates = [declared, "utf-8", "windows-1254", "iso-8859-9", "latin-1"]
+    seen: set[str] = set()
+
+    for encoding in candidates:
+        if not encoding:
+            continue
+        normalized = encoding.lower().strip()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        try:
+            return payload.decode(normalized)
+        except (LookupError, UnicodeDecodeError):
+            continue
+
+    return payload.decode("utf-8", errors="replace")
+
+
+def detect_declared_charset(payload: bytes) -> str | None:
+    head = payload[:4096].decode("ascii", errors="ignore")
+    charset_match = re.search(r"charset\s*=\s*['\"]?([a-zA-Z0-9._-]+)", head, re.IGNORECASE)
+    if charset_match:
+        return charset_match.group(1)
+    return None
 
 
 def fetch_bytes(session: requests.Session, url: str, timeout: int) -> bytes:
