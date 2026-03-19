@@ -11,6 +11,11 @@ Amac:
 
 Bu worker, telefon ustundeki tam sayfa OCR denemesinin yerini almak icin tasarlandi.
 
+Not:
+- GitHub-hosted runner bazen Akakce listing sayfasinda Cloudflare engeline takilir.
+- Bu durumda worker, `input/seed_urls.txt` icindeki seed URL'lerle calisabilir.
+- En guvenli seed tipi dogrudan CDN brosur gorsel URL'leridir.
+
 ## Klasor yapisi
 
 - `fetch_sources.py`
@@ -30,6 +35,8 @@ Bu worker, telefon ustundeki tam sayfa OCR denemesinin yerini almak icin tasarla
   - worker bagimliliklari
 - `feed.example.json`
   - hedef feed biciminin ornek cikisi
+- `input/seed_urls.example.txt`
+  - manuel / workflow_dispatch seed girisi ornegi
 
 ## Kurulum
 
@@ -77,6 +84,12 @@ Urun adaylarini da cikarmak:
 
 ```bash
 python tools/akakce_worker/run_pipeline.py --max-brochures 24 --download-images --extract-items
+```
+
+Seed URL ile:
+
+```bash
+python tools/akakce_worker/fetch_sources.py --seed-urls-file tools/akakce_worker/input/seed_urls.txt --download-images
 ```
 
 ## Uretilen dosyalar

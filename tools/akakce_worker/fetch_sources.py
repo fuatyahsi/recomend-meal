@@ -66,18 +66,23 @@ class BrochureSource:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    worker_root = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(
         description="Discover Akakce brochure detail pages and page images."
     )
     parser.add_argument("--listing-url", default=AKAKCE_LISTING_URL)
     parser.add_argument("--max-brochures", type=int, default=18)
     parser.add_argument(
+        "--seed-urls-file",
+        default=str(worker_root / "input" / "seed_urls.txt"),
+    )
+    parser.add_argument(
         "--output",
-        default=str(Path(__file__).resolve().parent / "output" / "source_manifest.json"),
+        default=str(worker_root / "output" / "source_manifest.json"),
     )
     parser.add_argument(
         "--images-dir",
-        default=str(Path(__file__).resolve().parent / "output" / "images"),
+        default=str(worker_root / "output" / "images"),
     )
     parser.add_argument("--download-images", action="store_true")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
@@ -363,6 +368,10 @@ def canonicalize_brochure_image_url(url: str) -> str:
     return url.replace("/_bro/y/", "/_bro/u/")
 
 
+def is_brochure_image_url(url: str) -> bool:
+    return "cdn.akakce.com/_bro/" in url
+
+
 def extract_brochure_id(detail_url: str) -> str:
     match = re.search(r"-(\d+)(?:/)?$", detail_url)
     if match:
@@ -471,6 +480,83 @@ def brochure_to_json(brochure: BrochureSource) -> dict:
     return payload
 
 
+def load_seed_lines(seed_urls_path: Path) -> list[str]:
+    if not seed_urls_path.exists():
+        return []
+
+    lines = []
+    for raw_line in seed_urls_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        lines.append(line)
+    return lines
+
+
+def build_brochures_from_seed_lines(
+    *,
+    seed_lines: list[str],
+    discovered_at: datetime,
+) -> list[BrochureSource]:
+    direct_images_by_brochure: dict[str, list[str]] = {}
+    detail_urls: list[str] = []
+
+    for line in seed_lines:
+        url = normalize_url(line)
+        if is_brochure_detail_url(url):
+            detail_urls.append(url)
+            continue
+        if is_brochure_image_url(url):
+            brochure_id = extract_brochure_id(url)
+            direct_images_by_brochure.setdefault(brochure_id, []).append(
+                canonicalize_brochure_image_url(url)
+            )
+
+    brochures: list[BrochureSource] = []
+    for detail_url in detail_urls:
+        brochure_id = extract_brochure_id(detail_url)
+        slug = Path(urlparse(detail_url).path).name
+        title = slug.replace("-", " ").strip()
+        market_name = detect_market_name(title=title, slug=slug)
+        images = [
+            BrochureImage(page_index=index + 1, image_url=image_url)
+            for index, image_url in enumerate(direct_images_by_brochure.pop(brochure_id, []))
+        ]
+        brochures.append(
+            BrochureSource(
+                brochure_id=brochure_id,
+                detail_url=detail_url,
+                title=title,
+                market_name=market_name,
+                slug=slug,
+                discovered_at=discovered_at.isoformat(),
+                image_count=len(images),
+                images=images,
+            )
+        )
+
+    for brochure_id, image_urls in direct_images_by_brochure.items():
+        slug = brochure_id
+        images = [
+            BrochureImage(page_index=index + 1, image_url=image_url)
+            for index, image_url in enumerate(image_urls)
+        ]
+        brochures.append(
+            BrochureSource(
+                brochure_id=brochure_id,
+                detail_url="",
+                title=f"Seed brochure {brochure_id}",
+                market_name="Akakce Seed",
+                slug=slug,
+                discovered_at=discovered_at.isoformat(),
+                image_count=len(images),
+                images=images,
+            )
+        )
+
+    return brochures
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -478,6 +564,7 @@ def main() -> None:
     output_path = Path(args.output).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     images_root = Path(args.images_dir).resolve()
+    seed_urls_path = Path(args.seed_urls_file).resolve()
 
     session = requests.Session()
     session.headers.update(DEFAULT_HEADERS)
@@ -486,30 +573,63 @@ def main() -> None:
     listing_html = fetch_html(session, args.listing_url, args.timeout)
     detail_urls = extract_detail_urls(listing_html)
     if not detail_urls:
-      print("[fetch_sources] HTML parse returned 0 brochure links, trying Playwright DOM extraction")
-      detail_urls = extract_detail_urls_with_playwright(
-          args.listing_url,
-          args.timeout,
-      )
+        print(
+            "[fetch_sources] HTML parse returned 0 brochure links, trying "
+            "Playwright DOM extraction"
+        )
+        detail_urls = extract_detail_urls_with_playwright(
+            args.listing_url,
+            args.timeout,
+        )
     print(f"[fetch_sources] discovered {len(detail_urls)} brochure link(s)")
     detail_urls = detail_urls[: args.max_brochures]
 
     brochures: list[BrochureSource] = []
-    for detail_url in detail_urls:
-        detail_html = fetch_html(session, detail_url, args.timeout)
-        brochure = parse_detail_page(
-            detail_url=detail_url,
-            detail_html=detail_html,
-            discovered_at=generated_at,
-        )
-        if args.download_images and brochure.images:
-            brochure = download_images(
-                session=session,
-                brochure=brochure,
-                images_root=images_root,
-                timeout=args.timeout,
+    if detail_urls:
+        for detail_url in detail_urls:
+            detail_html = fetch_html(session, detail_url, args.timeout)
+            brochure = parse_detail_page(
+                detail_url=detail_url,
+                detail_html=detail_html,
+                discovered_at=generated_at,
             )
-        brochures.append(brochure)
+            if args.download_images and brochure.images:
+                brochure = download_images(
+                    session=session,
+                    brochure=brochure,
+                    images_root=images_root,
+                    timeout=args.timeout,
+                )
+            brochures.append(brochure)
+    else:
+        seed_lines = load_seed_lines(seed_urls_path)
+        if seed_lines:
+            print(
+                f"[fetch_sources] using {len(seed_lines)} seed URL(s) from "
+                f"{seed_urls_path}"
+            )
+            brochures = build_brochures_from_seed_lines(
+                seed_lines=seed_lines,
+                discovered_at=generated_at,
+            )
+            brochures = brochures[: args.max_brochures]
+            if args.download_images:
+                brochures = [
+                    download_images(
+                        session=session,
+                        brochure=brochure,
+                        images_root=images_root,
+                        timeout=args.timeout,
+                    )
+                    if brochure.images
+                    else brochure
+                    for brochure in brochures
+                ]
+        else:
+            print(
+                "[fetch_sources] no brochure links discovered and no seed URL "
+                f"file found at {seed_urls_path}"
+            )
 
     manifest = {
         "sourceLabel": "Akakce Daily Brochures",

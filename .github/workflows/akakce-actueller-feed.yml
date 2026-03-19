@@ -10,6 +10,11 @@ on:
         required: false
         default: false
         type: boolean
+      seed_urls:
+        description: "Optional brochure detail or direct CDN image URLs, one per line"
+        required: false
+        default: ""
+        type: string
   push:
     branches:
       - main
@@ -42,6 +47,15 @@ jobs:
 
       - name: Install Playwright browser
         run: python -m playwright install chromium
+
+      - name: Write seed URLs
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.seed_urls != '' }}
+        shell: bash
+        run: |
+          mkdir -p tools/akakce_worker/input
+          cat <<'EOF' > tools/akakce_worker/input/seed_urls.txt
+          ${{ github.event.inputs.seed_urls }}
+          EOF
 
       - name: Verify OCR runtime imports
         run: |
