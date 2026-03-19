@@ -65,7 +65,13 @@ def ensure_cv_stack():
 
 def ensure_rapidocr():
     try:
-        from rapidocr import RapidOCR  # type: ignore
+        from rapidocr import (  # type: ignore
+            EngineType,
+            LangDet,
+            LangRec,
+            OCRVersion,
+            RapidOCR,
+        )
     except ImportError as error:  # pragma: no cover - runtime guidance
         raise SystemExit(
             "RapidOCR missing. Install with: "
@@ -75,8 +81,13 @@ def ensure_rapidocr():
     try:
         return RapidOCR(
             params={
-                "Global.lang_det": "multi_mobile",
-                "Global.lang_rec": "latin_mobile",
+                "Global.use_cls": False,
+                "Det.engine_type": EngineType.ONNXRUNTIME,
+                "Det.lang_type": LangDet.CH,
+                "Det.ocr_version": OCRVersion.PPOCRV4,
+                "Rec.engine_type": EngineType.ONNXRUNTIME,
+                "Rec.lang_type": LangRec.LATIN,
+                "Rec.ocr_version": OCRVersion.PPOCRV4,
             }
         )
     except (ImportError, OSError) as error:  # pragma: no cover - runtime guidance

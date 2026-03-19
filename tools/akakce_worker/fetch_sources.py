@@ -194,12 +194,18 @@ def extract_detail_urls_with_playwright(url: str, timeout: int) -> list[str]:
         page.wait_for_load_state("networkidle", timeout=timeout_ms)
         page.mouse.wheel(0, 6000)
         page.wait_for_timeout(1500)
+        title = page.title()
         hrefs = page.eval_on_selector_all(
             "a[href]",
             "elements => elements.map(element => element.href)",
         )
+        html = page.content()
         context.close()
         browser.close()
+
+    print(f"[fetch_sources] Playwright page title: {title}")
+    print(f"[fetch_sources] Playwright href count: {len(hrefs)}")
+    print(f"[fetch_sources] Playwright html snippet: {html[:400].replace(chr(10), ' ')}")
 
     urls: list[str] = []
     seen: set[str] = set()
