@@ -38,10 +38,14 @@ jobs:
           pip install -r tools/akakce_worker/requirements.txt
           pip install -r tools/akakce_worker/requirements-ocr.txt
 
+      - name: Install Playwright browser
+        run: python -m playwright install chromium
+
       - name: Verify OCR runtime imports
         run: |
           python -c "import onnxruntime; print('onnxruntime', onnxruntime.__version__)"
           python -c "from rapidocr import RapidOCR; print('rapidocr ok')"
+          python -c "from playwright.sync_api import sync_playwright; print('playwright ok')"
 
       - name: Run Akakce worker pipeline
         run: python tools/akakce_worker/run_pipeline.py --max-brochures 24 --download-images --extract-items

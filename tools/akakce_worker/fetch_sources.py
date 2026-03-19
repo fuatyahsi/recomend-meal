@@ -95,6 +95,9 @@ def fetch_bytes(session: requests.Session, url: str, timeout: int) -> bytes:
         fallback_payload = fetch_with_curl_cffi(url, timeout)
         if fallback_payload is not None:
             return fallback_payload
+        browser_payload = fetch_with_playwright(url, timeout)
+        if browser_payload is not None:
+            return browser_payload
     response.raise_for_status()
     return response.content
 
@@ -113,6 +116,40 @@ def fetch_with_curl_cffi(url: str, timeout: int) -> bytes | None:
     )
     response.raise_for_status()
     return response.content
+
+
+def fetch_with_playwright(url: str, timeout: int) -> bytes | None:
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore
+    except ImportError:
+        return None
+
+    timeout_ms = timeout * 1000
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+            ],
+        )
+        context = browser.new_context(
+            user_agent=DEFAULT_USER_AGENT,
+            locale="tr-TR",
+            extra_http_headers={
+                "Accept-Language": DEFAULT_HEADERS["Accept-Language"],
+                "Cache-Control": DEFAULT_HEADERS["Cache-Control"],
+                "Pragma": DEFAULT_HEADERS["Pragma"],
+            },
+            viewport={"width": 1440, "height": 2400},
+        )
+        page = context.new_page()
+        page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+        page.wait_for_timeout(2000)
+        html = page.content()
+        context.close()
+        browser.close()
+        return html.encode("utf-8", errors="ignore")
 
 
 def extract_detail_urls(listing_html: str) -> list[str]:
