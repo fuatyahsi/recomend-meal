@@ -309,6 +309,8 @@ def extract_ocr_fallback_items(
     structured_items: list[dict],
     max_images_per_brochure: int,
     ocr_fallback_limit: int,
+    cv2,
+    reader,
 ) -> tuple[list[dict], dict]:
     local_images = [
         image for image in brochure.get("images", [])[:max_images_per_brochure] if image.get("local_path")
@@ -321,8 +323,6 @@ def extract_ocr_fallback_items(
             "ocrFallbackCount": 0,
         }
 
-    cv2 = extract_items.ensure_cv_stack()
-    reader = extract_items.ensure_rapidocr()
     remaining_structured_prices = build_price_counter(structured_items)
     fallback_items: list[dict] = []
     poster_price_box_count = 0
@@ -334,7 +334,7 @@ def extract_ocr_fallback_items(
             continue
 
         page_index = int(image.get("page_index", 1))
-        _, page_width = bgr.shape[:2]
+        page_height, page_width = bgr.shape[:2]
         price_boxes = extract_items.detect_price_boxes(cv2, bgr)
         poster_price_box_count += len(price_boxes)
 
@@ -435,6 +435,11 @@ def main() -> None:
 
     extracted_items: list[dict] = []
     brochure_stats: list[dict] = []
+    cv2 = None
+    reader = None
+    if args.enable_ocr_fallback:
+        cv2 = extract_items.ensure_cv_stack()
+        reader = extract_items.ensure_rapidocr()
 
     for brochure in brochures:
         catalog_url = brochure.get("catalog_url") or brochure.get("detail_url")
@@ -463,6 +468,8 @@ def main() -> None:
                 structured_items=structured_items,
                 max_images_per_brochure=args.max_images_per_brochure,
                 ocr_fallback_limit=args.ocr_fallback_limit,
+                cv2=cv2,
+                reader=reader,
             )
             extracted_items.extend(fallback_items)
         brochure_stats.append(stats)
