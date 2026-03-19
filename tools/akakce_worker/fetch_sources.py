@@ -19,6 +19,14 @@ DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
 )
+DEFAULT_HEADERS = {
+    "User-Agent": DEFAULT_USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Referer": AKAKCE_BASE_URL,
+}
 
 TURKISH_MONTHS = {
     "ocak": 1,
@@ -77,10 +85,34 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def fetch_html(session: requests.Session, url: str, timeout: int) -> str:
-    response = session.get(url, timeout=timeout)
+    payload = fetch_bytes(session, url, timeout)
+    return payload.decode("utf-8", errors="ignore")
+
+
+def fetch_bytes(session: requests.Session, url: str, timeout: int) -> bytes:
+    response = session.get(url, timeout=timeout, headers=DEFAULT_HEADERS)
+    if response.status_code == 403:
+        fallback_payload = fetch_with_curl_cffi(url, timeout)
+        if fallback_payload is not None:
+            return fallback_payload
     response.raise_for_status()
-    response.encoding = response.encoding or "utf-8"
-    return response.text
+    return response.content
+
+
+def fetch_with_curl_cffi(url: str, timeout: int) -> bytes | None:
+    try:
+        from curl_cffi import requests as curl_requests  # type: ignore
+    except ImportError:
+        return None
+
+    response = curl_requests.get(
+        url,
+        headers=DEFAULT_HEADERS,
+        timeout=timeout,
+        impersonate="chrome124",
+    )
+    response.raise_for_status()
+    return response.content
 
 
 def extract_detail_urls(listing_html: str) -> list[str]:
@@ -296,9 +328,7 @@ def download_images(
     for image in brochure.images:
         extension = Path(urlparse(image.image_url).path).suffix or ".jpg"
         image_path = brochure_dir / f"page_{image.page_index:02d}{extension}"
-        response = session.get(image.image_url, timeout=timeout)
-        response.raise_for_status()
-        image_path.write_bytes(response.content)
+        image_path.write_bytes(fetch_bytes(session, image.image_url, timeout))
         image.local_path = str(image_path.resolve())
 
     return brochure
@@ -319,7 +349,7 @@ def main() -> None:
     images_root = Path(args.images_dir).resolve()
 
     session = requests.Session()
-    session.headers["User-Agent"] = DEFAULT_USER_AGENT
+    session.headers.update(DEFAULT_HEADERS)
 
     generated_at = datetime.utcnow().replace(microsecond=0)
     listing_html = fetch_html(session, args.listing_url, args.timeout)

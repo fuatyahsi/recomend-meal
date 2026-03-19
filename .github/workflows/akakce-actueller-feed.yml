@@ -2,6 +2,12 @@ name: Akakce Actueller Feed
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_artifacts:
+        description: "Upload JSON artifacts"
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - main
@@ -45,7 +51,7 @@ jobs:
         run: python tools/akakce_worker/print_summary.py
 
       - name: Upload worker JSON outputs
-        if: always()
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.upload_artifacts == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: akakce-actueller-feed
