@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/kitchen_intelligence.dart';
 import '../models/kitchen_rpg.dart';
 import '../models/recipe.dart';
+import '../models/smart_actueller.dart';
 import '../models/smart_kitchen.dart';
 import '../providers/app_provider.dart';
 import '../services/notification_service.dart';
@@ -11,6 +12,7 @@ import '../utils/community_challenges.dart';
 import '../utils/mood_recipes.dart';
 import 'ingredient_selection_screen.dart';
 import 'recipe_detail_screen.dart';
+import 'smart_actueller_screen.dart';
 
 class SmartKitchenScreen extends StatelessWidget {
   const SmartKitchenScreen({super.key});
@@ -31,6 +33,9 @@ class SmartKitchenScreen extends StatelessWidget {
     final rpgProfile = provider.kitchenRpgProfile;
     final weeklyChallenges = provider.weeklyChallengeProgress;
     final rescueSuggestions = provider.wasteRescueSuggestions;
+    final actuellerScan = provider.lastActuellerScanResult;
+    final actuellerSuggestions = provider.smartActuellerSuggestions;
+    final actuellerSavings = provider.smartActuellerMonthlySavings;
     final marketComparisons = provider.getMarketComparisons();
     final marketSyncStatus = provider.marketSyncStatus;
     final digitalTwinZones = provider.digitalTwinZones;
@@ -312,6 +317,19 @@ class SmartKitchenScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+          _SmartActuellerCard(
+            isTr: isTr,
+            scanResult: actuellerScan,
+            suggestions: actuellerSuggestions,
+            monthlySavings: actuellerSavings,
+            onOpen: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SmartActuellerScreen(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           _MarketComparisonCard(
             isTr: isTr,
             comparisons: marketComparisons,
@@ -460,7 +478,7 @@ class SmartKitchenScreen extends StatelessWidget {
                   value: prefs.campaignAlertsEnabled,
                   onChanged: provider.setCampaignAlertsEnabled,
                   title: Text(
-                    isTr ? 'Kampanya alarmı hazırlığı' : 'Campaign alert prep',
+                    isTr ? 'Kampanya alarmları' : 'Campaign alerts',
                   ),
                 ),
                 Padding(
@@ -1695,6 +1713,168 @@ class _ZeroWasteCard extends StatelessWidget {
   }
 }
 
+class _SmartActuellerCard extends StatelessWidget {
+  final bool isTr;
+  final ActuellerScanResult? scanResult;
+  final List<ActuellerSuggestion> suggestions;
+  final double monthlySavings;
+  final VoidCallback onOpen;
+
+  const _SmartActuellerCard({
+    required this.isTr,
+    required this.scanResult,
+    required this.suggestions,
+    required this.monthlySavings,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final topSuggestion = suggestions.isEmpty ? null : suggestions.first;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.local_offer_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Smart Aktüel Asistanı' : 'Smart Flyer Assistant',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isTr
+                  ? 'Market broşürünü tara. İndirimleri dolabındaki eksikler ve azalan malzemelerle eşleştirelim.'
+                  : 'Scan a market flyer and match the deals with your missing and low-stock ingredients.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (scanResult == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.45,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  isTr
+                      ? 'Henüz broşür taranmadı. Kamera veya galeri ile başlayabilirsin.'
+                      : 'No flyer has been scanned yet. Start with camera or gallery.',
+                ),
+              )
+            else ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Chip(
+                    label: Text(
+                      scanResult!.detectedStore?.isNotEmpty == true
+                          ? scanResult!.detectedStore!
+                          : scanResult!.sourceLabel,
+                    ),
+                  ),
+                  Chip(
+                    label: Text(
+                      isTr
+                          ? '${scanResult!.deals.length} ürün'
+                          : '${scanResult!.deals.length} items',
+                    ),
+                  ),
+                  Chip(
+                    label: Text(
+                      isTr
+                          ? 'Bu ay ${monthlySavings.round()} TL'
+                          : '${monthlySavings.round()} TRY this month',
+                    ),
+                  ),
+                ],
+              ),
+              if (topSuggestion != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primaryContainer,
+                        theme.colorScheme.secondaryContainer,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isTr ? 'Bugün öne çıkan fırsat' : 'Top pick today',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        topSuggestion.title(isTr ? 'tr' : 'en'),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        topSuggestion.body(isTr ? 'tr' : 'en'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer
+                              .withValues(alpha: 0.84),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonalIcon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.document_scanner_outlined),
+                label: Text(
+                  scanResult == null
+                      ? (isTr ? 'Broşürü tara' : 'Scan flyer')
+                      : (isTr ? 'İndirimleri aç' : 'Open deals'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MarketComparisonCard extends StatelessWidget {
   final bool isTr;
   final List<MarketBasketComparison> comparisons;
@@ -1756,7 +1936,7 @@ class _MarketComparisonCard extends StatelessWidget {
                 syncStatus.message ??
                     (syncStatus.usedLiveData
                         ? (isTr
-                            ? '${syncStatus.sourceLabel} ile canli veri kullaniliyor.'
+                            ? '${syncStatus.sourceLabel} ile canlı veri kullanılıyor.'
                             : 'Using live data from ${syncStatus.sourceLabel}.')
                         : (isTr
                             ? 'Tahmini fiyat modeli aktif.'
@@ -1783,7 +1963,7 @@ class _MarketComparisonCard extends StatelessWidget {
                   title: Text(comparison.market),
                   subtitle: Text(
                     isTr
-                        ? '${comparison.campaignCount} kampanya, ${comparison.deals.length} urun • ${comparison.isLiveData ? 'canli' : 'tahmini'}'
+                        ? '${comparison.campaignCount} kampanya, ${comparison.deals.length} ürün • ${comparison.isLiveData ? 'canlı' : 'tahmini'}'
                         : '${comparison.campaignCount} campaigns, ${comparison.deals.length} items • ${comparison.isLiveData ? 'live' : 'estimated'}',
                   ),
                   trailing: Column(
@@ -1886,7 +2066,7 @@ class _DigitalTwinCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             isTr
-                                ? '${zone.items.length} urun, $highRisk riskli'
+                                ? '${zone.items.length} ürün, $highRisk riskli'
                                 : '${zone.items.length} items, $highRisk risky',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,

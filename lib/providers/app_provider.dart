@@ -7,6 +7,7 @@ import '../models/ingredient.dart';
 import '../models/kitchen_intelligence.dart';
 import '../models/kitchen_rpg.dart';
 import '../models/recipe.dart';
+import '../models/smart_actueller.dart';
 import '../models/smart_kitchen.dart';
 import '../services/kitchen_intelligence_service.dart';
 import '../services/kitchen_rpg_service.dart';
@@ -14,15 +15,25 @@ import '../services/kitchen_vision_service.dart';
 import '../services/market_watch_service.dart';
 import '../services/notification_service.dart';
 import '../services/recipe_service.dart';
+import '../services/smart_actueller_feed_service.dart';
+import '../services/smart_actueller_service.dart';
+import '../services/smart_actueller_source_service.dart';
 import '../utils/mood_recipes.dart';
 
 class AppProvider extends ChangeNotifier {
+  static const _actuellerDailySyncHour = 8;
+
   final RecipeService _recipeService = RecipeService();
   final KitchenIntelligenceService _kitchenIntelligenceService =
       KitchenIntelligenceService();
   final KitchenRpgService _kitchenRpgService = KitchenRpgService();
   final KitchenVisionService _kitchenVisionService = KitchenVisionService();
   final MarketWatchService _marketWatchService = MarketWatchService();
+  final SmartActuellerFeedService _smartActuellerFeedService =
+      SmartActuellerFeedService();
+  final SmartActuellerService _smartActuellerService = SmartActuellerService();
+  final SmartActuellerSourceService _smartActuellerSourceService =
+      SmartActuellerSourceService();
 
   bool _isLoading = true;
   Locale _locale = const Locale('tr');
@@ -37,8 +48,19 @@ class AppProvider extends ChangeNotifier {
   String? _activeMoodId;
   ReceiptScanResult? _lastReceiptScanResult;
   PlateAnalysisResult? _lastPlateAnalysisResult;
+  ActuellerScanResult? _lastActuellerScanResult;
   List<RemoteMarketQuote> _remoteMarketQuotes = const [];
+  List<RemoteMarketQuote> _actuellerMarketQuotes = const [];
   MarketSyncStatus _marketSyncStatus = const MarketSyncStatus.idle();
+  double _smartActuellerMonthlySavings = 0;
+  String? _smartActuellerSavingsMonthKey;
+  final Set<String> _trackedActuellerDealIds = {};
+  DateTime? _lastActuellerCatalogSyncAt;
+  int _lastActuellerCatalogBrochureCount = 0;
+  List<String> _lastActuellerCatalogUrls = const [];
+  List<ActuellerCatalogBrochureReport> _lastActuellerCatalogReports = const [];
+  bool _isActuellerCatalogSyncing = false;
+  String? _actuellerCatalogSyncMessage;
 
   bool get isLoading => _isLoading;
   Locale get locale => _locale;
@@ -58,9 +80,24 @@ class AppProvider extends ChangeNotifier {
   String? get activeMoodId => _activeMoodId;
   ReceiptScanResult? get lastReceiptScanResult => _lastReceiptScanResult;
   PlateAnalysisResult? get lastPlateAnalysisResult => _lastPlateAnalysisResult;
+  ActuellerScanResult? get lastActuellerScanResult => _lastActuellerScanResult;
   MarketSyncStatus get marketSyncStatus => _marketSyncStatus;
   String get kitchenLevelTitle =>
       _kitchenRpgService.titleForLevel(_kitchenRpgProfile.level, languageCode);
+  double get smartActuellerMonthlySavings =>
+      _smartActuellerSavingsMonthKey == _monthKey(DateTime.now())
+          ? _smartActuellerMonthlySavings
+          : 0;
+  DateTime? get lastActuellerCatalogSyncAt => _lastActuellerCatalogSyncAt;
+  int get lastActuellerCatalogBrochureCount =>
+      _lastActuellerCatalogBrochureCount;
+  List<ActuellerCatalogBrochureReport> get lastActuellerCatalogReports =>
+      _lastActuellerCatalogReports;
+  int get actuellerDailySyncHour => _actuellerDailySyncHour;
+  bool get isActuellerCatalogSyncing => _isActuellerCatalogSyncing;
+  String? get actuellerCatalogSyncMessage => _actuellerCatalogSyncMessage;
+  bool isActuellerDealTracked(String dealId) =>
+      _trackedActuellerDealIds.contains(dealId);
   List<PantryStockItem> get pantryItems {
     final items = _pantryItemCounts.entries
         .where((entry) => entry.value > 0)
@@ -95,6 +132,16 @@ class AppProvider extends ChangeNotifier {
   List<KitchenWeeklyChallengeProgress> get weeklyChallengeProgress =>
       _kitchenRpgService.buildWeeklyChallengeProgress(_kitchenRpgProfile);
   double get monthlySavingsEstimate => _kitchenRpgProfile.monthlySavingsValue;
+  List<ActuellerSuggestion> get smartActuellerSuggestions =>
+      _lastActuellerScanResult == null
+          ? const []
+          : _smartActuellerService.buildPersonalizedSuggestions(
+              scanResult: _lastActuellerScanResult!,
+              pantryCounts: Map<String, int>.from(_pantryItemCounts),
+              pantryRiskItems: pantryRiskItems,
+              shoppingItems: getCombinedShoppingItems(),
+              preferredMarkets: _smartKitchenPreferences.preferredMarkets,
+            );
 
   Future<void> initialize() async {
     try {
@@ -122,6 +169,7 @@ class AppProvider extends ChangeNotifier {
     }
     _isLoading = false;
     notifyListeners();
+    syncAkakceActuellerCatalogIfDue();
   }
 
   void setLocale(Locale locale) {
@@ -341,9 +389,348 @@ class AppProvider extends ChangeNotifier {
     );
   }
 
+  Future<void> analyzeActuellerText(
+    String rawText, {
+    String? capturedImagePath,
+    String? detectedStore,
+    List<String> blocks = const [],
+    String sourceLabel = 'Smart Actüel',
+  }) async {
+    _lastActuellerScanResult = _smartActuellerService.analyzeFlyerText(
+      rawText: rawText,
+      ingredients: _recipeService.ingredients,
+      detectedStore: detectedStore,
+      sourceLabel: sourceLabel,
+      capturedImagePath: capturedImagePath,
+      ocrBlocks: blocks,
+    );
+    _actuellerMarketQuotes =
+        _smartActuellerService.toRemoteQuotes(_lastActuellerScanResult!);
+    _recordKitchenActivity(KitchenActivityType.visionAnalysis);
+    await _savePreferences();
+    await _refreshSmartKitchenNotifications();
+    notifyListeners();
+  }
+
+  Future<void> analyzeActuellerImage(String imagePath) async {
+    final capture =
+        await _kitchenVisionService.analyzeActuellerImage(imagePath);
+    await analyzeActuellerText(
+      capture.rawText,
+      capturedImagePath: capture.imagePath,
+      detectedStore: capture.detectedStore,
+      blocks: capture.blocks,
+      sourceLabel: capture.detectedStore == null
+          ? 'Smart Actüel OCR'
+          : '${capture.detectedStore} Aktüel',
+    );
+  }
+
+  Future<void> analyzeActuellerUrl(String url) async {
+    final source = await _smartActuellerSourceService.prepareSource(url);
+    final allBlocks = <String>{};
+    final rawParts = <String>[];
+    var detectedStore = source.detectedStore;
+
+    for (final imagePath in source.localImagePaths) {
+      final capture = await _kitchenVisionService.analyzeActuellerImage(
+        imagePath,
+      );
+      if (capture.rawText.trim().isNotEmpty) {
+        rawParts.add(capture.rawText.trim());
+      }
+      allBlocks.addAll(capture.blocks);
+      detectedStore ??= capture.detectedStore;
+    }
+
+    if (rawParts.isEmpty) {
+      throw Exception('Broşürde okunabilir metin bulunamadı.');
+    }
+
+    await analyzeActuellerText(
+      rawParts.join('\n'),
+      capturedImagePath:
+          source.localImagePaths.isEmpty ? null : source.localImagePaths.first,
+      detectedStore: detectedStore,
+      blocks: allBlocks.toList(),
+      sourceLabel: source.sourceLabel,
+    );
+  }
+
+  Future<void> importSmartActuellerFeed(String feedUrl) async {
+    final snapshot = await _smartActuellerFeedService.fetchFeed(
+      feedUrl: feedUrl,
+    );
+
+    _lastActuellerScanResult = ActuellerScanResult(
+      rawText: snapshot.catalogItems.map((item) => item.rawBlock).join('\n'),
+      blocks: snapshot.catalogItems.map((item) => item.rawBlock).toList(),
+      catalogItems: snapshot.catalogItems,
+      deals: const [],
+      unmatchedBlocks: const [],
+      detectedStore: null,
+      sourceLabel: snapshot.sourceLabel,
+      capturedImagePath: null,
+      scannedAt: snapshot.updatedAt,
+      confidence: snapshot.catalogItems.isEmpty ? 0 : 0.92,
+    );
+    _actuellerMarketQuotes = const [];
+    _lastActuellerCatalogSyncAt = snapshot.updatedAt;
+    _lastActuellerCatalogBrochureCount = snapshot.brochureCount;
+    _lastActuellerCatalogReports = snapshot.brochureReports;
+    _lastActuellerCatalogUrls = snapshot.brochureReports
+        .map((report) => report.brochureUrl)
+        .where((url) => url.isNotEmpty)
+        .toList();
+    _actuellerCatalogSyncMessage =
+        '${snapshot.brochureCount} broşür feedden alındı, ${snapshot.catalogItems.length} ürün hazır.';
+    await _savePreferences();
+    await _refreshSmartKitchenNotifications();
+    notifyListeners();
+  }
+
+  Future<void> syncAkakceActuellerCatalogIfDue() async {
+    await syncAkakceActuellerCatalog();
+  }
+
+  Future<void> syncAkakceActuellerCatalog({bool force = false}) async {
+    final now = DateTime.now();
+    if (!force && !_shouldSyncActuellerCatalog(now)) {
+      return;
+    }
+    if (_isActuellerCatalogSyncing) {
+      return;
+    }
+
+    _isActuellerCatalogSyncing = true;
+    _actuellerCatalogSyncMessage = null;
+    notifyListeners();
+
+    try {
+      final brochureUrls =
+          await _smartActuellerSourceService.discoverBrochureUrls();
+      final urlsToProcess = force
+          ? brochureUrls
+          : brochureUrls
+              .where((url) => !_lastActuellerCatalogUrls.contains(url))
+              .toList();
+
+      if (urlsToProcess.isEmpty) {
+        _lastActuellerCatalogSyncAt = now;
+        _lastActuellerCatalogBrochureCount = 0;
+        _lastActuellerCatalogUrls = brochureUrls;
+        _actuellerCatalogSyncMessage = _lastActuellerScanResult == null
+            ? 'Bugün yeni broşür bulunmadı.'
+            : 'Bugün yeni broşür bulunmadı. Mevcut aktüel veriler korunuyor.';
+        await _savePreferences();
+        await _refreshSmartKitchenNotifications();
+        return;
+      }
+
+      final previousScan = _lastActuellerScanResult;
+      final uniqueCatalogItems = force
+          ? <String, ActuellerCatalogItem>{}
+          : {
+              for (final item
+                  in previousScan?.catalogItems ?? const <ActuellerCatalogItem>[])
+                item.id: item,
+            };
+      final uniqueDeals = force
+          ? <String, ActuellerDeal>{}
+          : {
+              for (final deal in previousScan?.deals ?? const <ActuellerDeal>[])
+                '${deal.marketName}|${deal.ingredient.id}': deal,
+            };
+      final allBlocks = force ? <String>{} : {...?previousScan?.blocks};
+      final unmatchedBlocks = force
+          ? <String>{}
+          : {...?previousScan?.unmatchedBlocks};
+      final reports = <ActuellerCatalogBrochureReport>[];
+      var brochureCount = 0;
+
+      for (final brochureUrl in urlsToProcess) {
+        try {
+          final source = await _smartActuellerSourceService.prepareSource(
+            brochureUrl,
+          );
+          final rawParts = <String>[];
+          final brochureBlocks = <String>{};
+          var detectedStore = source.detectedStore;
+
+          for (final imagePath in source.localImagePaths.take(6)) {
+            final capture = await _kitchenVisionService.analyzeActuellerImage(
+              imagePath,
+            );
+            if (capture.rawText.trim().isNotEmpty) {
+              rawParts.add(capture.rawText.trim());
+            }
+            brochureBlocks.addAll(capture.blocks);
+            detectedStore ??= capture.detectedStore;
+          }
+
+          if (rawParts.isEmpty) {
+            reports.add(
+              ActuellerCatalogBrochureReport(
+                brochureUrl: brochureUrl,
+                sourceLabel: source.sourceLabel,
+                marketName: detectedStore,
+                imageCount: source.localImagePaths.length,
+                blockCount: brochureBlocks.length,
+                itemCount: 0,
+                dealCount: 0,
+                hadReadableText: false,
+                productNames: const [],
+                note: 'OCR okunabilir metin çıkaramadı.',
+              ),
+            );
+            continue;
+          }
+
+          brochureCount += 1;
+          final brochureResult = _smartActuellerService.analyzeFlyerText(
+            rawText: rawParts.join('\n'),
+            ingredients: _recipeService.ingredients,
+            detectedStore: detectedStore,
+            sourceLabel: source.sourceLabel,
+            ocrBlocks: brochureBlocks.toList(),
+          );
+          reports.add(
+            ActuellerCatalogBrochureReport(
+              brochureUrl: brochureUrl,
+              sourceLabel: source.sourceLabel,
+              marketName: detectedStore ?? brochureResult.detectedStore,
+              imageCount: source.localImagePaths.length,
+              blockCount: brochureResult.blocks.length,
+              itemCount: brochureResult.catalogItems.length,
+              dealCount: brochureResult.deals.length,
+              hadReadableText: true,
+              productNames: brochureResult.catalogItems
+                  .map((item) => item.productTitle)
+                  .take(5)
+                  .toList(),
+              note: brochureResult.catalogItems.isEmpty
+                  ? 'OCR metni alındı ama ürün çıkarılamadı.'
+                  : null,
+            ),
+          );
+
+          final marketName = detectedStore ?? brochureResult.detectedStore;
+          if (marketName != null) {
+            uniqueCatalogItems.removeWhere(
+              (key, item) => item.marketName == marketName,
+            );
+            uniqueDeals.removeWhere((key, deal) => deal.marketName == marketName);
+          }
+
+          for (final item in brochureResult.catalogItems) {
+            uniqueCatalogItems[item.id] = item;
+          }
+          for (final deal in brochureResult.deals) {
+            final key = '${deal.marketName}|${deal.ingredient.id}';
+            final existing = uniqueDeals[key];
+            if (existing == null ||
+                deal.discountPrice < existing.discountPrice ||
+                (deal.discountPrice == existing.discountPrice &&
+                    deal.confidence > existing.confidence)) {
+              uniqueDeals[key] = deal;
+            }
+          }
+          allBlocks.addAll(brochureResult.blocks);
+          unmatchedBlocks.addAll(brochureResult.unmatchedBlocks.take(8));
+        } catch (error) {
+          reports.add(
+            ActuellerCatalogBrochureReport(
+              brochureUrl: brochureUrl,
+              sourceLabel: 'Akakçe Broşürü',
+              marketName: null,
+              imageCount: 0,
+              blockCount: 0,
+              itemCount: 0,
+              dealCount: 0,
+              hadReadableText: false,
+              productNames: const [],
+              note: error.toString().replaceFirst('Exception: ', ''),
+            ),
+          );
+          debugPrint('Actueller brochure sync error: $error');
+        }
+      }
+
+      final deals = uniqueDeals.values.toList()
+        ..sort((a, b) {
+          final marketCompare = a.marketName.compareTo(b.marketName);
+          if (marketCompare != 0) return marketCompare;
+          return a.discountPrice.compareTo(b.discountPrice);
+        });
+      final catalogItems = uniqueCatalogItems.values.toList()
+        ..sort((a, b) {
+          final marketCompare = a.marketName.compareTo(b.marketName);
+          if (marketCompare != 0) return marketCompare;
+          return a.productTitle.compareTo(b.productTitle);
+        });
+
+      if (catalogItems.isNotEmpty || deals.isNotEmpty || force || previousScan == null) {
+        _lastActuellerScanResult = ActuellerScanResult(
+          rawText: allBlocks.join('\n'),
+          blocks: allBlocks.toList(),
+          catalogItems: catalogItems,
+          deals: deals,
+          unmatchedBlocks: unmatchedBlocks.take(40).toList(),
+          detectedStore: null,
+          sourceLabel: 'Akakçe Günlük Broşürler',
+          capturedImagePath: null,
+          scannedAt: now,
+          confidence: deals.isEmpty ? 0 : 0.78,
+        );
+        _actuellerMarketQuotes = _smartActuellerService.toRemoteQuotes(
+          _lastActuellerScanResult!,
+        );
+      }
+
+      _lastActuellerCatalogSyncAt = now;
+      _lastActuellerCatalogBrochureCount = brochureCount;
+      _lastActuellerCatalogUrls = brochureUrls;
+      _lastActuellerCatalogReports = reports;
+      _actuellerCatalogSyncMessage = brochureCount == 0
+          ? 'Yeni broşürler bulundu ama okunabilir içerik çıkarılamadı.'
+          : catalogItems.isEmpty
+              ? 'Yeni broşürler bulundu ama ürün listesi çıkarılamadı.'
+              : '$brochureCount yeni broşür işlendi, ${catalogItems.length} ürün okundu, ${deals.length} mutfak eşleşmesi hazır.';
+      _recordKitchenActivity(KitchenActivityType.visionAnalysis);
+      await _savePreferences();
+      await _refreshSmartKitchenNotifications();
+    } catch (error) {
+      _actuellerCatalogSyncMessage =
+          'Akakçe broşürleri alınamadı. Daha sonra tekrar dene.';
+      debugPrint('Actueller catalog sync error: $error');
+    } finally {
+      _isActuellerCatalogSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> trackActuellerSavings(ActuellerSuggestion suggestion) async {
+    final currentMonthKey = _monthKey(DateTime.now());
+    if (_smartActuellerSavingsMonthKey != currentMonthKey) {
+      _smartActuellerSavingsMonthKey = currentMonthKey;
+      _smartActuellerMonthlySavings = 0;
+      _trackedActuellerDealIds.clear();
+    }
+    if (_trackedActuellerDealIds.contains(suggestion.deal.id)) {
+      return;
+    }
+    _trackedActuellerDealIds.add(suggestion.deal.id);
+    _smartActuellerMonthlySavings += suggestion.estimatedSavings;
+    await _savePreferences();
+    notifyListeners();
+  }
+
   void clearVisionResults() {
     _lastReceiptScanResult = null;
     _lastPlateAnalysisResult = null;
+    _lastActuellerScanResult = null;
+    _actuellerMarketQuotes = const [];
+    _lastActuellerCatalogReports = const [];
     _savePreferences();
     notifyListeners();
   }
@@ -383,7 +770,10 @@ class AppProvider extends ChangeNotifier {
   List<MarketBasketComparison> getMarketComparisons() {
     return _kitchenIntelligenceService.buildMarketComparisons(
       getCombinedShoppingItems(),
-      remoteQuotes: _remoteMarketQuotes,
+      remoteQuotes: [
+        ..._remoteMarketQuotes,
+        ..._actuellerMarketQuotes,
+      ],
       preferredMarkets: _smartKitchenPreferences.preferredMarkets,
     );
   }
@@ -1286,6 +1676,22 @@ class AppProvider extends ChangeNotifier {
       );
     }
 
+    final actuellerSuggestion =
+        _smartKitchenPreferences.campaignAlertsEnabled &&
+                smartActuellerSuggestions.isNotEmpty
+            ? smartActuellerSuggestions.first
+            : null;
+    if (actuellerSuggestion != null) {
+      insightNotifications.add(
+        SmartReminderNotification(
+          id: 9103,
+          title: actuellerSuggestion.title(languageCode),
+          body: actuellerSuggestion.body(languageCode),
+          scheduledAt: _nextMorningAt(10, 30),
+        ),
+      );
+    }
+
     await NotificationService.instance.scheduleKitchenInsights(
       insightNotifications,
     );
@@ -1413,6 +1819,54 @@ class AppProvider extends ChangeNotifier {
         );
       }
 
+      final actuellerRaw = prefs.getString('lastActuellerScanResult');
+      if (actuellerRaw != null && actuellerRaw.isNotEmpty) {
+        final decoded = json.decode(actuellerRaw) as Map<String, dynamic>;
+        _lastActuellerScanResult = ActuellerScanResult.fromJson(
+          decoded,
+          _recipeService.getIngredientById,
+        );
+        _actuellerMarketQuotes = _smartActuellerService.toRemoteQuotes(
+          _lastActuellerScanResult!,
+        );
+      }
+
+      final actuellerSavingsRaw =
+          prefs.getString('smartActuellerMonthlySavings');
+      if (actuellerSavingsRaw != null && actuellerSavingsRaw.isNotEmpty) {
+        final decoded =
+            json.decode(actuellerSavingsRaw) as Map<String, dynamic>;
+        _smartActuellerMonthlySavings =
+            (decoded['value'] as num?)?.toDouble() ?? 0;
+        _smartActuellerSavingsMonthKey = decoded['monthKey']?.toString();
+        _trackedActuellerDealIds
+          ..clear()
+          ..addAll(
+            (decoded['trackedDealIds'] as List<dynamic>? ?? const [])
+                .map((value) => value.toString()),
+          );
+      }
+
+      _lastActuellerCatalogSyncAt = DateTime.tryParse(
+        prefs.getString('lastActuellerCatalogSyncAt') ?? '',
+      );
+      _lastActuellerCatalogBrochureCount =
+          prefs.getInt('lastActuellerCatalogBrochureCount') ?? 0;
+      _lastActuellerCatalogUrls =
+          prefs.getStringList('lastActuellerCatalogUrls') ?? const [];
+      final actuellerCatalogReportsRaw =
+          prefs.getString('lastActuellerCatalogReports');
+      if (actuellerCatalogReportsRaw != null &&
+          actuellerCatalogReportsRaw.isNotEmpty) {
+        _lastActuellerCatalogReports =
+            (json.decode(actuellerCatalogReportsRaw) as List<dynamic>)
+                .whereType<Map<String, dynamic>>()
+                .map(ActuellerCatalogBrochureReport.fromJson)
+                .toList();
+      }
+      _actuellerCatalogSyncMessage =
+          prefs.getString('actuellerCatalogSyncMessage');
+
       _updateMatchingRecipes();
     } catch (_) {
       // Use defaults
@@ -1505,9 +1959,77 @@ class AppProvider extends ChangeNotifier {
           }),
         );
       }
+      if (_lastActuellerScanResult == null) {
+        await prefs.remove('lastActuellerScanResult');
+      } else {
+        await prefs.setString(
+          'lastActuellerScanResult',
+          json.encode(_lastActuellerScanResult!.toJson()),
+        );
+      }
+      await prefs.setString(
+        'smartActuellerMonthlySavings',
+        json.encode({
+          'value': _smartActuellerMonthlySavings,
+          'monthKey': _smartActuellerSavingsMonthKey,
+          'trackedDealIds': _trackedActuellerDealIds.toList(),
+        }),
+      );
+      if (_lastActuellerCatalogSyncAt == null) {
+        await prefs.remove('lastActuellerCatalogSyncAt');
+      } else {
+        await prefs.setString(
+          'lastActuellerCatalogSyncAt',
+          _lastActuellerCatalogSyncAt!.toIso8601String(),
+        );
+      }
+      await prefs.setInt(
+        'lastActuellerCatalogBrochureCount',
+        _lastActuellerCatalogBrochureCount,
+      );
+      await prefs.setStringList(
+        'lastActuellerCatalogUrls',
+        _lastActuellerCatalogUrls,
+      );
+      await prefs.setString(
+        'lastActuellerCatalogReports',
+        json.encode(
+          _lastActuellerCatalogReports
+              .map((report) => report.toJson())
+              .toList(),
+        ),
+      );
+      if (_actuellerCatalogSyncMessage == null ||
+          _actuellerCatalogSyncMessage!.isEmpty) {
+        await prefs.remove('actuellerCatalogSyncMessage');
+      } else {
+        await prefs.setString(
+          'actuellerCatalogSyncMessage',
+          _actuellerCatalogSyncMessage!,
+        );
+      }
     } catch (_) {
       // Ignore save errors
     }
+  }
+
+  String _monthKey(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+  bool _shouldSyncActuellerCatalog(
+    DateTime now, {
+    int dailyHour = _actuellerDailySyncHour,
+  }) {
+    if (_lastActuellerCatalogSyncAt == null) {
+      return _lastActuellerScanResult == null || now.hour >= dailyHour;
+    }
+    final last = _lastActuellerCatalogSyncAt!.toLocal();
+    final isSameDay =
+        last.year == now.year && last.month == now.month && last.day == now.day;
+    if (isSameDay) {
+      return false;
+    }
+    return now.hour >= dailyHour;
   }
 
   List<MealRoutineSlot> _mergeSlotsWithDefaults(List<MealRoutineSlot> slots) {

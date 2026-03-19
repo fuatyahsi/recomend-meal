@@ -1,0 +1,57 @@
+name: Akakce Actueller Feed
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/akakce-actueller-feed.yml"
+      - "tools/akakce_worker/**"
+  schedule:
+    - cron: "0 5 * * *"
+
+jobs:
+  build-actueller-feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install worker dependencies
+        run: |
+          pip install -r tools/akakce_worker/requirements.txt
+          pip install -r tools/akakce_worker/requirements-ocr.txt
+
+      - name: Verify OCR runtime imports
+        run: |
+          python -c "import onnxruntime; print('onnxruntime', onnxruntime.__version__)"
+          python -c "from rapidocr import RapidOCR; print('rapidocr ok')"
+
+      - name: Run Akakce worker pipeline
+        run: python tools/akakce_worker/run_pipeline.py --max-brochures 24 --download-images --extract-items
+
+      - name: Print worker summary
+        if: always()
+        run: python tools/akakce_worker/print_summary.py
+
+      - name: Upload worker JSON outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: akakce-actueller-feed
+          path: |
+            tools/akakce_worker/output/source_manifest.json
+            tools/akakce_worker/output/tile_manifest.json
+            tools/akakce_worker/output/extracted_products.json
+            tools/akakce_worker/output/actueller_feed.json
+          if-no-files-found: error

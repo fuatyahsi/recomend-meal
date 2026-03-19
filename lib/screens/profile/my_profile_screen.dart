@@ -3,13 +3,14 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/community_recipe_model.dart';
 import '../../models/badge_model.dart';
+import '../../providers/app_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/community_recipe_service.dart';
-import '../../services/badge_service.dart';
 import '../badges/badges_screen.dart';
 import '../auth/login_screen.dart';
 import '../cookbook/cookbooks_screen.dart';
 import '../settings_screen.dart';
+import '../smart_actueller_screen.dart';
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -20,7 +21,6 @@ class MyProfileScreen extends StatefulWidget {
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
   final _recipeService = CommunityRecipeService();
-  final _badgeService = BadgeService();
 
   List<CommunityRecipe> _myRecipes = [];
   bool _isLoading = true;
@@ -43,6 +43,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final app = context.watch<AppProvider>();
     final theme = Theme.of(context);
     final isTr = AppLocalizations.of(context).languageCode == 'tr';
 
@@ -52,7 +53,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('🔐', style: TextStyle(fontSize: 64)),
+              const Icon(Icons.lock_outline_rounded, size: 64),
               const SizedBox(height: 16),
               Text(isTr ? 'Giriş yapmalısın' : 'Please sign in'),
               const SizedBox(height: 16),
@@ -68,9 +69,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
 
     final user = auth.currentUser!;
-    final earnedBadges = AppBadge.allBadges
-        .where((b) => user.badges.contains(b.id))
-        .toList();
+    final earnedBadges =
+        AppBadge.allBadges.where((b) => user.badges.contains(b.id)).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -159,6 +159,65 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
             const SizedBox(height: 16),
 
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.savings_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            isTr
+                                ? 'Bu ayki mutfak tasarrufu'
+                                : 'This month\'s kitchen savings',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      app.smartActuellerMonthlySavings > 0
+                          ? (isTr
+                              ? 'FridgeChef, işaretlediğin aktüel fırsatlarla bu ay yaklaşık ${app.smartActuellerMonthlySavings.round()} TL avantaj takibi yaptı.'
+                              : 'FridgeChef tracked about ${app.smartActuellerMonthlySavings.round()} TRY in flyer savings for you this month.')
+                          : (isTr
+                              ? 'Aktüel indirimleri işaretledikçe bu ayki tasarrufun burada birikecek.'
+                              : 'Your tracked flyer savings will appear here as you mark deals.'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SmartActuellerScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.local_offer_outlined),
+                      label: Text(
+                        isTr ? 'Aktüel fırsatları aç' : 'Open flyer deals',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             // Tarif Defterlerim butonu
             SizedBox(
               width: double.infinity,
@@ -170,7 +229,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -213,7 +272,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 runSpacing: 8,
                 children: earnedBadges
                     .map((b) => Chip(
-                          avatar: Text(b.icon, style: const TextStyle(fontSize: 18)),
+                          avatar: Text(b.icon,
+                              style: const TextStyle(fontSize: 18)),
                           label: Text(b.getName(isTr ? 'tr' : 'en')),
                         ))
                     .toList(),
@@ -259,7 +319,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       title: Text(r.getName(isTr ? 'tr' : 'en')),
                       subtitle: Row(
                         children: [
-                          const Icon(Icons.favorite, size: 14, color: Colors.red),
+                          const Icon(Icons.favorite,
+                              size: 14, color: Colors.red),
                           const SizedBox(width: 4),
                           Text('${r.totalLikes}'),
                           const SizedBox(width: 12),
@@ -297,7 +358,7 @@ class _StatCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 22),

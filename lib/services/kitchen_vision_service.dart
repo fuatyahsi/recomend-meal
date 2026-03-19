@@ -2,6 +2,7 @@ import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 import '../models/kitchen_intelligence.dart';
+import '../models/smart_actueller.dart';
 
 class KitchenVisionService {
   Future<ReceiptVisionCapture> analyzeReceiptImage(String imagePath) async {
@@ -62,6 +63,44 @@ class KitchenVisionService {
         prompt: prompt,
         estimatedCalories: _estimateCalories(labelTexts, recognizedText.text),
         confidence: _plateConfidence(labelTexts, recognizedText.text),
+      );
+    } finally {
+      await textRecognizer.close();
+      await imageLabeler.close();
+    }
+  }
+
+  Future<ActuellerVisionCapture> analyzeActuellerImage(String imagePath) async {
+    final inputImage = InputImage.fromFilePath(imagePath);
+    final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    final imageLabeler = ImageLabeler(
+      options: ImageLabelerOptions(confidenceThreshold: 0.5),
+    );
+
+    try {
+      final recognizedText = await textRecognizer.processImage(inputImage);
+      final labels = await imageLabeler.processImage(inputImage);
+      final labelTexts = labels
+          .where((label) => label.confidence >= 0.5)
+          .map((label) => label.label)
+          .toSet()
+          .toList();
+      final blocks = recognizedText.blocks
+          .expand((block) => block.lines)
+          .map((line) => line.text.replaceAll(RegExp(r'\s+'), ' ').trim())
+          .where((block) => block.isNotEmpty)
+          .toList();
+
+      return ActuellerVisionCapture(
+        imagePath: imagePath,
+        rawText: recognizedText.text.trim(),
+        blocks: blocks,
+        labels: labelTexts,
+        detectedStore: _detectStore(recognizedText.text),
+        confidence: _receiptConfidence(
+          rawText: recognizedText.text,
+          labels: labelTexts,
+        ),
       );
     } finally {
       await textRecognizer.close();
