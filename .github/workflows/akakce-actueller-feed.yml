@@ -1,4 +1,5 @@
 name: Akakce Actueller Feed
+# Trigger note: keep this workflow easy to retrigger with tiny non-functional edits.
 
 on:
   workflow_dispatch:
