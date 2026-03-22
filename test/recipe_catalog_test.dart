@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fridge_chef/utils/catalog_expansion.dart';
 
 void main() {
   List<Map<String, dynamic>> loadRecipes(String path) {
@@ -16,29 +17,34 @@ void main() {
         .cast<Map<String, dynamic>>();
   }
 
-  test('recipe catalog reaches 100 recipes', () {
+  test('recipe catalog reaches 200 recipes', () {
     final baseRecipes = loadRecipes('assets/data/recipes.json');
     final extraRecipes = loadRecipes('assets/data/recipes_extra.json');
+    final allRecipes = expandRecipeCatalog([...baseRecipes, ...extraRecipes]);
 
     expect(baseRecipes.length, 65);
     expect(extraRecipes.length, 35);
-    expect(baseRecipes.length + extraRecipes.length, 100);
+    expect(allRecipes.length, 200);
   });
 
-  test('ingredient catalog reaches 200 ingredients', () {
+  test('ingredient catalog reaches 424 ingredients', () {
     final baseIngredients = loadIngredients('assets/data/ingredients.json');
     final extraIngredients =
         loadIngredients('assets/data/ingredients_extra.json');
+    final allIngredients = expandIngredientCatalog([
+      ...baseIngredients,
+      ...extraIngredients,
+    ]);
 
     expect(baseIngredients.length, 77);
     expect(extraIngredients.length, 135);
-    expect(baseIngredients.length + extraIngredients.length, 212);
+    expect(allIngredients.length, 424);
   });
 
   test('romantic tagged recipes stay dinner-friendly', () {
     final baseRecipes = loadRecipes('assets/data/recipes.json');
     final extraRecipes = loadRecipes('assets/data/recipes_extra.json');
-    final allRecipes = [...baseRecipes, ...extraRecipes];
+    final allRecipes = expandRecipeCatalog([...baseRecipes, ...extraRecipes]);
 
     final romanticRecipes = allRecipes.where((recipe) {
       final tags =

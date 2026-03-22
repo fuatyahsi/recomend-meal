@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import '../models/ingredient.dart';
 import '../models/recipe.dart';
+import '../utils/catalog_expansion.dart';
 
 class RecipeService {
   List<Ingredient> _ingredients = [];
@@ -29,7 +30,8 @@ class RecipeService {
       );
     }
 
-    _ingredients = ingredientMaps.map(Ingredient.fromJson).toList();
+    final expandedIngredientMaps = expandIngredientCatalog(ingredientMaps);
+    _ingredients = expandedIngredientMaps.map(Ingredient.fromJson).toList();
 
     // Load recipes
     final recipeFiles = [
@@ -46,7 +48,8 @@ class RecipeService {
       );
     }
 
-    _recipes = recipeMaps.map(Recipe.fromJson).toList();
+    final expandedRecipeMaps = expandRecipeCatalog(recipeMaps);
+    _recipes = expandedRecipeMaps.map(Recipe.fromJson).toList();
 
     _isLoaded = true;
   }
