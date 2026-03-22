@@ -1,3 +1,5 @@
+import 'curated_recipes.dart';
+
 Map<String, String> _ingredientVariantStyle(String category) {
   switch (category) {
     case 'vegetables':
@@ -82,104 +84,80 @@ List<Map<String, dynamic>> expandIngredientCatalog(
   ];
 }
 
-Map<String, String> _recipeVariantStyle(String category) {
-  switch (category) {
-    case 'breakfast':
-      return const {
-        'tr_prefix': 'Pratik ',
-        'en_prefix': 'Quick ',
-      };
-    case 'soup':
-      return const {
-        'tr_prefix': 'Ev Usul\u00fc ',
-        'en_prefix': 'Homestyle ',
-      };
-    case 'salad':
-      return const {
-        'tr_prefix': 'Renkli ',
-        'en_prefix': 'Colorful ',
-      };
-    case 'appetizer':
-      return const {
-        'tr_prefix': 'Payla\u015f\u0131ml\u0131k ',
-        'en_prefix': 'Sharing ',
-      };
-    case 'dessert':
-      return const {
-        'tr_prefix': '\u00d6zel ',
-        'en_prefix': 'Special ',
-      };
-    case 'beverage':
-      return const {
-        'tr_prefix': 'Serin ',
-        'en_prefix': 'Refreshing ',
-      };
-    case 'side':
-      return const {
-        'tr_prefix': 'F\u0131r\u0131nda ',
-        'en_prefix': 'Baked ',
-      };
-    default:
-      return const {
-        'tr_prefix': '\u015eef Usul\u00fc ',
-        'en_prefix': 'Chef Style ',
-      };
-  }
+String _normalizeRecipeText(Object? value) {
+  return value
+      .toString()
+      .toLowerCase()
+      .replaceAll('\u0131', 'i')
+      .replaceAll('\u00e7', 'c')
+      .replaceAll('\u011f', 'g')
+      .replaceAll('\u00f6', 'o')
+      .replaceAll('\u015f', 's')
+      .replaceAll('\u00fc', 'u')
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
 }
 
-Map<String, dynamic> _buildRecipeVariant(Map<String, dynamic> recipe) {
-  final category = (recipe['category'] ?? '').toString();
-  final style = _recipeVariantStyle(category);
-  final stepsTr = ((recipe['steps_tr'] as List<dynamic>? ?? const [])
-          .cast<Map<String, dynamic>>())
-      .map((step) => Map<String, dynamic>.from(step))
-      .toList();
-  final stepsEn = ((recipe['steps_en'] as List<dynamic>? ?? const [])
-          .cast<Map<String, dynamic>>())
-      .map((step) => Map<String, dynamic>.from(step))
-      .toList();
-  stepsTr.add({
-    'step_number': stepsTr.length + 1,
-    'instruction':
-        'Servis etmeden once tadini kontrol et ve kendi damak zevkine gore son dokunusu yap.',
-    'duration_minutes': 1,
-  });
-  stepsEn.add({
-    'step_number': stepsEn.length + 1,
-    'instruction':
-        'Taste before serving and make a final adjustment to match your preference.',
-    'duration_minutes': 1,
-  });
+String _recipeIngredientSignature(Map<String, dynamic> recipe) {
+  final ingredients = (recipe['ingredients'] as List<dynamic>? ?? const [])
+      .cast<Map<String, dynamic>>()
+      .map((ingredient) {
+    final ingredientId = ingredient['ingredient_id'] ?? '';
+    final amount = ingredient['amount_tr'] ?? ingredient['amount_en'] ?? '';
+    final isOptional =
+        ingredient['is_optional'] == true ? 'optional' : 'required';
+    return '$ingredientId:${_normalizeRecipeText(amount)}:$isOptional';
+  }).toList()
+    ..sort();
+  return ingredients.join('|');
+}
 
-  final originalTags =
-      (recipe['tags'] as List<dynamic>? ?? const []).cast<String>();
-  final tags = <String>[
-    ...originalTags,
-    if (!originalTags.contains('genis-katalog')) 'genis-katalog',
-  ];
+String _recipeStepSignature(Map<String, dynamic> recipe) {
+  final steps = (recipe['steps_tr'] as List<dynamic>? ?? const [])
+      .cast<Map<String, dynamic>>()
+      .map((step) {
+    final instruction = _normalizeRecipeText(step['instruction']);
+    final duration = step['duration_minutes']?.toString() ?? '';
+    return '$instruction:$duration';
+  }).toList();
+  return steps.join('|');
+}
 
-  return {
-    ...recipe,
-    'id': '${recipe['id']}_plus',
-    'name_tr': '${style['tr_prefix']}${recipe['name_tr']}',
-    'name_en': '${style['en_prefix']}${recipe['name_en']}',
-    'description_tr':
-        '${recipe['description_tr']} Alternatif sunumuyla men\u00fcn\u00fc zenginle\u015ftirir.',
-    'description_en':
-        '${recipe['description_en']} Adds a broader menu alternative.',
-    'prep_time_minutes': (recipe['prep_time_minutes'] as int? ?? 0) + 1,
-    'cook_time_minutes': (recipe['cook_time_minutes'] as int? ?? 0) + 2,
-    'steps_tr': stepsTr,
-    'steps_en': stepsEn,
-    'tags': tags,
-  };
+String buildRecipeContentSignature(Map<String, dynamic> recipe) {
+  final category = recipe['category'] ?? '';
+  final difficulty = recipe['difficulty'] ?? '';
+  final servings = recipe['servings'] ?? '';
+  final prepTime = recipe['prep_time_minutes'] ?? '';
+  final cookTime = recipe['cook_time_minutes'] ?? '';
+  final ingredients = _recipeIngredientSignature(recipe);
+  final steps = _recipeStepSignature(recipe);
+  return [
+    category,
+    difficulty,
+    servings,
+    prepTime,
+    cookTime,
+    ingredients,
+    steps,
+  ].join('||');
 }
 
 List<Map<String, dynamic>> expandRecipeCatalog(
   List<Map<String, dynamic>> recipes,
 ) {
-  return [
+  final allRecipes = [
     ...recipes,
-    ...recipes.map(_buildRecipeVariant),
+    ...buildCuratedRecipeCatalog(),
   ];
+  final uniqueRecipes = <Map<String, dynamic>>[];
+  final seenSignatures = <String>{};
+
+  for (final recipe in allRecipes) {
+    final signature = buildRecipeContentSignature(recipe);
+    if (seenSignatures.add(signature)) {
+      uniqueRecipes.add(recipe);
+    }
+  }
+
+  return uniqueRecipes;
 }

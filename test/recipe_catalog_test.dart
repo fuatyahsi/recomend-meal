@@ -7,17 +7,15 @@ import 'package:fridge_chef/utils/catalog_expansion.dart';
 void main() {
   List<Map<String, dynamic>> loadRecipes(String path) {
     final raw = File(path).readAsStringSync();
-    return (json.decode(raw) as List<dynamic>)
-        .cast<Map<String, dynamic>>();
+    return (json.decode(raw) as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   List<Map<String, dynamic>> loadIngredients(String path) {
     final raw = File(path).readAsStringSync();
-    return (json.decode(raw) as List<dynamic>)
-        .cast<Map<String, dynamic>>();
+    return (json.decode(raw) as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
-  test('recipe catalog reaches 200 recipes', () {
+  test('recipe catalog reaches 200 unique recipes', () {
     final baseRecipes = loadRecipes('assets/data/recipes.json');
     final extraRecipes = loadRecipes('assets/data/recipes_extra.json');
     final allRecipes = expandRecipeCatalog([...baseRecipes, ...extraRecipes]);
@@ -61,5 +59,16 @@ void main() {
         isTrue,
       );
     }
+  });
+
+  test('recipe catalog does not keep duplicate content with different names',
+      () {
+    final baseRecipes = loadRecipes('assets/data/recipes.json');
+    final extraRecipes = loadRecipes('assets/data/recipes_extra.json');
+    final allRecipes = expandRecipeCatalog([...baseRecipes, ...extraRecipes]);
+
+    final signatures = allRecipes.map(buildRecipeContentSignature).toList();
+
+    expect(signatures.toSet().length, signatures.length);
   });
 }
