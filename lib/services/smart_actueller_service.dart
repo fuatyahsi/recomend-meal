@@ -6,6 +6,7 @@ import '../models/ingredient.dart';
 import '../models/kitchen_intelligence.dart';
 import '../models/smart_actueller.dart';
 import '../models/smart_kitchen.dart';
+import '../utils/market_registry.dart';
 
 class SmartActuellerService {
   static const _ignoredFlyerPhrases = {
@@ -58,8 +59,8 @@ class SmartActuellerService {
 
   static const _marketNames = [
     'A101',
-    'BIM',
-    'SOK',
+    'BİM',
+    'ŞOK',
     'Migros',
     'CarrefourSA',
     'Getir',
@@ -241,6 +242,8 @@ class SmartActuellerService {
     final riskByIngredient = {
       for (final item in pantryRiskItems) item.ingredient.id: item,
     };
+    final normalizedPreferredMarkets =
+        normalizeMarketIds(preferredMarkets).toSet();
     final shoppingByIngredient = {
       for (final item in shoppingItems) item.ingredient.id: item,
     };
@@ -250,7 +253,10 @@ class SmartActuellerService {
       final riskItem = riskByIngredient[deal.ingredient.id];
       final shoppingItem = shoppingByIngredient[deal.ingredient.id];
       final neededCount = shoppingItem?.missingCount ?? 0;
-      final isPreferredMarket = preferredMarkets.contains(deal.marketName);
+      final dealMarketId = normalizeMarketId(deal.marketName);
+      final displayMarketName = displayNameForMarket(deal.marketName);
+      final isPreferredMarket = dealMarketId != null &&
+          normalizedPreferredMarkets.contains(dealMarketId);
 
       var score = 0;
       if (neededCount > 0) score += 55 + math.min(neededCount * 6, 24);
@@ -282,17 +288,18 @@ class SmartActuellerService {
       final ingredientNameTr = deal.ingredient.nameTr;
       final ingredientNameEn = deal.ingredient.nameEn;
       final urgencyTr = neededCount > 0
-          ? '$ingredientNameTr secili menulerin icin eksik.'
+          ? '$ingredientNameTr se\u00e7ili men\u00fclerin i\u00e7in eksik.'
           : pantryCount <= 1
-              ? '$ingredientNameTr evde azalmış görünüyor.'
-              : '$ingredientNameTr için güçlü bir indirim yakalandı.';
+              ? '$ingredientNameTr evde azalm\u0131\u015f g\u00f6r\u00fcn\u00fcyor.'
+              : '$ingredientNameTr i\u00e7in g\u00fc\u00e7l\u00fc bir indirim yakaland\u0131.';
       final urgencyEn = neededCount > 0
           ? '$ingredientNameEn is missing for your planned menus.'
           : pantryCount <= 1
               ? '$ingredientNameEn looks low in your pantry.'
               : 'A strong discount was found for $ingredientNameEn.';
-      final recipeNoteTr =
-          recipeLabel.isEmpty ? '' : ' Özellikle $recipeLabel için işine yarar.';
+      final recipeNoteTr = recipeLabel.isEmpty
+          ? ''
+          : ' \u00d6zellikle $recipeLabel i\u00e7in i\u015fine yarar.';
       final recipeNoteEn =
           recipeLabel.isEmpty ? '' : ' It fits $recipeLabel especially well.';
       final untilLabelTr = deal.validUntil == null
@@ -310,11 +317,11 @@ class SmartActuellerService {
         relatedRecipes: shoppingItem?.recipeNames ?? const [],
         estimatedSavings: estimatedSavings.clamp(0, 9999).toDouble(),
         titleTr:
-            '${deal.marketName} • ${ingredientNameTr} ${deal.discountPrice.toStringAsFixed(2)} TL',
+            '$displayMarketName - ${ingredientNameTr} ${deal.discountPrice.toStringAsFixed(2)} TL',
         titleEn:
-            '${deal.marketName} • $ingredientNameEn ${deal.discountPrice.toStringAsFixed(2)} TRY',
+            '$displayMarketName - $ingredientNameEn ${deal.discountPrice.toStringAsFixed(2)} TRY',
         bodyTr:
-            '$urgencyTr$recipeNoteTr Yaklaşık ${estimatedSavings.round()} TL avantaj.$untilLabelTr',
+            '$urgencyTr$recipeNoteTr Yakla\u015f\u0131k ${estimatedSavings.round()} TL avantaj.$untilLabelTr',
         bodyEn:
             '$urgencyEn$recipeNoteEn About ${estimatedSavings.round()} TRY advantage.$untilLabelEn',
       );
@@ -333,12 +340,12 @@ class SmartActuellerService {
         .map(
           (deal) => RemoteMarketQuote(
             ingredientId: deal.ingredient.id,
-            market: deal.marketName,
+            market: displayNameForMarket(deal.marketName),
             unitPrice: deal.discountPrice,
             isCampaign: true,
             campaignLabelTr: deal.validUntil == null
-                ? 'Aktüel indirim'
-                : 'Aktüel indirim • ${_formatDateTr(deal.validUntil!)}',
+                ? 'Akt\u00fcel indirim'
+                : 'Akt\u00fcel indirim - ${_formatDateTr(deal.validUntil!)}',
             campaignLabelEn: deal.validUntil == null
                 ? 'Flyer deal'
                 : 'Flyer deal • ${_formatDateEn(deal.validUntil!)}',
@@ -407,8 +414,10 @@ class SmartActuellerService {
           contextParts.add(lines[j]);
         }
       }
-      final cleaned = contextParts.join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-      if (cleaned.isNotEmpty && RegExp(r'[a-z]').hasMatch(_normalize(cleaned))) {
+      final cleaned =
+          contextParts.join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (cleaned.isNotEmpty &&
+          RegExp(r'[a-z]').hasMatch(_normalize(cleaned))) {
         candidateBlocks.add(cleaned);
       }
     }

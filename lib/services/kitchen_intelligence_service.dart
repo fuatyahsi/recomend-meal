@@ -4,6 +4,7 @@ import '../models/ingredient.dart';
 import '../models/kitchen_intelligence.dart';
 import '../models/recipe.dart';
 import '../models/smart_kitchen.dart';
+import '../utils/market_registry.dart';
 import '../utils/mood_recipes.dart';
 
 class KitchenIntelligenceService {
@@ -146,23 +147,23 @@ class KitchenIntelligenceService {
   };
 
   static const markets = [
-    'A101',
-    'BIM',
-    'SOK',
-    'Migros',
-    'CarrefourSA',
-    'Getir',
-    'Yemeksepeti',
+    'a101',
+    'bim',
+    'sok',
+    'migros',
+    'carrefoursa',
+    'getir',
+    'yemeksepeti',
   ];
 
   static const _marketMultipliers = {
-    'A101': 0.90,
-    'BIM': 0.89,
-    'SOK': 0.93,
-    'Migros': 1.05,
-    'CarrefourSA': 1.03,
-    'Getir': 1.13,
-    'Yemeksepeti': 1.16,
+    'a101': 0.90,
+    'bim': 0.89,
+    'sok': 0.93,
+    'migros': 1.05,
+    'carrefoursa': 1.03,
+    'getir': 1.13,
+    'yemeksepeti': 1.16,
   };
 
   static const _baseShelfLifeByCategory = {
@@ -316,27 +317,28 @@ class KitchenIntelligenceService {
 
     final availableMarkets =
         preferredMarkets != null && preferredMarkets.isNotEmpty
-            ? preferredMarkets
+            ? normalizeMarketIds(preferredMarkets)
             : markets;
 
-    final results = availableMarkets.map((market) {
+    final results = availableMarkets.map((marketId) {
+      final displayMarket = displayNameForMarket(marketId);
       final deals = items.map((shoppingItem) {
         RemoteMarketQuote? liveQuote;
         for (final quote in remoteQuotes) {
-          if (quote.market == market &&
+          if (normalizeMarketId(quote.market) == marketId &&
               quote.ingredientId == shoppingItem.ingredient.id) {
             liveQuote = quote;
             break;
           }
         }
         final unitPrice = liveQuote?.unitPrice ??
-            _unitPriceForMarket(shoppingItem.ingredient, market);
+            _unitPriceForMarket(shoppingItem.ingredient, marketId);
         final totalPrice = unitPrice * shoppingItem.missingCount;
         final isCampaign = liveQuote?.isCampaign ??
-            (_stableHash('${shoppingItem.ingredient.id}-$market') % 5 == 0);
+            (_stableHash('${shoppingItem.ingredient.id}-$marketId') % 5 == 0);
         return MarketItemDeal(
           shoppingItem: shoppingItem,
-          market: market,
+          market: displayMarket,
           unitPrice: unitPrice,
           totalPrice: isCampaign ? totalPrice * 0.88 : totalPrice,
           isCampaign: isCampaign,
@@ -352,7 +354,7 @@ class KitchenIntelligenceService {
           deals.fold<double>(0, (sum, deal) => sum + deal.totalPrice);
       final hasLiveData = deals.any((deal) => deal.isLiveData);
       return MarketBasketComparison(
-        market: market,
+        market: displayMarket,
         deals: deals,
         totalPrice: totalPrice,
         campaignCount: deals.where((deal) => deal.isCampaign).length,

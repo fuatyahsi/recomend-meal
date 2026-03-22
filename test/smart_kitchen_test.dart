@@ -7,7 +7,7 @@ void main() {
     final original = SmartKitchenPreferences.defaults()
         .copyWith(
           campaignAlertsEnabled: true,
-          preferredMarkets: const ['Migros', 'A101'],
+          preferredMarkets: const ['migros', 'a101'],
           marketFeedUrl: 'https://example.com/feed.json',
           marketFeedLabel: 'FridgeChef Live',
           plannedRecipeIdsByMeal: const {
@@ -23,7 +23,7 @@ void main() {
     final restored = SmartKitchenPreferences.fromJson(original.toJson());
 
     expect(restored.campaignAlertsEnabled, isTrue);
-    expect(restored.preferredMarkets, ['Migros', 'A101']);
+    expect(restored.preferredMarkets, ['migros', 'a101']);
     expect(restored.marketFeedUrl, 'https://example.com/feed.json');
     expect(restored.marketFeedLabel, 'FridgeChef Live');
     expect(
@@ -48,5 +48,14 @@ void main() {
       restored.plannedRecipeIdsByMeal['dinner'],
       ['mercimek-corbasi'],
     );
+  });
+
+  test('smart kitchen preferences migrate legacy market names to ids', () {
+    final restored = SmartKitchenPreferences.fromJson({
+      'mealSlots': const [],
+      'preferredMarkets': const ['Migros', 'A101', 'CarrefourSA'],
+    });
+
+    expect(restored.preferredMarkets, ['migros', 'a101', 'carrefoursa']);
   });
 }

@@ -8,6 +8,7 @@ import '../models/smart_actueller.dart';
 import '../models/smart_kitchen.dart';
 import '../providers/app_provider.dart';
 import '../services/notification_service.dart';
+import '../services/smart_actueller_source_service.dart';
 import '../utils/community_challenges.dart';
 import '../utils/mood_recipes.dart';
 import 'ingredient_selection_screen.dart';
@@ -16,8 +17,6 @@ import 'smart_actueller_screen.dart';
 
 class SmartKitchenScreen extends StatelessWidget {
   const SmartKitchenScreen({super.key});
-
-  static const _markets = ['Migros', 'CarrefourSA', 'A101', 'SOK', 'BIM'];
   static const _leadOptions = [15, 30, 45, 60, 90];
 
   @override
@@ -488,17 +487,24 @@ class SmartKitchenScreen extends StatelessWidget {
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _markets.map((market) {
-                        final selected =
-                            prefs.preferredMarkets.contains(market);
-                        return FilterChip(
-                          label: Text(market),
-                          selected: selected,
-                          onSelected: (_) {
-                            provider.togglePreferredMarket(market);
-                          },
-                        );
-                      }).toList(),
+                      children:
+                          SmartActuellerSourceService.availableMarkets.map(
+                        (market) {
+                          final selected =
+                              prefs.preferredMarkets.contains(market.id);
+                          return FilterChip(
+                            avatar: Text(
+                              market.emoji,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            label: Text(market.name),
+                            selected: selected,
+                            onSelected: (_) {
+                              provider.togglePreferredMarket(market.id);
+                            },
+                          );
+                        },
+                      ).toList(),
                     ),
                   ),
                 ),

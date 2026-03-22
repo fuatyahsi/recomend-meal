@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../models/smart_actueller.dart';
 import '../providers/app_provider.dart';
+import '../services/smart_actueller_source_service.dart';
 
 class SmartActuellerScreen extends StatefulWidget {
   const SmartActuellerScreen({super.key});
@@ -123,6 +124,11 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
         children: [
           _ActuellerHeroCard(isTr: isTr),
           const SizedBox(height: 16),
+
+          // ── Market Selector ──
+          _MarketSelectorCard(isTr: isTr, provider: provider),
+          const SizedBox(height: 16),
+
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -140,8 +146,8 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
                   const SizedBox(height: 8),
                   Text(
                     isTr
-                        ? 'Akakçe broşür listesini kullanıcıya göstermeden her gün kontrol eder, yeni broşürleri indirir ve mutfağına uygun fırsatlara çevirir.'
-                        : 'Checks the Akakce flyer list in the background, downloads new flyers, and turns them into useful kitchen deals.',
+                        ? 'Seçili marketlerin Akakçe üzerindeki broşürlerini her gün kontrol eder, ürün ve fiyat bilgilerini çıkarır, mutfağına uygun fırsatlara çevirir.'
+                        : 'Checks your selected markets\' brochures on Akakçe daily, extracts product and price info, and turns them into useful kitchen deals.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
@@ -567,6 +573,80 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
               }),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _MarketSelectorCard extends StatelessWidget {
+  final bool isTr;
+  final AppProvider provider;
+
+  const _MarketSelectorCard({required this.isTr, required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selectedIds = provider.smartKitchenPreferences.preferredMarkets;
+    const markets = SmartActuellerSourceService.availableMarkets;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.storefront_rounded, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTr ? 'Takip ettiğin marketler' : 'Markets you follow',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isTr
+                  ? 'Aktüel broşürlerini görmek istediğin marketleri seç.'
+                  : 'Pick the markets whose weekly flyers you want to track.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: markets.map((market) {
+                final isSelected = selectedIds.contains(market.id);
+                return FilterChip(
+                  selected: isSelected,
+                  showCheckmark: false,
+                  avatar: Text(market.emoji, style: const TextStyle(fontSize: 16)),
+                  label: Text(market.name),
+                  selectedColor:
+                      theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
+                  onSelected: (_) => provider.togglePreferredMarket(market.id),
+                );
+              }).toList(),
+            ),
+            if (selectedIds.isEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                isTr
+                    ? 'En az bir market seçmelisin.'
+                    : 'Please select at least one market.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

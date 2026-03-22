@@ -1,5 +1,6 @@
 import 'ingredient.dart';
 import 'recipe.dart';
+import '../utils/market_registry.dart';
 
 class MealRoutineSlot {
   final String id;
@@ -132,7 +133,7 @@ class SmartKitchenPreferences {
       schoolBreakfastNudges: true,
       priceComparisonEnabled: false,
       campaignAlertsEnabled: false,
-      preferredMarkets: ['Migros', 'CarrefourSA'],
+      preferredMarkets: ['a101', 'bim', 'sok', 'migros'],
       marketFeedUrl: '',
       marketFeedLabel: '',
       plannedRecipeIdsByMeal: {},
@@ -204,6 +205,12 @@ class SmartKitchenPreferences {
       }
     }
 
+    final restoredMarketIds = normalizeMarketIds(
+      (json['preferredMarkets'] as List<dynamic>? ??
+              const ['a101', 'bim', 'sok', 'migros'])
+          .map((value) => value.toString()),
+    );
+
     return SmartKitchenPreferences(
       mealSlots: (json['mealSlots'] as List<dynamic>? ?? const [])
           .map((slot) => MealRoutineSlot.fromJson(slot as Map<String, dynamic>))
@@ -213,9 +220,9 @@ class SmartKitchenPreferences {
       schoolBreakfastNudges: json['schoolBreakfastNudges'] as bool? ?? true,
       priceComparisonEnabled: json['priceComparisonEnabled'] as bool? ?? false,
       campaignAlertsEnabled: json['campaignAlertsEnabled'] as bool? ?? false,
-      preferredMarkets:
-          (json['preferredMarkets'] as List<dynamic>? ?? const ['Migros'])
-              .cast<String>(),
+      preferredMarkets: restoredMarketIds.isEmpty
+          ? const ['a101', 'bim', 'sok', 'migros']
+          : restoredMarketIds,
       marketFeedUrl: json['marketFeedUrl'] as String? ?? '',
       marketFeedLabel: json['marketFeedLabel'] as String? ?? '',
       plannedRecipeIdsByMeal: plannedRecipeIdsByMeal,

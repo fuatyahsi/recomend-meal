@@ -8,61 +8,77 @@ import 'package:http/testing.dart';
 
 void main() {
   group('SmartActuellerSourceService', () {
-    test('discovers the first current brochure per market from Akakce', () async {
+    test('discovers brochure detail urls from root and market pages', () async {
       final client = MockClient((request) async {
-        if (request.url.toString() ==
-            SmartActuellerSourceService.akakceListingUrl) {
-          return http.Response.bytes(
-            utf8.encode('''
+        final url = request.url.toString();
+        if (url == SmartActuellerSourceService.akakceListingUrl) {
+          return _htmlResponse('''
             <html>
               <body>
-                <a href="/brosurler/bim-21-mart-2026-aktuel-111">BIM</a>
-                <a href="/brosurler/bim-18-mart-2026-aktuel-110">BIM eski</a>
-                <a href="/brosurler/a101-21-mart-2026-aktuel-222">A101</a>
-                <a href="/brosurler/esenlik-21-mart-2026-aktuel-333">Esenlik</a>
+                <a href="/brosurler/bim">BİM</a>
+                <a href="/brosurler/a101">A101</a>
               </body>
             </html>
-            '''),
-            200,
-            headers: {'content-type': 'text/html; charset=utf-8'},
-          );
+          ''');
         }
+
+        if (url == 'https://www.akakce.com/brosurler/bim') {
+          return _htmlResponse('''
+            <html>
+              <body>
+                <a href="/brosurler/bim-21-mart-2026-aktuel-111">Yeni BİM</a>
+                <a href="/brosurler/bim-18-mart-2026-aktuel-110">Eski BİM</a>
+              </body>
+            </html>
+          ''');
+        }
+
+        if (url == 'https://www.akakce.com/brosurler/a101') {
+          return _htmlResponse('''
+            <html>
+              <body>
+                <a href="/brosurler/a101-21-mart-2026-aktuel-222">Yeni A101</a>
+              </body>
+            </html>
+          ''');
+        }
+
         return http.Response('Not found', 404);
       });
 
       final service = SmartActuellerSourceService(client: client);
-      final urls = await service.discoverBrochureUrls();
+      final urls = await service.discoverBrochureUrls(
+        selectedMarketIds: const ['bim', 'a101'],
+        maxPerMarket: 2,
+      );
 
       expect(
         urls,
         equals([
           'https://www.akakce.com/brosurler/bim-21-mart-2026-aktuel-111',
+          'https://www.akakce.com/brosurler/bim-18-mart-2026-aktuel-110',
           'https://www.akakce.com/brosurler/a101-21-mart-2026-aktuel-222',
-          'https://www.akakce.com/brosurler/esenlik-21-mart-2026-aktuel-333',
         ]),
       );
     });
 
-    test('extracts Akakce brochure images from page html', () async {
+    test('extracts structured products and fallback images from astro props',
+        () async {
       final client = MockClient((request) async {
-        if (request.url.host == 'www.akakce.com') {
-          return http.Response.bytes(
-            utf8.encode('''
+        final url = request.url.toString();
+        if (url == 'https://www.akakce.com/brosurler/bim-21-mart-2026') {
+          return _htmlResponse('''
             <html>
               <head>
-                <title>BIM 21 Mart 2026 Aktüel Kataloğu</title>
-                <meta property="og:image" content="https://cdn.akakce.com/_bro/u/111/222/222_000001.jpg" />
+                <title>BİM 21 Mart 2026 Aktüel Kataloğu</title>
               </head>
               <body>
-                <img src="https://cdn.akakce.com/_bro/u/111/222/222_000001.jpg" />
-                <img src="//cdn.akakce.com/_bro/u/111/222/222_000002.jpg" />
+                <astro-island props="{&quot;response&quot;:[0,{&quot;metadata&quot;:[0,{&quot;vn&quot;:[0,&quot;BİM&quot;],&quot;bt&quot;:[0,&quot;BİM 21 Mart 2026 Aktüel Kataloğu&quot;],&quot;su&quot;:[0,&quot;/brosurler/bim-21-mart-2026&quot;]}],&quot;pages&quot;:[1,[[0,{&quot;hriURL&quot;:[0,&quot;https://cdn.akakce.com/_bro/u/111/222/222_000001.jpg&quot;],&quot;clips&quot;:[1,[[0,{&quot;n&quot;:[0,&quot;Kaşar Peyniri&quot;],&quot;p&quot;:[0,&quot;129,90&quot;]}],[0,{&quot;n&quot;:[0,&quot;Yumurta 10'lu&quot;],&quot;p&quot;:[0,&quot;62,50&quot;]}]]]}],[0,{&quot;hriURL&quot;:[0,&quot;https://cdn.akakce.com/_bro/u/111/222/222_000002.jpg&quot;],&quot;clips&quot;:[1,[]]}]]],&quot;vdBrochures&quot;:[1,[[0,{&quot;bu&quot;:[0,&quot;/brosurler/bim-18-mart-2026-aktuel-110&quot;]}]]]}]}"></astro-island>
               </body>
             </html>
-            '''),
-            200,
-            headers: {'content-type': 'text/html; charset=utf-8'},
-          );
+          ''');
         }
+
         return http.Response.bytes(<int>[1, 2, 3, 4], 200);
       });
 
@@ -71,9 +87,16 @@ void main() {
         'https://www.akakce.com/brosurler/bim-21-mart-2026',
       );
 
-      expect(result.detectedStore, 'BIM');
-      expect(result.imageUrls.length, 2);
-      expect(result.localImagePaths.length, 2);
+      expect(result.detectedStore, 'BİM');
+      expect(result.usedStructuredCatalogData, isTrue);
+      expect(result.shouldUseImageFallback, isTrue);
+      expect(result.extractedText, contains('Kaşar Peyniri 129,90 TL'));
+      expect(result.extractedText, contains("Yumurta 10'lu 62,50 TL"));
+      expect(
+        result.imageUrls,
+        equals(['https://cdn.akakce.com/_bro/u/111/222/222_000002.jpg']),
+      );
+      expect(result.localImagePaths, hasLength(1));
       expect(File(result.localImagePaths.first).existsSync(), isTrue);
 
       for (final path in result.localImagePaths) {
@@ -96,6 +119,7 @@ void main() {
 
       expect(result.imageUrls, hasLength(1));
       expect(result.localImagePaths, hasLength(1));
+      expect(result.shouldUseImageFallback, isTrue);
       expect(
         result.localImagePaths.first.toLowerCase().endsWith('.jpg'),
         isTrue,
@@ -107,4 +131,12 @@ void main() {
       }
     });
   });
+}
+
+http.Response _htmlResponse(String body) {
+  return http.Response.bytes(
+    utf8.encode(body),
+    200,
+    headers: {'content-type': 'text/html; charset=utf-8'},
+  );
 }

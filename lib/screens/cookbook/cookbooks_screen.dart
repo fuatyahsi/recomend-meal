@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/cookbook_model.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/app_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/cookbook_service.dart';
 
 class CookbooksScreen extends StatefulWidget {
@@ -27,9 +28,13 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
     final auth = context.read<AuthProvider>();
     if (!auth.isAuthenticated) return;
     try {
-      _cookbooks = await _cookbookService.getUserCookbooks(auth.currentUser!.uid);
+      _cookbooks = await _cookbookService.getUserCookbooks(
+        auth.currentUser!.uid,
+      );
     } catch (_) {}
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -40,8 +45,14 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
 
     if (!auth.isAuthenticated) {
       return Scaffold(
-        appBar: AppBar(title: Text(isTr ? 'Tarif Defterlerim' : 'My Cookbooks')),
-        body: Center(child: Text(isTr ? 'Giriş yapmalısın' : 'Please sign in')),
+        appBar: AppBar(
+          title: Text(isTr ? 'Tarif Defterlerim' : 'My Cookbooks'),
+        ),
+        body: Center(
+          child: Text(
+            isTr ? 'Giriş yapmalısın.' : 'Please sign in.',
+          ),
+        ),
       );
     }
 
@@ -53,34 +64,41 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _cookbooks.isEmpty
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('📒', style: TextStyle(fontSize: 64)),
-                      const SizedBox(height: 16),
-                      Text(
-                        isTr
-                            ? 'Henüz defterin yok'
-                            : 'No cookbooks yet',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isTr
-                            ? 'Tarifleri düzenlemek için defter oluştur'
-                            : 'Create a cookbook to organize recipes',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 64,
+                          color: theme.colorScheme.primary,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Text(
+                          isTr ? 'Henüz defterin yok' : 'No cookbooks yet',
+                          style: theme.textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          isTr
+                              ? 'Tariflerini düzenlemek için bir defter oluştur.'
+                              : 'Create a cookbook to organize your recipes.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _cookbooks.length,
                   itemBuilder: (context, index) {
-                    final cb = _cookbooks[index];
+                    final cookbook = _cookbooks[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
@@ -96,25 +114,33 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
-                            child: Text(cb.emoji,
-                                style: const TextStyle(fontSize: 28)),
+                            child: Text(
+                              cookbook.emoji,
+                              style: const TextStyle(fontSize: 28),
+                            ),
                           ),
                         ),
-                        title: Text(cb.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(
+                          cookbook.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: Text(
-                          '${cb.totalRecipes} ${isTr ? 'tarif' : 'recipes'}',
+                          '${cookbook.totalRecipes} ${isTr ? 'tarif' : 'recipes'}',
                           style: TextStyle(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        trailing: PopupMenuButton(
+                        trailing: PopupMenuButton<String>(
                           itemBuilder: (context) => [
                             PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
-                                  const Icon(Icons.delete, color: Colors.red, size: 20),
+                                  const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(isTr ? 'Sil' : 'Delete'),
                                 ],
@@ -123,7 +149,8 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                           ],
                           onSelected: (value) async {
                             if (value == 'delete') {
-                              await _cookbookService.deleteCookbook(cb.id);
+                              await _cookbookService
+                                  .deleteCookbook(cookbook.id);
                               _loadCookbooks();
                             }
                           },
@@ -133,7 +160,8 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                   },
                 ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, isTr, auth.currentUser!.uid),
+        onPressed: () =>
+            _showCreateDialog(context, isTr, auth.currentUser!.uid),
         icon: const Icon(Icons.add),
         label: Text(isTr ? 'Yeni Defter' : 'New Cookbook'),
       ),
@@ -142,44 +170,73 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
 
   void _showCreateDialog(BuildContext context, bool isTr, String userId) {
     final nameController = TextEditingController();
-    String selectedEmoji = '📒';
-    final emojis = ['📒', '🍳', '🥗', '🍰', '🥩', '🐟', '🥬', '🍝', '🫘', '🌮', '🍜', '☕'];
+    var selectedEmoji = '\u{1F4D2}';
+    var isSubmitting = false;
+    const emojis = [
+      '\u{1F4D2}',
+      '\u{1F373}',
+      '\u{1F955}',
+      '\u{1F370}',
+      '\u{1F96A}',
+      '\u{1F41F}',
+      '\u{1F96C}',
+      '\u{1F35D}',
+      '\u{1FAD8}',
+      '\u{1F32E}',
+      '\u{1F35C}',
+      '\u{2615}',
+    ];
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(isTr ? 'Yeni Defter Oluştur' : 'Create New Cookbook'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(
+            isTr ? 'Yeni Defter Oluştur' : 'Create New Cookbook',
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Emoji seçici
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: emojis.map((e) => GestureDetector(
-                  onTap: () => setDialogState(() => selectedEmoji = e),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: selectedEmoji == e
-                          ? Theme.of(context).colorScheme.primaryContainer
-                          : null,
-                      borderRadius: BorderRadius.circular(8),
-                      border: selectedEmoji == e
-                          ? Border.all(color: Theme.of(context).colorScheme.primary)
-                          : null,
+                children: emojis.map((emoji) {
+                  return GestureDetector(
+                    onTap: isSubmitting
+                        ? null
+                        : () => setDialogState(() => selectedEmoji = emoji),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: selectedEmoji == emoji
+                            ? Theme.of(dialogContext)
+                                .colorScheme
+                                .primaryContainer
+                            : null,
+                        borderRadius: BorderRadius.circular(8),
+                        border: selectedEmoji == emoji
+                            ? Border.all(
+                                color:
+                                    Theme.of(dialogContext).colorScheme.primary,
+                              )
+                            : null,
+                      ),
+                      child: Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 24),
+                      ),
                     ),
-                    child: Text(e, style: const TextStyle(fontSize: 24)),
-                  ),
-                )).toList(),
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: nameController,
+                enabled: !isSubmitting,
                 decoration: InputDecoration(
                   labelText: isTr ? 'Defter Adı' : 'Cookbook Name',
-                  hintText: isTr ? 'ör: Diyet Tarifleri' : 'e.g. Diet Recipes',
+                  hintText:
+                      isTr ? 'Ör: Haftalık Favoriler' : 'e.g. Weekly Favorites',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -189,21 +246,42 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed:
+                  isSubmitting ? null : () => Navigator.pop(dialogContext),
               child: Text(isTr ? 'İptal' : 'Cancel'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.trim().isEmpty) return;
-                await _cookbookService.createCookbook(
-                  userId: userId,
-                  name: nameController.text.trim(),
-                  emoji: selectedEmoji,
-                );
-                Navigator.pop(context);
-                _loadCookbooks();
-              },
-              child: Text(isTr ? 'Oluştur' : 'Create'),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final trimmedName = nameController.text.trim();
+                      if (trimmedName.isEmpty) return;
+
+                      setDialogState(() => isSubmitting = true);
+
+                      try {
+                        await _cookbookService.createCookbook(
+                          userId: userId,
+                          name: trimmedName,
+                          emoji: selectedEmoji,
+                        );
+
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+                        _loadCookbooks();
+                      } finally {
+                        if (dialogContext.mounted) {
+                          setDialogState(() => isSubmitting = false);
+                        }
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(isTr ? 'Oluştur' : 'Create'),
             ),
           ],
         ),

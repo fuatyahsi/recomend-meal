@@ -432,15 +432,21 @@ class AppProvider extends ChangeNotifier {
     final rawParts = <String>[];
     var detectedStore = source.detectedStore;
 
-    for (final imagePath in source.localImagePaths) {
-      final capture = await _kitchenVisionService.analyzeActuellerImage(
-        imagePath,
-      );
-      if (capture.rawText.trim().isNotEmpty) {
-        rawParts.add(capture.rawText.trim());
+    if (source.extractedText.trim().isNotEmpty) {
+      rawParts.add(source.extractedText.trim());
+    }
+
+    if (source.shouldUseImageFallback) {
+      for (final imagePath in source.localImagePaths) {
+        final capture = await _kitchenVisionService.analyzeActuellerImage(
+          imagePath,
+        );
+        if (capture.rawText.trim().isNotEmpty) {
+          rawParts.add(capture.rawText.trim());
+        }
+        allBlocks.addAll(capture.blocks);
+        detectedStore ??= capture.detectedStore;
       }
-      allBlocks.addAll(capture.blocks);
-      detectedStore ??= capture.detectedStore;
     }
 
     if (rawParts.isEmpty) {
@@ -483,7 +489,8 @@ class AppProvider extends ChangeNotifier {
         .where((url) => url.isNotEmpty)
         .toList();
     _actuellerCatalogSyncMessage =
-        '${snapshot.brochureCount} broşür feedden alındı, ${snapshot.catalogItems.length} ürün hazır.';
+        '${snapshot.brochureCount} broşür feedden alındı, '
+        '${snapshot.catalogItems.length} ürün hazır.';
     await _savePreferences();
     await _refreshSmartKitchenNotifications();
     notifyListeners();
@@ -508,12 +515,10 @@ class AppProvider extends ChangeNotifier {
 
     try {
       final brochureUrls =
-          await _smartActuellerSourceService.discoverBrochureUrls();
-      final urlsToProcess = force
-          ? brochureUrls
-          : brochureUrls
-              .where((url) => !_lastActuellerCatalogUrls.contains(url))
-              .toList();
+          await _smartActuellerSourceService.discoverBrochureUrls(
+        selectedMarketIds: _smartKitchenPreferences.preferredMarkets,
+      );
+      final urlsToProcess = brochureUrls;
 
       if (urlsToProcess.isEmpty) {
         _lastActuellerCatalogSyncAt = now;
@@ -528,23 +533,10 @@ class AppProvider extends ChangeNotifier {
       }
 
       final previousScan = _lastActuellerScanResult;
-      final uniqueCatalogItems = force
-          ? <String, ActuellerCatalogItem>{}
-          : {
-              for (final item
-                  in previousScan?.catalogItems ?? const <ActuellerCatalogItem>[])
-                item.id: item,
-            };
-      final uniqueDeals = force
-          ? <String, ActuellerDeal>{}
-          : {
-              for (final deal in previousScan?.deals ?? const <ActuellerDeal>[])
-                '${deal.marketName}|${deal.ingredient.id}': deal,
-            };
-      final allBlocks = force ? <String>{} : {...?previousScan?.blocks};
-      final unmatchedBlocks = force
-          ? <String>{}
-          : {...?previousScan?.unmatchedBlocks};
+      final uniqueCatalogItems = <String, ActuellerCatalogItem>{};
+      final uniqueDeals = <String, ActuellerDeal>{};
+      final allBlocks = <String>{};
+      final unmatchedBlocks = <String>{};
       final reports = <ActuellerCatalogBrochureReport>[];
       var brochureCount = 0;
 
@@ -557,15 +549,28 @@ class AppProvider extends ChangeNotifier {
           final brochureBlocks = <String>{};
           var detectedStore = source.detectedStore;
 
-          for (final imagePath in source.localImagePaths.take(6)) {
-            final capture = await _kitchenVisionService.analyzeActuellerImage(
-              imagePath,
-            );
-            if (capture.rawText.trim().isNotEmpty) {
-              rawParts.add(capture.rawText.trim());
+          if (source.extractedText.trim().isNotEmpty) {
+            rawParts.add(source.extractedText.trim());
+          }
+
+          if (source.shouldUseImageFallback) {
+            for (final imagePath in source.localImagePaths.take(6)) {
+              try {
+                final capture =
+                    await _kitchenVisionService.analyzeActuellerImage(
+                  imagePath,
+                );
+                if (capture.rawText.trim().isNotEmpty) {
+                  rawParts.add(capture.rawText.trim());
+                }
+                brochureBlocks.addAll(capture.blocks);
+                detectedStore ??= capture.detectedStore;
+              } catch (error) {
+                debugPrint(
+                  '[Aktueller] OCR hatasi (devam ediliyor): $error',
+                );
+              }
             }
-            brochureBlocks.addAll(capture.blocks);
-            detectedStore ??= capture.detectedStore;
           }
 
           if (rawParts.isEmpty) {
@@ -580,7 +585,8 @@ class AppProvider extends ChangeNotifier {
                 dealCount: 0,
                 hadReadableText: false,
                 productNames: const [],
-                note: 'OCR okunabilir metin çıkaramadı.',
+                note:
+                    'Yeni broşürler bulundu ama okunabilir içerik çıkarılamadı.',
               ),
             );
             continue;
@@ -609,18 +615,10 @@ class AppProvider extends ChangeNotifier {
                   .take(5)
                   .toList(),
               note: brochureResult.catalogItems.isEmpty
-                  ? 'OCR metni alındı ama ürün çıkarılamadı.'
+                  ? 'Okunabilir metin alındı ama ürün listesi çıkarılamadı.'
                   : null,
             ),
           );
-
-          final marketName = detectedStore ?? brochureResult.detectedStore;
-          if (marketName != null) {
-            uniqueCatalogItems.removeWhere(
-              (key, item) => item.marketName == marketName,
-            );
-            uniqueDeals.removeWhere((key, deal) => deal.marketName == marketName);
-          }
 
           for (final item in brochureResult.catalogItems) {
             uniqueCatalogItems[item.id] = item;
@@ -641,7 +639,7 @@ class AppProvider extends ChangeNotifier {
           reports.add(
             ActuellerCatalogBrochureReport(
               brochureUrl: brochureUrl,
-              sourceLabel: 'Akakçe Broşürü',
+              sourceLabel: 'Aktüel Broşür',
               marketName: null,
               imageCount: 0,
               blockCount: 0,
@@ -669,7 +667,10 @@ class AppProvider extends ChangeNotifier {
           return a.productTitle.compareTo(b.productTitle);
         });
 
-      if (catalogItems.isNotEmpty || deals.isNotEmpty || force || previousScan == null) {
+      if (catalogItems.isNotEmpty ||
+          deals.isNotEmpty ||
+          force ||
+          previousScan == null) {
         _lastActuellerScanResult = ActuellerScanResult(
           rawText: allBlocks.join('\n'),
           blocks: allBlocks.toList(),
@@ -677,7 +678,7 @@ class AppProvider extends ChangeNotifier {
           deals: deals,
           unmatchedBlocks: unmatchedBlocks.take(40).toList(),
           detectedStore: null,
-          sourceLabel: 'Akakçe Günlük Broşürler',
+          sourceLabel: 'Günlük Aktüel Broşürler',
           capturedImagePath: null,
           scannedAt: now,
           confidence: deals.isEmpty ? 0 : 0.78,
@@ -695,13 +696,15 @@ class AppProvider extends ChangeNotifier {
           ? 'Yeni broşürler bulundu ama okunabilir içerik çıkarılamadı.'
           : catalogItems.isEmpty
               ? 'Yeni broşürler bulundu ama ürün listesi çıkarılamadı.'
-              : '$brochureCount yeni broşür işlendi, ${catalogItems.length} ürün okundu, ${deals.length} mutfak eşleşmesi hazır.';
+              : '$brochureCount yeni broşür işlendi, '
+                  '${catalogItems.length} ürün okundu, '
+                  '${deals.length} mutfak eşleşmesi hazır.';
       _recordKitchenActivity(KitchenActivityType.visionAnalysis);
       await _savePreferences();
       await _refreshSmartKitchenNotifications();
     } catch (error) {
       _actuellerCatalogSyncMessage =
-          'Akakçe broşürleri alınamadı. Daha sonra tekrar dene.';
+          'Aktüel broşürler alınamadı. Daha sonra tekrar dene.';
       debugPrint('Actueller catalog sync error: $error');
     } finally {
       _isActuellerCatalogSyncing = false;
