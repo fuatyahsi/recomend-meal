@@ -2,6 +2,12 @@ name: Android Build
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_artifacts:
+        description: "Upload build artifacts"
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - main
@@ -52,6 +58,8 @@ jobs:
         run: flutter build apk --debug
 
       - name: Upload debug APK artifact
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_artifacts == 'true' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: fridgechef-debug-apk
@@ -79,7 +87,8 @@ jobs:
         run: flutter build appbundle --release
 
       - name: Upload release APK artifact
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.ANDROID_KEY_ALIAS != '' && env.ANDROID_KEY_PASSWORD != '' && env.ANDROID_STORE_PASSWORD != '' }}
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.ANDROID_KEY_ALIAS != '' && env.ANDROID_KEY_PASSWORD != '' && env.ANDROID_STORE_PASSWORD != '' && github.event_name == 'workflow_dispatch' && github.event.inputs.upload_artifacts == 'true' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: fridgechef-release-apk
@@ -87,7 +96,8 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release AAB artifact
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.ANDROID_KEY_ALIAS != '' && env.ANDROID_KEY_PASSWORD != '' && env.ANDROID_STORE_PASSWORD != '' }}
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.ANDROID_KEY_ALIAS != '' && env.ANDROID_KEY_PASSWORD != '' && env.ANDROID_STORE_PASSWORD != '' && github.event_name == 'workflow_dispatch' && github.event.inputs.upload_artifacts == 'true' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: fridgechef-release-aab

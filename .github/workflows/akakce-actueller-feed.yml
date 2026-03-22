@@ -107,6 +107,7 @@ jobs:
 
       - name: Upload worker JSON outputs
         if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.upload_artifacts == 'true' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: akakce-actueller-feed
