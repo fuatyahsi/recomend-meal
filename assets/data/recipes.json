@@ -709,8 +709,8 @@
   },
   {
     "id": "ispanakli_yumurta",
-    "name_tr": "Ispanaklı Yumurta",
-    "name_en": "Spinach with Eggs",
+    "name_tr": "Tavada Ispanaklı Yumurta",
+    "name_en": "Skillet Spinach with Eggs",
     "description_tr": "Sağlıklı, hafif ve lezzetli bir öğün.",
     "description_en": "A healthy, light, and delicious meal.",
     "image_emoji": "🥬",
@@ -3362,8 +3362,8 @@
   },
   {
     "id": "coban_salatasi",
-    "name_tr": "Çoban Salatası",
-    "name_en": "Turkish Shepherd's Salad",
+    "name_tr": "Nar Ekşili Çoban Salatası",
+    "name_en": "Pomegranate Shepherd's Salad",
     "description_tr": "Taze sebzelerle hazırlanan, her yemeğin yanına yakışan klasik Türk salatası.",
     "description_en": "Fresh vegetables in a classic Turkish salad that goes with everything.",
     "image_emoji": "🥗",

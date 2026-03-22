@@ -142,6 +142,12 @@ String buildRecipeContentSignature(Map<String, dynamic> recipe) {
   ].join('||');
 }
 
+String _recipeVisibleNameKey(Map<String, dynamic> recipe) {
+  final name =
+      recipe['name_tr'] ?? recipe['name_en'] ?? recipe['id'] ?? 'recipe';
+  return _normalizeRecipeText(name);
+}
+
 List<Map<String, dynamic>> expandRecipeCatalog(
   List<Map<String, dynamic>> recipes,
 ) {
@@ -151,10 +157,12 @@ List<Map<String, dynamic>> expandRecipeCatalog(
   ];
   final uniqueRecipes = <Map<String, dynamic>>[];
   final seenSignatures = <String>{};
+  final seenVisibleNames = <String>{};
 
   for (final recipe in allRecipes) {
     final signature = buildRecipeContentSignature(recipe);
-    if (seenSignatures.add(signature)) {
+    final visibleName = _recipeVisibleNameKey(recipe);
+    if (seenSignatures.add(signature) && seenVisibleNames.add(visibleName)) {
       uniqueRecipes.add(recipe);
     }
   }

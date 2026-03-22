@@ -71,4 +71,18 @@ void main() {
 
     expect(signatures.toSet().length, signatures.length);
   });
+
+  test('recipe catalog does not repeat visible Turkish recipe names', () {
+    final baseRecipes = loadRecipes('assets/data/recipes.json');
+    final extraRecipes = loadRecipes('assets/data/recipes_extra.json');
+    final allRecipes = expandRecipeCatalog([...baseRecipes, ...extraRecipes]);
+
+    final normalizedNames = allRecipes
+        .map(
+          (recipe) => (recipe['name_tr'] ?? '').toString().trim().toLowerCase(),
+        )
+        .toList();
+
+    expect(normalizedNames.toSet().length, normalizedNames.length);
+  });
 }
