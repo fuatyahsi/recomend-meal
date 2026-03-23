@@ -106,7 +106,7 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isTr ? 'Smart Aktüel Asistanı' : 'Smart Flyer Assistant',
+          isTr ? 'Markette Bugün Ne Ucuz?' : 'Today\'s Market Deals',
         ),
         actions: [
           IconButton(
@@ -137,8 +137,8 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
                 children: [
                   Text(
                     isTr
-                        ? 'Günlük broşürleri otomatik tara'
-                        : 'Scan daily flyers automatically',
+                        ? 'Market indirimlerini otomatik topla'
+                        : 'Collect market deals automatically',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -146,8 +146,8 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
                   const SizedBox(height: 8),
                   Text(
                     isTr
-                        ? 'Seçili marketlerin Akakçe üzerindeki broşürlerini her gün kontrol eder, ürün ve fiyat bilgilerini çıkarır, mutfağına uygun fırsatlara çevirir.'
-                        : 'Checks your selected markets\' brochures on Akakçe daily, extracts product and price info, and turns them into useful kitchen deals.',
+                        ? 'Seçtiğin marketlerin broşürlerini kontrol eder, indirimli ürünleri çıkarır ve evinde işine yarayacak olanları öne taşır.'
+                        : 'Checks your selected markets, extracts discounted products, and highlights the ones useful for your kitchen.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
@@ -156,8 +156,7 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
                         ? 'Planlı kontrol saati: her gün ${syncHour.toString().padLeft(2, '0')}:00'
                         : 'Scheduled check time: every day at ${syncHour.toString().padLeft(2, '0')}:00',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                   const SizedBox(height: 14),
@@ -239,10 +238,9 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
                 ),
                 childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: catalogReports.map((report) {
-                  final headline =
-                      report.marketName?.isNotEmpty == true
-                          ? report.marketName!
-                          : report.sourceLabel;
+                  final headline = report.marketName?.isNotEmpty == true
+                      ? report.marketName!
+                      : report.sourceLabel;
                   final summary = isTr
                       ? '${report.itemCount} ürün, ${report.dealCount} mutfak eşleşmesi, ${report.imageCount} görsel, ${report.blockCount} blok'
                       : '${report.itemCount} items, ${report.dealCount} kitchen matches, ${report.imageCount} images, ${report.blockCount} blocks';
@@ -284,14 +282,12 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
                         const SizedBox(height: 6),
                         SelectableText(
                           report.brochureUrl,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                         ),
                       ],
                     ),
@@ -399,7 +395,7 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
           if (suggestions.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
-              isTr ? 'Sana özel fırsatlar' : 'Opportunities picked for you',
+              isTr ? 'Evine uyan indirimler' : 'Deals that fit your kitchen',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -443,8 +439,8 @@ class _SmartActuellerScreenState extends State<SmartActuellerScreen> {
                           Chip(
                             label: Text(
                               isTr
-                                  ? '${suggestion.estimatedSavings.round()} TL avantaj'
-                                  : '${suggestion.estimatedSavings.round()} TRY saved',
+                                  ? '${suggestion.estimatedSavings.round()} TL daha uygun'
+                                  : '${suggestion.estimatedSavings.round()} TRY cheaper',
                             ),
                           ),
                           Chip(
@@ -598,11 +594,12 @@ class _MarketSelectorCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.storefront_rounded, color: theme.colorScheme.primary),
+                Icon(Icons.storefront_rounded,
+                    color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Takip ettiğin marketler' : 'Markets you follow',
+                    isTr ? 'Seçtiğin marketler' : 'Selected markets',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -613,8 +610,8 @@ class _MarketSelectorCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               isTr
-                  ? 'Aktüel broşürlerini görmek istediğin marketleri seç.'
-                  : 'Pick the markets whose weekly flyers you want to track.',
+                  ? 'İndirimlerini görmek istediğin marketleri seç.'
+                  : 'Choose the markets whose deals you want to see.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 14),
@@ -626,7 +623,8 @@ class _MarketSelectorCard extends StatelessWidget {
                 return FilterChip(
                   selected: isSelected,
                   showCheckmark: false,
-                  avatar: Text(market.emoji, style: const TextStyle(fontSize: 16)),
+                  avatar:
+                      Text(market.emoji, style: const TextStyle(fontSize: 16)),
                   label: Text(market.name),
                   selectedColor:
                       theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
@@ -683,12 +681,13 @@ class _ActuellerHeroCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.local_offer_rounded, color: Colors.white),
+                child:
+                    const Icon(Icons.local_offer_rounded, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  isTr ? 'Smart Aktüel Asistanı' : 'Smart Flyer Assistant',
+                  isTr ? 'Markette Bugün Ne Ucuz?' : 'Today\'s Market Deals',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -700,8 +699,8 @@ class _ActuellerHeroCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             isTr
-                ? 'Sadece indirim göstermez. Dolabın, menülerin ve eksiklerinle konuşur; gerçekten işine yarayan ürünleri öne çıkarır.'
-                : 'It does more than list discounts. It connects flyers to your pantry, menus, and missing items.',
+                ? 'Seçtiğin marketlerde hangi ürünün uygun olduğunu hemen gösterir. Evde azalanları ve işine yarayacak ürünleri öne çıkarır.'
+                : 'Shows which products are worth buying in your selected markets and highlights the ones useful for your kitchen.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.92),
               height: 1.45,
@@ -735,11 +734,12 @@ class _ActuellerSummaryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.query_stats_rounded, color: theme.colorScheme.primary),
+                Icon(Icons.query_stats_rounded,
+                    color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Aktüel özeti' : 'Flyer summary',
+                    isTr ? 'İndirim özeti' : 'Deal summary',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),

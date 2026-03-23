@@ -1754,7 +1754,7 @@ class _SmartActuellerCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Smart Aktüel Asistanı' : 'Smart Flyer Assistant',
+                    isTr ? 'Markette Bugün Ne Ucuz?' : 'Today\'s Market Deals',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -1765,8 +1765,8 @@ class _SmartActuellerCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isTr
-                  ? 'Market broşürünü tara. İndirimleri dolabındaki eksikler ve azalan malzemelerle eşleştirelim.'
-                  : 'Scan a market flyer and match the deals with your missing and low-stock ingredients.',
+                  ? 'Seçtiğin marketlerde hangi ürünün uygun olduğunu hemen gör. Evde eksilenleri öne çıkaralım.'
+                  : 'See which products are cheaper in your selected markets and highlight the ones you are running low on.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -1784,8 +1784,8 @@ class _SmartActuellerCard extends StatelessWidget {
                 ),
                 child: Text(
                   isTr
-                      ? 'Henüz broşür taranmadı. Kamera veya galeri ile başlayabilirsin.'
-                      : 'No flyer has been scanned yet. Start with camera or gallery.',
+                      ? 'Henüz market indirimi alınmadı. Hemen göz atabilirsin.'
+                      : 'No market deals have been loaded yet. You can open it now.',
                 ),
               )
             else ...[
@@ -1985,8 +1985,8 @@ class _MarketComparisonCard extends StatelessWidget {
                       if (comparison.estimatedSavingsVsHighest > 0)
                         Text(
                           isTr
-                              ? '${comparison.estimatedSavingsVsHighest.round()} TL avantaj'
-                              : '${comparison.estimatedSavingsVsHighest.round()} TRY saved',
+                              ? '${comparison.estimatedSavingsVsHighest.round()} TL daha uygun'
+                              : '${comparison.estimatedSavingsVsHighest.round()} TRY cheaper',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.primary,
                           ),

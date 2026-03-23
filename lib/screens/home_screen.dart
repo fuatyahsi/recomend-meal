@@ -5,7 +5,9 @@ import '../l10n/app_localizations.dart';
 import '../providers/app_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/recipe.dart';
+import '../models/smart_actueller.dart';
 import '../utils/app_theme.dart';
+import '../utils/market_registry.dart';
 import '../widgets/glass_container.dart';
 import 'ingredient_selection_screen.dart';
 import 'category_recipes_screen.dart';
@@ -16,6 +18,7 @@ import 'recipe_roulette_screen.dart';
 import 'flavor_dna_screen.dart';
 import 'settings_screen.dart';
 import 'premium/premium_screen.dart';
+import 'smart_actueller_screen.dart';
 import 'smart_kitchen_screen.dart';
 import 'vision_lab_screen.dart';
 
@@ -160,6 +163,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final locale = provider.languageCode;
     final isTr = locale == 'tr';
     final isPremium = context.watch<AuthProvider>().isPremium;
+    final featuredActuellerSuggestion =
+        provider.smartActuellerSuggestions.isEmpty
+            ? null
+            : provider.smartActuellerSuggestions.first;
+    final featuredMarketNames = provider
+        .smartKitchenPreferences.preferredMarkets
+        .map(displayNameForMarket)
+        .where((name) => name.isNotEmpty)
+        .take(4)
+        .toList();
+    final featuredBrochureCount = provider.lastActuellerCatalogBrochureCount;
+    final featuredItemCount =
+        provider.lastActuellerScanResult?.catalogItems.length ?? 0;
 
     final allRecipes = provider.recipeService.recipes;
     final popularRecipes =
@@ -273,6 +289,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _HomeFeaturedActuellerCard(
+                      isTr: isTr,
+                      suggestion: featuredActuellerSuggestion,
+                      marketNames: featuredMarketNames,
+                      brochureCount: featuredBrochureCount,
+                      itemCount: featuredItemCount,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SmartActuellerScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 14)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1508,6 +1543,164 @@ class _KitchenIntelHomeCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeFeaturedActuellerCard extends StatelessWidget {
+  final bool isTr;
+  final ActuellerSuggestion? suggestion;
+  final List<String> marketNames;
+  final int brochureCount;
+  final int itemCount;
+  final VoidCallback onTap;
+
+  const _HomeFeaturedActuellerCard({
+    required this.isTr,
+    required this.suggestion,
+    required this.marketNames,
+    required this.brochureCount,
+    required this.itemCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = isTr ? 'Markette Bugün Ne Ucuz?' : 'Today\'s Market Deals';
+    final subtitle = suggestion == null
+        ? (isTr
+            ? 'Seçtiğin marketlerde hangi ürünlerin uygun olduğunu tek yerde gör. Marketlerini seç, indirimleri hemen öğren.'
+            : 'See which discounted products are worth buying across your selected markets.')
+        : suggestion!.body(isTr ? 'tr' : 'en');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF7A1F3D),
+                Color(0xFFC4494E),
+                Color(0xFFF59B42),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFC4494E).withValues(alpha: 0.30),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.local_offer_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          isTr
+                              ? 'Seçtiğin marketlerdeki indirimleri hemen gör'
+                              : 'Check discounted products in your chosen markets',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.88),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (suggestion != null) ...[
+                Text(
+                  suggestion!.title(isTr ? 'tr' : 'en'),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Text(
+                subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (brochureCount > 0)
+                    _HomeStatChip(
+                      label: isTr
+                          ? '$brochureCount broşür'
+                          : '$brochureCount flyers',
+                    ),
+                  if (itemCount > 0)
+                    _HomeStatChip(
+                      label: isTr ? '$itemCount ürün' : '$itemCount items',
+                    ),
+                  ...marketNames.take(3).map(
+                        (name) => _HomeStatChip(label: name),
+                      ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onTap,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF8C2F39),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: Text(isTr ? 'İndirimleri Gör' : 'See deals'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

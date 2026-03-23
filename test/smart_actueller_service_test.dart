@@ -122,5 +122,36 @@ void main() {
         equals(['egg']),
       );
     });
+    test('ignores implausible savings signals and far future dates', () {
+      final result = service.analyzeFlyerText(
+        rawText: 'A101\nSiyah Zeytin 25,00 TL 1299,00 TL 30.09.2033',
+        ingredients: const [blackOlive],
+        detectedStore: 'A101',
+      );
+
+      expect(result.deals, hasLength(1));
+      expect(result.deals.single.regularPrice, isNull);
+      expect(result.deals.single.validUntil, isNull);
+
+      final suggestions = service.buildPersonalizedSuggestions(
+        scanResult: result,
+        pantryCounts: const {'black_olive': 0},
+        pantryRiskItems: const [],
+        shoppingItems: const [
+          SmartShoppingItem(
+            ingredient: blackOlive,
+            requiredCount: 12,
+            availableCount: 0,
+            missingCount: 12,
+            recipeNames: ['Kahvalti tabagi'],
+          ),
+        ],
+        preferredMarkets: const ['A101'],
+      );
+
+      expect(suggestions, isNotEmpty);
+      expect(suggestions.single.estimatedSavings, lessThan(100));
+      expect(suggestions.single.body('tr'), isNot(contains('2033')));
+    });
   });
 }

@@ -161,7 +161,10 @@ class SmartActuellerService {
         continue;
       }
 
-      final highestPrice = prices.reduce(math.max);
+      final regularPrice = _selectRegularPrice(
+        prices: prices,
+        discountPrice: discountPrice,
+      );
       if (!_isReasonablePrice(
         ingredientMatch.alias.ingredient,
         discountPrice,
@@ -169,9 +172,7 @@ class SmartActuellerService {
         unmatchedBlocks.add(block);
         continue;
       }
-      final regularPrice =
-          highestPrice > discountPrice * 1.08 ? highestPrice : null;
-      final validUntil = _detectValidUntil(block) ?? _detectValidUntil(rawText);
+      final validUntil = _resolveValidUntil(block);
       final brand = _extractBrand(productTitle, ingredientMatch.alias.tokens);
       totalScore += ingredientMatch.score;
 
@@ -279,9 +280,11 @@ class SmartActuellerService {
         score += 6;
       }
 
-      final purchaseCount = math.max(neededCount, pantryCount <= 1 ? 1 : 0);
-      final estimatedSavings = deal.unitSavings *
-          math.max(purchaseCount, shoppingItem == null ? 1 : 1);
+      final purchaseCount = _estimatePurchaseCount(
+        neededCount: neededCount,
+        pantryCount: pantryCount,
+      );
+      final estimatedSavings = deal.unitSavings * purchaseCount;
       final recipeLabel = shoppingItem == null
           ? ''
           : shoppingItem.recipeNames.take(2).join(', ');
@@ -302,6 +305,12 @@ class SmartActuellerService {
           : ' \u00d6zellikle $recipeLabel i\u00e7in i\u015fine yarar.';
       final recipeNoteEn =
           recipeLabel.isEmpty ? '' : ' It fits $recipeLabel especially well.';
+      final savingsLabelTr = estimatedSavings >= 2
+          ? ' Tek alışta yaklaşık ${estimatedSavings.round()} TL daha uygun.'
+          : ' Bu üründe uygun bir fiyat görünüyor.';
+      final savingsLabelEn = estimatedSavings >= 2
+          ? ' About ${estimatedSavings.round()} TRY cheaper for a typical purchase.'
+          : ' This looks like a good price.';
       final untilLabelTr = deal.validUntil == null
           ? ''
           : ' Son tarih: ${_formatDateTr(deal.validUntil!)}.';
@@ -320,10 +329,8 @@ class SmartActuellerService {
             '$displayMarketName - ${ingredientNameTr} ${deal.discountPrice.toStringAsFixed(2)} TL',
         titleEn:
             '$displayMarketName - $ingredientNameEn ${deal.discountPrice.toStringAsFixed(2)} TRY',
-        bodyTr:
-            '$urgencyTr$recipeNoteTr Yakla\u015f\u0131k ${estimatedSavings.round()} TL avantaj.$untilLabelTr',
-        bodyEn:
-            '$urgencyEn$recipeNoteEn About ${estimatedSavings.round()} TRY advantage.$untilLabelEn',
+        bodyTr: '$urgencyTr$recipeNoteTr$savingsLabelTr$untilLabelTr',
+        bodyEn: '$urgencyEn$recipeNoteEn$savingsLabelEn$untilLabelEn',
       );
     }).toList()
       ..sort((a, b) {
@@ -333,6 +340,54 @@ class SmartActuellerService {
       });
 
     return suggestions.take(6).toList();
+  }
+
+  double? _selectRegularPrice({
+    required List<double> prices,
+    required double discountPrice,
+  }) {
+    if (prices.length != 2) {
+      return null;
+    }
+
+    final sorted = [...prices]..sort();
+    final candidate = sorted.last;
+    final ratio = candidate / math.max(discountPrice, 1);
+    if (candidate <= discountPrice * 1.05) {
+      return null;
+    }
+    if (ratio > 2.6) {
+      return null;
+    }
+    return candidate;
+  }
+
+  DateTime? _resolveValidUntil(String source) {
+    final detected = _detectValidUntil(source);
+    if (detected == null) {
+      return null;
+    }
+
+    final now = DateTime.now();
+    final earliestAllowed = DateTime(now.year, now.month, now.day)
+        .subtract(const Duration(days: 14));
+    final latestAllowed =
+        DateTime(now.year, now.month, now.day).add(const Duration(days: 45));
+
+    if (detected.isBefore(earliestAllowed) || detected.isAfter(latestAllowed)) {
+      return null;
+    }
+    return detected;
+  }
+
+  int _estimatePurchaseCount({
+    required int neededCount,
+    required int pantryCount,
+  }) {
+    if (neededCount > 0) {
+      return neededCount.clamp(1, 4);
+    }
+    return pantryCount <= 1 ? 1 : 0;
   }
 
   List<RemoteMarketQuote> toRemoteQuotes(ActuellerScanResult scanResult) {
