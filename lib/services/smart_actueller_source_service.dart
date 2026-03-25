@@ -229,19 +229,22 @@ class SmartActuellerSourceService {
         ? ''
         : structuredSource.productLines.join('\n').trim();
 
+    final shouldUseImageFallback = extractedText.isEmpty;
     final fallbackImageUrls = <String>[
-      ...?structuredSource?.fallbackImageUrls,
+      if (shouldUseImageFallback) ...?structuredSource?.fallbackImageUrls,
     ];
-    if (fallbackImageUrls.isEmpty && extractedText.isEmpty) {
+    if (shouldUseImageFallback && fallbackImageUrls.isEmpty) {
       fallbackImageUrls.addAll(_extractBrochurePageImages(html, uri));
     }
 
     final localImagePaths = <String>[];
-    for (final imageUrl in fallbackImageUrls.take(6)) {
-      try {
-        localImagePaths.add(await _downloadImage(Uri.parse(imageUrl)));
-      } catch (error) {
-        debugPrint('[Aktüeller] Görsel indirilemedi: $imageUrl ($error)');
+    if (shouldUseImageFallback) {
+      for (final imageUrl in fallbackImageUrls.take(6)) {
+        try {
+          localImagePaths.add(await _downloadImage(Uri.parse(imageUrl)));
+        } catch (error) {
+          debugPrint('[Aktüeller] Görsel indirilemedi: $imageUrl ($error)');
+        }
       }
     }
 
@@ -263,8 +266,7 @@ class SmartActuellerSourceService {
       localImagePaths: localImagePaths,
       extractedText: extractedText,
       usedStructuredCatalogData: extractedText.isNotEmpty,
-      shouldUseImageFallback:
-          fallbackImageUrls.isNotEmpty || extractedText.isEmpty,
+      shouldUseImageFallback: shouldUseImageFallback,
     );
   }
 
@@ -471,9 +473,28 @@ class SmartActuellerSourceService {
 
   Iterable<String> _extractClipProductLines(List<dynamic> clips) sync* {
     for (final clip in clips.whereType<Map<String, dynamic>>()) {
-      final name = _cleanStructuredText(clip['n']);
-      final price = _normalizeStructuredPrice(clip['p']);
+      final name = _firstNonEmptyString([
+            clip['n'],
+            clip['title'],
+            clip['t'],
+            clip['pn'],
+            clip['name'],
+            clip['uTitle'],
+          ]) ??
+          '';
+      final price = _normalizeStructuredPrice(
+        _firstNonEmptyString([
+          clip['p'],
+          clip['price'],
+          clip['sp'],
+          clip['salePrice'],
+          clip['amount'],
+        ]),
+      );
       if (name.isEmpty || price.isEmpty) {
+        continue;
+      }
+      if (!RegExp(r'[A-Za-zÀ-ÿ]').hasMatch(name)) {
         continue;
       }
       yield '$name $price TL';
@@ -607,13 +628,31 @@ class SmartActuellerSourceService {
   String _resolveUrl(Uri pageUri, String rawUrl) {
     final trimmed = rawUrl.trim();
     if (trimmed.isEmpty) return pageUri.toString();
+    if (trimmed.startsWith('/_bro/')) {
+      return 'https://cdn.akakce.com$trimmed';
+    }
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      final resolved = Uri.parse(trimmed);
+      if (resolved.path.startsWith('/_bro/') &&
+          resolved.host.toLowerCase() == 'www.akakce.com') {
+        return resolved.replace(host: 'cdn.akakce.com').toString();
+      }
       return trimmed;
     }
     if (trimmed.startsWith('//')) {
-      return '${pageUri.scheme}:$trimmed';
+      final resolved = Uri.parse('${pageUri.scheme}:$trimmed');
+      if (resolved.path.startsWith('/_bro/') &&
+          resolved.host.toLowerCase() == 'www.akakce.com') {
+        return resolved.replace(host: 'cdn.akakce.com').toString();
+      }
+      return resolved.toString();
     }
-    return pageUri.resolve(trimmed).toString();
+    final resolved = pageUri.resolve(trimmed);
+    if (resolved.path.startsWith('/_bro/') &&
+        resolved.host.toLowerCase() == 'www.akakce.com') {
+      return resolved.replace(host: 'cdn.akakce.com').toString();
+    }
+    return resolved.toString();
   }
 
   String _buildSourceLabel(String? detectedStore) {

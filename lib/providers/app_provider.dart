@@ -436,7 +436,10 @@ class AppProvider extends ChangeNotifier {
       rawParts.add(source.extractedText.trim());
     }
 
-    if (source.shouldUseImageFallback) {
+    final shouldRunImageFallback =
+        rawParts.isEmpty && source.shouldUseImageFallback;
+
+    if (shouldRunImageFallback) {
       for (final imagePath in source.localImagePaths) {
         final capture = await _kitchenVisionService.analyzeActuellerImage(
           imagePath,
@@ -517,6 +520,8 @@ class AppProvider extends ChangeNotifier {
       final brochureUrls =
           await _smartActuellerSourceService.discoverBrochureUrls(
         selectedMarketIds: _smartKitchenPreferences.preferredMarkets,
+        maxPerMarket: 15,
+        maxTotal: 45,
       );
       final urlsToProcess = brochureUrls;
 
@@ -553,7 +558,10 @@ class AppProvider extends ChangeNotifier {
             rawParts.add(source.extractedText.trim());
           }
 
-          if (source.shouldUseImageFallback) {
+          final shouldRunImageFallback =
+              rawParts.isEmpty && source.shouldUseImageFallback;
+
+          if (shouldRunImageFallback) {
             for (final imagePath in source.localImagePaths.take(6)) {
               try {
                 final capture =
@@ -561,9 +569,14 @@ class AppProvider extends ChangeNotifier {
                   imagePath,
                 );
                 if (capture.rawText.trim().isNotEmpty) {
-                  rawParts.add(capture.rawText.trim());
+                  final filtered = _filterOcrLines(capture.rawText.trim());
+                  if (filtered.isNotEmpty) {
+                    rawParts.add(filtered);
+                  }
                 }
-                brochureBlocks.addAll(capture.blocks);
+                brochureBlocks.addAll(
+                  capture.blocks.where(_isUsableOcrBlock),
+                );
                 detectedStore ??= capture.detectedStore;
               } catch (error) {
                 debugPrint(
@@ -2044,5 +2057,81 @@ class AppProvider extends ChangeNotifier {
         return defaultSlot;
       }
     }).toList();
+  }
+
+  // ── OCR kalite filtresi ──────────────────────────────────────────
+
+  /// Fiyat kalıbı: "123,50 TL" veya "123.50 TL" veya "1.299,00 TL" gibi
+  static final _ocrPricePattern = RegExp(
+    r'[\d.,]+\s*TL\s*$',
+    caseSensitive: false,
+  );
+
+  /// Çöp kalıplar: sadece fiyat ("t42.50"), slogan, bitişik/bozuk metin
+  static final _ocrGarbagePatterns = [
+    RegExp(r'^t\d'), // "t17.999", "t42.50"
+    RegExp(r'EN BÜYÜK', caseSensitive: false), // slogan
+    RegExp(r'ART.ya Özel', caseSensitive: false), // reklam
+    RegExp(r'ZINCiRİ|ZİNCİRİ', caseSensitive: false),
+    RegExp(r'ANOT[Ốô]', caseSensitive: false), // bozuk karakter
+    RegExp(r'garanti', caseSensitive: false), // "2yıl garanti"
+    RegExp(r'alışverişinizde', caseSensitive: false),
+    RegExp(r'^\*'), // "*Ocak doğal gaza…"
+    RegExp(r'^\d+\s*TL\s*$'), // sadece fiyat: "50 TL"
+    RegExp(r'^[%\d.,\s]+$'), // sadece sayı/yüzde
+    RegExp(r'HDmr|HDR\s+\d', caseSensitive: false), // bozuk TV spec metni
+    RegExp(r'KAPSÜL', caseSensitive: false), // reklam: "50 KAPSÜL"
+    RegExp(r'Dahili\s+\d', caseSensitive: false), // "Dahili 3x..."
+    RegExp(r'GOYaKredi|Yapıkredi', caseSensitive: false), // banka reklam
+    RegExp(r'^\d+[.,]\d{3}\s*$'), // "32.999" tek fiyat
+  ];
+
+  /// OCR'dan gelen ham metni satır bazlı filtreler, çöp satırları atar.
+  String _filterOcrLines(String ocrText) {
+    final lines = ocrText.split('\n');
+    final kept = <String>[];
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      if (_isUsableOcrLine(trimmed)) {
+        kept.add(trimmed);
+      }
+    }
+    return kept.join('\n');
+  }
+
+  /// Tek bir OCR satırının kullanılabilir olup olmadığını kontrol eder.
+  bool _isUsableOcrLine(String line) {
+    // Çok kısa satırlar genelde çöp (< 10 karakter)
+    if (line.length < 10) return false;
+
+    // Bilinen çöp kalıpları
+    for (final pattern in _ocrGarbagePatterns) {
+      if (pattern.hasMatch(line)) return false;
+    }
+
+    // En az 2 kelime + fiyat kalıbı olan satırları tut
+    final words =
+        line.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.length < 2) return false;
+
+    // Fiyat kalıbı varsa kesinlikle tut
+    if (_ocrPricePattern.hasMatch(line)) return true;
+
+    // Fiyat kalıbı yoksa ama en az 3 kelime ve bitişik karakter yok → tut
+    if (words.length >= 3) {
+      // Bitişik kelime kontrolü (ör: "sütlüÇlkolatalı")
+      final hasGlued = words.any(
+        (w) => RegExp(r'[a-zçğıöşü][A-ZÇĞİÖŞÜ]').hasMatch(w),
+      );
+      if (!hasGlued) return true;
+    }
+
+    return false;
+  }
+
+  /// OCR bloğunun kullanılabilir olup olmadığını kontrol eder.
+  bool _isUsableOcrBlock(String block) {
+    return _isUsableOcrLine(block.trim());
   }
 }

@@ -15,7 +15,7 @@ void main() {
           return _htmlResponse('''
             <html>
               <body>
-                <a href="/brosurler/bim">BİM</a>
+                <a href="/brosurler/bim">BIM</a>
                 <a href="/brosurler/a101">A101</a>
               </body>
             </html>
@@ -26,8 +26,8 @@ void main() {
           return _htmlResponse('''
             <html>
               <body>
-                <a href="/brosurler/bim-21-mart-2026-aktuel-111">Yeni BİM</a>
-                <a href="/brosurler/bim-18-mart-2026-aktuel-110">Eski BİM</a>
+                <a href="/brosurler/bim-21-mart-2026-aktuel-111">Yeni BIM</a>
+                <a href="/brosurler/bim-18-mart-2026-aktuel-110">Eski BIM</a>
               </body>
             </html>
           ''');
@@ -62,7 +62,7 @@ void main() {
       );
     });
 
-    test('extracts structured products and fallback images from astro props',
+    test('extracts structured products and skips OCR fallback images',
         () async {
       final client = MockClient((request) async {
         final url = request.url.toString();
@@ -70,10 +70,10 @@ void main() {
           return _htmlResponse('''
             <html>
               <head>
-                <title>BİM 21 Mart 2026 Aktüel Kataloğu</title>
+                <title>BIM 21 Mart 2026 Aktuel Katalogu</title>
               </head>
               <body>
-                <astro-island props="{&quot;response&quot;:[0,{&quot;metadata&quot;:[0,{&quot;vn&quot;:[0,&quot;BİM&quot;],&quot;bt&quot;:[0,&quot;BİM 21 Mart 2026 Aktüel Kataloğu&quot;],&quot;su&quot;:[0,&quot;/brosurler/bim-21-mart-2026&quot;]}],&quot;pages&quot;:[1,[[0,{&quot;hriURL&quot;:[0,&quot;https://cdn.akakce.com/_bro/u/111/222/222_000001.jpg&quot;],&quot;clips&quot;:[1,[[0,{&quot;n&quot;:[0,&quot;Kaşar Peyniri&quot;],&quot;p&quot;:[0,&quot;129,90&quot;]}],[0,{&quot;n&quot;:[0,&quot;Yumurta 10'lu&quot;],&quot;p&quot;:[0,&quot;62,50&quot;]}]]]}],[0,{&quot;hriURL&quot;:[0,&quot;https://cdn.akakce.com/_bro/u/111/222/222_000002.jpg&quot;],&quot;clips&quot;:[1,[]]}]]],&quot;vdBrochures&quot;:[1,[[0,{&quot;bu&quot;:[0,&quot;/brosurler/bim-18-mart-2026-aktuel-110&quot;]}]]]}]}"></astro-island>
+                <astro-island props="{&quot;response&quot;:[0,{&quot;metadata&quot;:[0,{&quot;vn&quot;:[0,&quot;BIM&quot;],&quot;bt&quot;:[0,&quot;BIM 21 Mart 2026 Aktuel Katalogu&quot;],&quot;su&quot;:[0,&quot;/brosurler/bim-21-mart-2026&quot;]}],&quot;pages&quot;:[1,[[0,{&quot;hriURL&quot;:[0,&quot;https://cdn.akakce.com/_bro/u/111/222/222_000001.jpg&quot;],&quot;clips&quot;:[1,[[0,{&quot;n&quot;:[0,&quot;Kasar Peyniri&quot;],&quot;p&quot;:[0,&quot;129,90&quot;]}],[0,{&quot;n&quot;:[0,&quot;Yumurta 10'lu&quot;],&quot;p&quot;:[0,&quot;62,50&quot;]}]]]}],[0,{&quot;hriURL&quot;:[0,&quot;https://cdn.akakce.com/_bro/u/111/222/222_000002.jpg&quot;],&quot;clips&quot;:[1,[]]}]]],&quot;vdBrochures&quot;:[1,[[0,{&quot;bu&quot;:[0,&quot;/brosurler/bim-18-mart-2026-aktuel-110&quot;]}]]]}]}"></astro-island>
               </body>
             </html>
           ''');
@@ -89,22 +89,11 @@ void main() {
 
       expect(result.detectedStore, 'BİM');
       expect(result.usedStructuredCatalogData, isTrue);
-      expect(result.shouldUseImageFallback, isTrue);
-      expect(result.extractedText, contains('Kaşar Peyniri 129,90 TL'));
+      expect(result.shouldUseImageFallback, isFalse);
+      expect(result.extractedText, contains('Kasar Peyniri 129,90 TL'));
       expect(result.extractedText, contains("Yumurta 10'lu 62,50 TL"));
-      expect(
-        result.imageUrls,
-        equals(['https://cdn.akakce.com/_bro/u/111/222/222_000002.jpg']),
-      );
-      expect(result.localImagePaths, hasLength(1));
-      expect(File(result.localImagePaths.first).existsSync(), isTrue);
-
-      for (final path in result.localImagePaths) {
-        final file = File(path);
-        if (file.existsSync()) {
-          file.deleteSync();
-        }
-      }
+      expect(result.imageUrls, isEmpty);
+      expect(result.localImagePaths, isEmpty);
     });
 
     test('accepts direct brochure image urls', () async {

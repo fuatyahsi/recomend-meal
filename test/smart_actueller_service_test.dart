@@ -153,5 +153,36 @@ void main() {
       expect(suggestions.single.estimatedSavings, lessThan(100));
       expect(suggestions.single.body('tr'), isNot(contains('2033')));
     });
+
+    test('does not treat dimensions as prices', () {
+      final result = service.analyzeFlyerText(
+        rawText: 'BIM\nGRAN TOYS Oyun Arkadasim Pelus Zurafa 100cm 525,00 TL',
+        ingredients: const [],
+        detectedStore: 'BIM',
+      );
+
+      expect(result.catalogItems, hasLength(1));
+      expect(
+        result.catalogItems.single.productTitle,
+        'GRAN TOYS Oyun Arkadasim Pelus Zurafa 100cm',
+      );
+      expect(result.catalogItems.single.price, 525.0);
+    });
+
+    test('does not treat model numbers as prices', () {
+      final result = service.analyzeFlyerText(
+        rawText:
+            'BIM\nCasio G-Shock G-Squad GMD-B300SC-4DR Pembe Kadin Kol Saati 3500,00 TL',
+        ingredients: const [],
+        detectedStore: 'BIM',
+      );
+
+      expect(result.catalogItems, hasLength(1));
+      expect(
+        result.catalogItems.single.productTitle,
+        'Casio G-Shock G-Squad GMD-B300SC-4DR Pembe Kadin Kol Saati',
+      );
+      expect(result.catalogItems.single.price, 3500.0);
+    });
   });
 }

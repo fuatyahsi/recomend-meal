@@ -9,6 +9,7 @@ import '../models/smart_kitchen.dart';
 import '../utils/market_registry.dart';
 
 class SmartActuellerService {
+  static const _letterClass = r'A-Za-zĞğÜüŞşİıÖöÇç';
   static const _ignoredFlyerPhrases = {
     'aktuel',
     'aktuel urunler',
@@ -494,11 +495,11 @@ class SmartActuellerService {
         .replaceAll(RegExp(r'\b20\d{2}\b'), ' ');
     final prices = <double>[];
 
-    final thousandMatches = RegExp(
-      r'(?<!\d)(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)(?!\d)',
+    final explicitCurrencyMatches = RegExp(
+      '(?<![0-9$_letterClass])(\\d{1,3}(?:\\.\\d{3})+(?:,\\d{2})?|\\d{1,5},\\d{2}|\\d{1,5})(?![0-9$_letterClass])\\s*(?:tl|₺)\\b',
       caseSensitive: false,
     ).allMatches(sanitized);
-    for (final match in thousandMatches) {
+    for (final match in explicitCurrencyMatches) {
       final parsed = _parsePriceToken(match.group(1));
       if (parsed != null) {
         prices.add(parsed);
@@ -506,30 +507,12 @@ class SmartActuellerService {
     }
 
     final decimalMatches = RegExp(
-      r'(?<!\d)(\d{1,4},\d{2})(?!\d)',
+      '(?<![0-9$_letterClass])(\\d{1,4},\\d{2})(?![0-9$_letterClass])',
       caseSensitive: false,
     ).allMatches(sanitized);
     for (final match in decimalMatches) {
       final parsed = _parsePriceToken(match.group(1));
       if (parsed != null) {
-        prices.add(parsed);
-      }
-    }
-
-    final integerMatches = RegExp(
-      r'(?<!\d)(\d{2,5})(?!\d)',
-      caseSensitive: false,
-    ).allMatches(sanitized);
-    for (final match in integerMatches) {
-      final raw = match.group(1);
-      if (raw == null) {
-        continue;
-      }
-      if (raw.length == 4 && raw.startsWith('20')) {
-        continue;
-      }
-      final parsed = double.tryParse(raw);
-      if (parsed != null && parsed >= 5 && parsed <= 100000) {
         prices.add(parsed);
       }
     }
@@ -710,11 +693,20 @@ class SmartActuellerService {
       RegExp(r'\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b'),
       ' ',
     );
-    final withoutPrices = withoutDates.replaceAll(
-      RegExp(r'(?<!\d)\d{1,3}(?:[.,]\d{2})?(?!\d)\s*(?:tl|₺)?',
-          caseSensitive: false),
-      ' ',
-    );
+    final withoutPrices = withoutDates
+        .replaceAll(
+          RegExp(
+            '(?<![0-9$_letterClass])\\d{1,3}(?:\\.\\d{3})+(?:,\\d{2})?(?![0-9$_letterClass])\\s*(?:tl|₺)\\b|(?<![0-9$_letterClass])\\d{1,5},\\d{2}(?![0-9$_letterClass])\\s*(?:tl|₺)\\b|(?<![0-9$_letterClass])\\d{1,5}(?![0-9$_letterClass])\\s*(?:tl|₺)\\b',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(
+            '(?<![0-9$_letterClass])\\d{1,4},\\d{2}(?![0-9$_letterClass])',
+          ),
+          ' ',
+        );
     final compact = withoutPrices.replaceAll(RegExp(r'\s+'), ' ').trim();
     return compact.isEmpty ? block.trim() : compact;
   }

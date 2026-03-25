@@ -1569,11 +1569,24 @@ class _HomeFeaturedActuellerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final title = isTr ? 'Markette Bugün Ne Ucuz?' : 'Today\'s Market Deals';
-    final subtitle = suggestion == null
+    final eyebrow = isTr ? 'Bu haftanın vitrini' : 'Featured this week';
+    final description = suggestion == null
         ? (isTr
-            ? 'Seçtiğin marketlerde hangi ürünlerin uygun olduğunu tek yerde gör. Marketlerini seç, indirimleri hemen öğren.'
-            : 'See which discounted products are worth buying across your selected markets.')
-        : suggestion!.body(isTr ? 'tr' : 'en');
+            ? 'Seçtiğin marketlerdeki indirimleri tek yerde topla. En uygun ürünleri açılır açılmaz gör.'
+            : 'See the best offers across your selected markets as soon as the app opens.')
+        : _trimText(
+            suggestion!.body(isTr ? 'tr' : 'en'),
+            maxLength: 132,
+          );
+    final heroLine = suggestion == null
+        ? (isTr ? 'İndirimi kaçırma.' : 'Catch the best deals.')
+        : suggestion!.title(isTr ? 'tr' : 'en');
+    final chipLabels = <String>[
+      if (brochureCount > 0)
+        isTr ? '$brochureCount broşür' : '$brochureCount flyers',
+      if (itemCount > 0) isTr ? '$itemCount ürün' : '$itemCount items',
+      ...marketNames.take(3),
+    ];
 
     return Material(
       color: Colors.transparent,
@@ -1581,128 +1594,239 @@ class _HomeFeaturedActuellerCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(28),
         child: Container(
-          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0xFF7A1F3D),
-                Color(0xFFC4494E),
-                Color(0xFFF59B42),
+                Color(0xFF4A1734),
+                Color(0xFF982B4E),
+                Color(0xFFE06C3C),
               ],
+              stops: [0.0, 0.56, 1.0],
             ),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFC4494E).withValues(alpha: 0.30),
-                blurRadius: 24,
-                offset: const Offset(0, 12),
+                color: const Color(0xFF982B4E).withValues(alpha: 0.28),
+                blurRadius: 36,
+                offset: const Offset(0, 18),
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(
-                      Icons.local_offer_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
+              Positioned(
+                right: -18,
+                top: -28,
+                child: Container(
+                  width: 128,
+                  height: 128,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+              Positioned(
+                left: -24,
+                bottom: -36,
+                child: Container(
+                  width: 156,
+                  height: 156,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD28D).withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 22,
+                bottom: 22,
+                child: Container(
+                  width: 86,
+                  height: 86,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.16),
+                    ),
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          title,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.3,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.local_offer_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                eyebrow,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          isTr
-                              ? 'Seçtiğin marketlerdeki indirimleri hemen gör'
-                              : 'Check discounted products in your chosen markets',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.88),
+                        const Spacer(),
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.16),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.north_east_rounded,
+                            color: Colors.white,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (suggestion != null) ...[
-                Text(
-                  suggestion!.title(isTr ? 'tr' : 'en'),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Text(
-                subtitle,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (brochureCount > 0)
-                    _HomeStatChip(
-                      label: isTr
-                          ? '$brochureCount broşür'
-                          : '$brochureCount flyers',
-                    ),
-                  if (itemCount > 0)
-                    _HomeStatChip(
-                      label: isTr ? '$itemCount ürün' : '$itemCount items',
-                    ),
-                  ...marketNames.take(3).map(
-                        (name) => _HomeStatChip(label: name),
+                    const SizedBox(height: 18),
+                    Text(
+                      title,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.7,
+                        height: 1.05,
                       ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onTap,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF8C2F39),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      isTr
+                          ? 'Seçtiğin marketlerde hangi ürün gerçekten uygun, ilk burada gör.'
+                          : 'See which products are actually worth buying across your markets.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.16),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            heroLine,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            description,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.88),
+                              height: 1.45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: chipLabels
+                          .map((label) => _HomeStatChip(label: label))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          onPressed: onTap,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF7A1F3D),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 13,
+                            ),
+                          ),
+                          icon: const Icon(Icons.storefront_rounded),
+                          label: Text(
+                            isTr ? 'İndirimleri Aç' : 'Open deals',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            isTr
+                                ? 'Marketlerini seç, uygun ürünü hemen yakala.'
+                                : 'Pick your stores and catch the best price fast.',
+                            textAlign: TextAlign.right,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.84),
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.arrow_forward_rounded),
-                label: Text(isTr ? 'İndirimleri Gör' : 'See deals'),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _trimText(
+    String input, {
+    required int maxLength,
+  }) {
+    final compact = input.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (compact.length <= maxLength) {
+      return compact;
+    }
+    return '${compact.substring(0, maxLength - 1).trimRight()}…';
   }
 }
 
