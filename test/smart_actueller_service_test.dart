@@ -184,5 +184,66 @@ void main() {
       );
       expect(result.catalogItems.single.price, 3500.0);
     });
+
+    test('preserves valid measurements in parsed product titles', () {
+      final result = service.analyzeFlyerText(
+        rawText:
+            "BIM\nChef's Plus Cam Saklama Kabi 250 cc 27,50 TL\nAlpro Badem Sutu 1 lt 149,00 TL\nAbs Valiz Cesitleri Buyuk Boy 76x49x32 cm 899,00 TL",
+        ingredients: const [],
+        detectedStore: 'BIM',
+      );
+
+      expect(result.catalogItems, hasLength(3));
+      expect(
+        result.catalogItems.map((item) => item.productTitle),
+        containsAll(const [
+          "Chef's Plus Cam Saklama Kabi 250 cc",
+          'Alpro Badem Sutu 1 lt',
+          'Abs Valiz Cesitleri Buyuk Boy 76x49x32 cm',
+        ]),
+      );
+    });
+
+    test('removes orphan unit tails from malformed titles', () {
+      final result = service.analyzeFlyerText(
+        rawText:
+            "BIM\nAknaz Tam Yagli Tava Peyniri g 155,00 TL\nAbs Valiz Cesitleri Buyuk Boy x x cm 899,00 TL\nBolbol Sos Cesitleri g/ g/ g/ g 35,00 TL\nBaskili Balonlar 'lu 32,00 TL",
+        ingredients: const [],
+        detectedStore: 'BIM',
+      );
+
+      expect(result.catalogItems, hasLength(4));
+      expect(
+        result.catalogItems.map((item) => item.productTitle),
+        containsAll(const [
+          'Aknaz Tam Yagli Tava Peyniri',
+          'Abs Valiz Cesitleri Buyuk Boy',
+          'Bolbol Sos Cesitleri',
+          'Baskili Balonlar',
+        ]),
+      );
+      expect(
+        result.catalogItems.map((item) => item.price),
+        containsAll(const [155.0, 899.0, 35.0, 32.0]),
+      );
+    });
+
+    test('drops orphan count suffix tokens but preserves valid counts', () {
+      final result = service.analyzeFlyerText(
+        rawText:
+            "BIM\nBora 'lu Dikis Ipi Seti 69,00 TL\nPasabahce Bouquet Su Bardagi 3'lu 290 cc 89,90 TL",
+        ingredients: const [],
+        detectedStore: 'BIM',
+      );
+
+      expect(result.catalogItems, hasLength(2));
+      expect(
+        result.catalogItems.map((item) => item.productTitle),
+        containsAll(const [
+          'Bora Dikis Ipi Seti',
+          "Pasabahce Bouquet Su Bardagi 3'lu 290 cc",
+        ]),
+      );
+    });
   });
 }

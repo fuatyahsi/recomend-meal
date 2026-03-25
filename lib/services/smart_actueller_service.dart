@@ -708,7 +708,99 @@ class SmartActuellerService {
           ' ',
         );
     final compact = withoutPrices.replaceAll(RegExp(r'\s+'), ' ').trim();
-    return compact.isEmpty ? block.trim() : compact;
+    final cleaned = compact.isEmpty ? block.trim() : compact;
+    return _cleanProductTitleArtifacts(cleaned);
+  }
+
+  String _cleanProductTitleArtifacts(String title) {
+    var cleaned = title.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    while (true) {
+      final previous = cleaned;
+      cleaned = cleaned.replaceAll(RegExp(r'[\s,;/:-]+$'), '').trim();
+
+      if (!_endsWithValidMeasure(cleaned)) {
+        cleaned = cleaned
+            .replaceAll(
+              RegExp(
+                r'\s+(?:(?:g|gr|gram|kg|ml|cl|cc|cm|mm|lt|l)\s*/\s*){1,6}(?:g|gr|gram|kg|ml|cl|cc|cm|mm|lt|l)\s*$',
+                caseSensitive: false,
+              ),
+              '',
+            )
+            .trim()
+            .replaceAll(
+              RegExp(
+                r'\s+(?:x|×)\s+(?:g|gr|gram|kg|ml|cl|cc|cm|mm|lt|l)\s*$',
+                caseSensitive: false,
+              ),
+              '',
+            )
+            .trim()
+            .replaceAll(
+              RegExp(
+                r'\s+(?:g|gr|gram|kg|ml|cl|cc|cm|mm|lt|l)\s*$',
+                caseSensitive: false,
+              ),
+              '',
+            )
+            .trim();
+      }
+
+      if (!_endsWithValidCountSuffix(cleaned)) {
+        cleaned = cleaned
+            .replaceAll(
+              RegExp(r"\s+['’]?(?:li|lı|lu|lü)\s*$", caseSensitive: false),
+              '',
+            )
+            .trim();
+      }
+
+      cleaned = cleaned.replaceAll(RegExp(r'\s+(?:x|×)\s*$'), '').trim();
+      cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+      if (cleaned == previous) {
+        break;
+      }
+    }
+
+    cleaned = _removeStandaloneCountSuffixTokens(cleaned);
+    return cleaned.isEmpty
+        ? title.replaceAll(RegExp(r'\s+'), ' ').trim()
+        : cleaned;
+  }
+
+  String _removeStandaloneCountSuffixTokens(String value) {
+    final parts = value.split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
+    final cleanedParts = <String>[];
+
+    for (final part in parts) {
+      final isStandaloneSuffix = RegExp(
+        r"^['’]?(?:li|lı|lu|lü)$",
+        caseSensitive: false,
+      ).hasMatch(part);
+      final previous = cleanedParts.isEmpty ? '' : cleanedParts.last;
+      if (isStandaloneSuffix && !RegExp(r'\d$').hasMatch(previous)) {
+        continue;
+      }
+      cleanedParts.add(part);
+    }
+
+    return cleanedParts.join(' ').trim();
+  }
+
+  bool _endsWithValidMeasure(String value) {
+    return RegExp(
+      r'(?:\d+(?:[.,]\d+)?(?:\s*[x×]\s*\d+(?:[.,]\d+)?){0,3})\s*(?:g|gr|gram|kg|ml|cl|cc|cm|mm|lt|l)\b$',
+      caseSensitive: false,
+    ).hasMatch(value);
+  }
+
+  bool _endsWithValidCountSuffix(String value) {
+    return RegExp(
+      r"\b\d+\s*['’]?(?:li|lı|lu|lü)\b$",
+      caseSensitive: false,
+    ).hasMatch(value);
   }
 
   String? _extractBrand(String productTitle, Set<String> ingredientTokens) {

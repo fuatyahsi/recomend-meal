@@ -191,9 +191,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  theme.colorScheme.primary.withOpacity(0.03),
+                  theme.colorScheme.primary.withValues(alpha: 0.03),
                   theme.colorScheme.surface,
-                  theme.colorScheme.secondaryContainer.withOpacity(0.05),
+                  theme.colorScheme.secondaryContainer.withValues(alpha: 0.05),
                 ],
                 stops: const [0.0, 0.4, 1.0],
               ),
@@ -218,7 +218,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             gradient: LinearGradient(
                               colors: [
                                 theme.colorScheme.primary,
-                                theme.colorScheme.primary.withOpacity(0.7),
+                                theme.colorScheme.primary
+                                    .withValues(alpha: 0.7),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
@@ -645,8 +646,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         borderRadius: 14,
                         gradient: LinearGradient(
                           colors: [
-                            theme.colorScheme.primaryContainer.withOpacity(0.5),
-                            theme.colorScheme.primaryContainer.withOpacity(0.2),
+                            theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.5,
+                            ),
+                            theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.2,
+                            ),
                           ],
                         ),
                         child: Row(
@@ -654,8 +659,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color:
-                                    theme.colorScheme.primary.withOpacity(0.1),
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(Icons.check_circle,
@@ -1126,7 +1132,7 @@ class _AnimatedIconButton extends StatelessWidget {
             color: Theme.of(context)
                 .colorScheme
                 .surfaceContainerHighest
-                .withOpacity(0.5),
+                .withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -1173,14 +1179,14 @@ class _HeroCTACard extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [
                 theme.colorScheme.primary,
-                theme.colorScheme.primary.withOpacity(0.8),
+                theme.colorScheme.primary.withValues(alpha: 0.8),
                 const Color(0xFFFF8C42),
               ],
             ),
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: theme.colorScheme.primary.withOpacity(0.3),
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
                 spreadRadius: -4,
@@ -1194,10 +1200,10 @@ class _HeroCTACard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                 ),
@@ -1224,7 +1230,7 @@ class _HeroCTACard extends StatelessWidget {
                           ? 'Malzemelerini seç, sana tarif bulalım'
                           : 'Select ingredients, we\'ll find recipes',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         height: 1.3,
                       ),
                     ),
@@ -1235,7 +1241,7 @@ class _HeroCTACard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1287,7 +1293,7 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: theme.colorScheme.primary.withOpacity(0.18),
+                color: theme.colorScheme.primary.withValues(alpha: 0.18),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
@@ -1302,7 +1308,7 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.14),
+                      color: Colors.white.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
@@ -1330,7 +1336,7 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                               ? 'Menünü planla, eksikleri gör, sonra saatini ayarla'
                               : 'Build your menu first, then set times and reminders',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withOpacity(0.86),
+                            color: Colors.white.withValues(alpha: 0.86),
                           ),
                         ),
                       ],
@@ -1340,7 +1346,7 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                     onPressed: onToggleExpanded,
                     style: IconButton.styleFrom(
                       foregroundColor: Colors.white,
-                      backgroundColor: Colors.white.withOpacity(0.12),
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
                     ),
                     icon: Icon(
                       isExpanded
@@ -1368,9 +1374,11 @@ class _SmartKitchenLauncherCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.12),
+                    color: Colors.white.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.14)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -1866,17 +1874,19 @@ class _HomeQuickCard extends StatelessWidget {
               colors: isSelected
                   ? gradientColors
                   : [
-                      gradientColors[0].withOpacity(0.92),
-                      gradientColors[1].withOpacity(0.82),
+                      gradientColors[0].withValues(alpha: 0.92),
+                      gradientColors[1].withValues(alpha: 0.82),
                     ],
             ),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(isSelected ? 0.18 : 0.1),
+              color: Colors.white.withValues(alpha: isSelected ? 0.18 : 0.1),
             ),
             boxShadow: [
               BoxShadow(
-                color: gradientColors.first.withOpacity(isSelected ? 0.3 : 0.2),
+                color: gradientColors.first.withValues(
+                  alpha: isSelected ? 0.3 : 0.2,
+                ),
                 blurRadius: isSelected ? 18 : 14,
                 offset: const Offset(0, 10),
                 spreadRadius: -4,
@@ -1892,10 +1902,10 @@ class _HomeQuickCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.16),
+                      color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.16),
+                        color: Colors.white.withValues(alpha: 0.16),
                       ),
                     ),
                     child: Icon(icon, color: Colors.white),
@@ -1905,7 +1915,7 @@ class _HomeQuickCard extends StatelessWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.14),
+                      color: Colors.white.withValues(alpha: 0.14),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -1931,7 +1941,7 @@ class _HomeQuickCard extends StatelessWidget {
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withOpacity(0.88),
+                  color: Colors.white.withValues(alpha: 0.88),
                   height: 1.3,
                 ),
                 maxLines: 1,
@@ -1959,11 +1969,11 @@ class _HomeDetailShell extends StatelessWidget {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 16,
             offset: const Offset(0, 10),
           ),
@@ -2082,7 +2092,7 @@ class _FridgeDetailPanel extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withOpacity(0.45),
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -2377,13 +2387,13 @@ class _HomeExpandableCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
         ],
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -2397,7 +2407,9 @@ class _HomeExpandableCard extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withOpacity(0.65),
+                    color: theme.colorScheme.primaryContainer.withValues(
+                      alpha: 0.65,
+                    ),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: theme.colorScheme.primary),
@@ -2469,7 +2481,7 @@ class _HomeToolLink extends StatelessWidget {
           child: Ink(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.35),
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -2615,7 +2627,7 @@ class _SoftStatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withOpacity(0.7),
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -2695,7 +2707,7 @@ class _CategoryChip extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: gradientColors[1].withOpacity(0.4),
+                      color: gradientColors[1].withValues(alpha: 0.4),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -2777,7 +2789,7 @@ class _PopularRecipeCard extends StatelessWidget {
                     end: Alignment.bottomRight,
                     colors: [
                       gradientColors[0],
-                      gradientColors[1].withOpacity(0.6),
+                      gradientColors[1].withValues(alpha: 0.6),
                     ],
                   ),
                   borderRadius: const BorderRadius.vertical(
@@ -2794,7 +2806,7 @@ class _PopularRecipeCard extends StatelessWidget {
                         recipe.imageEmoji,
                         style: TextStyle(
                           fontSize: 48,
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                         ),
                       ),
                     ),
@@ -2813,11 +2825,11 @@ class _PopularRecipeCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
+                              color: Colors.black.withValues(alpha: 0.06),
                               blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
@@ -2850,7 +2862,7 @@ class _PopularRecipeCard extends StatelessWidget {
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: _getDifficultyColor(recipe.difficulty)
-                              .withOpacity(0.9),
+                              .withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -2960,13 +2972,13 @@ class _FeatureButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: gradientColors[0].withOpacity(0.4),
+                color: gradientColors[0].withValues(alpha: 0.4),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
             ],
             border: Border.all(
-              color: gradientColors[0].withOpacity(0.5),
+              color: gradientColors[0].withValues(alpha: 0.5),
             ),
           ),
           child: Row(
@@ -3033,13 +3045,13 @@ class _QuickRecipeTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
             ],
             border: Border.all(
-              color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
