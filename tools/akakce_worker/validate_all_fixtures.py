@@ -71,11 +71,20 @@ def main() -> None:
         raise SystemExit(f"No fixture files found in {fixtures_dir} matching {fixture_glob}")
 
     failures: list[str] = []
+    validated_count = 0
     print("=== Fixture Validation Matrix ===")
     print(f"Source: {args.source}")
     for fixture_path in fixture_paths:
         fixture = validate_fixture.load_json(fixture_path)
         brochure_ids = validate_fixture.brochure_ids_for_fixture(fixture, source_manifest)
+        if not brochure_ids:
+            print(
+                f"- {fixture_path.name}: skipped "
+                "(matching brochure is not present in the current source manifest)"
+            )
+            continue
+
+        validated_count += 1
         page_index = fixture.get("pageIndex")
         actual_items = validate_fixture.filter_feed_items(feed, brochure_ids, page_index)
         expected_products = list(fixture.get("products", []))
@@ -95,6 +104,11 @@ def main() -> None:
                 print("  Missing:")
                 for item in missing:
                     print(f"  - {item['productName']} | {item['price']}")
+
+    if validated_count == 0:
+        raise SystemExit(
+            "No registered fixtures matched brochures in the current source manifest."
+        )
 
     if failures:
         raise SystemExit(

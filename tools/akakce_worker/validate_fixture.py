@@ -64,6 +64,9 @@ def brochure_ids_for_fixture(fixture: dict, source_manifest: dict) -> set[str]:
 
 
 def filter_feed_items(feed: dict, brochure_ids: set[str], page_index: int | None) -> list[dict]:
+    if not brochure_ids:
+        return []
+
     items: list[dict] = []
     for item in feed.get("items", []):
         if brochure_ids and str(item.get("brochureId")) not in brochure_ids:

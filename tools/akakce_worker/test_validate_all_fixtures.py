@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import sys
 import unittest
+from pathlib import Path
+
+WORKER_ROOT = Path(__file__).resolve().parent
+if str(WORKER_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKER_ROOT))
 
 import market_sources
 
