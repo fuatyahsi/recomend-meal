@@ -82,6 +82,8 @@ class MealRoutineSlot {
 }
 
 class SmartKitchenPreferences {
+  static const legacyDefaultMarketIds = ['a101', 'bim', 'sok', 'migros'];
+
   final List<MealRoutineSlot> mealSlots;
   final bool eveningDriveHomeSuggestions;
   final bool schoolBreakfastNudges;
@@ -133,7 +135,7 @@ class SmartKitchenPreferences {
       schoolBreakfastNudges: true,
       priceComparisonEnabled: false,
       campaignAlertsEnabled: false,
-      preferredMarkets: ['a101', 'bim', 'sok', 'migros'],
+      preferredMarkets: [],
       marketFeedUrl: '',
       marketFeedLabel: '',
       plannedRecipeIdsByMeal: {},
@@ -205,11 +207,14 @@ class SmartKitchenPreferences {
       }
     }
 
+    final hasPreferredMarketsKey = json.containsKey('preferredMarkets');
     final restoredMarketIds = normalizeMarketIds(
-      (json['preferredMarkets'] as List<dynamic>? ??
-              const ['a101', 'bim', 'sok', 'migros'])
+      (json['preferredMarkets'] as List<dynamic>? ?? const [])
           .map((value) => value.toString()),
     );
+    final migratedLegacyMarketIds = !hasPreferredMarketsKey && json.isNotEmpty
+        ? legacyDefaultMarketIds
+        : const <String>[];
 
     return SmartKitchenPreferences(
       mealSlots: (json['mealSlots'] as List<dynamic>? ?? const [])
@@ -220,9 +225,9 @@ class SmartKitchenPreferences {
       schoolBreakfastNudges: json['schoolBreakfastNudges'] as bool? ?? true,
       priceComparisonEnabled: json['priceComparisonEnabled'] as bool? ?? false,
       campaignAlertsEnabled: json['campaignAlertsEnabled'] as bool? ?? false,
-      preferredMarkets: restoredMarketIds.isEmpty
-          ? const ['a101', 'bim', 'sok', 'migros']
-          : restoredMarketIds,
+      preferredMarkets: restoredMarketIds.isNotEmpty
+          ? restoredMarketIds
+          : migratedLegacyMarketIds,
       marketFeedUrl: json['marketFeedUrl'] as String? ?? '',
       marketFeedLabel: json['marketFeedLabel'] as String? ?? '',
       plannedRecipeIdsByMeal: plannedRecipeIdsByMeal,

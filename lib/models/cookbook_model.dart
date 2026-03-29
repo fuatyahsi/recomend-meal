@@ -5,8 +5,8 @@ class Cookbook {
   final String userId;
   final String name;
   final String emoji;
-  final List<String> recipeIds; // built-in recipe IDs
-  final List<String> communityRecipeIds; // community recipe IDs
+  final List<String> recipeIds;
+  final List<String> communityRecipeIds;
   final DateTime createdAt;
 
   const Cookbook({
@@ -25,9 +25,10 @@ class Cookbook {
       id: doc.id,
       userId: data['userId'] ?? '',
       name: data['name'] ?? '',
-      emoji: data['emoji'] ?? '📒',
-      recipeIds: List<String>.from(data['recipeIds'] ?? []),
-      communityRecipeIds: List<String>.from(data['communityRecipeIds'] ?? []),
+      emoji: data['emoji'] ?? '\u{1F4D2}',
+      recipeIds: List<String>.from(data['recipeIds'] ?? const []),
+      communityRecipeIds:
+          List<String>.from(data['communityRecipeIds'] ?? const []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }

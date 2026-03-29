@@ -394,7 +394,7 @@ class AppProvider extends ChangeNotifier {
     String? capturedImagePath,
     String? detectedStore,
     List<String> blocks = const [],
-    String sourceLabel = 'Smart Actüel',
+    String sourceLabel = 'Kampanya Radarı',
   }) async {
     _lastActuellerScanResult = _smartActuellerService.analyzeFlyerText(
       rawText: rawText,
@@ -421,8 +421,8 @@ class AppProvider extends ChangeNotifier {
       detectedStore: capture.detectedStore,
       blocks: capture.blocks,
       sourceLabel: capture.detectedStore == null
-          ? 'Smart Actüel OCR'
-          : '${capture.detectedStore} Aktüel',
+          ? 'Broşür OCR'
+          : '${capture.detectedStore} Broşür',
     );
   }
 
@@ -506,6 +506,15 @@ class AppProvider extends ChangeNotifier {
   Future<void> syncAkakceActuellerCatalog({bool force = false}) async {
     final now = DateTime.now();
     if (!force && !_shouldSyncActuellerCatalog(now)) {
+      return;
+    }
+    if (_smartKitchenPreferences.preferredMarkets.isEmpty) {
+      _lastActuellerCatalogBrochureCount = 0;
+      _lastActuellerCatalogUrls = const [];
+      _actuellerCatalogSyncMessage = languageCode == 'tr'
+          ? 'Önce marketlerini seç, sonra broşürleri getir.'
+          : 'Select your markets first, then load flyers.';
+      notifyListeners();
       return;
     }
     if (_isActuellerCatalogSyncing) {
@@ -652,7 +661,7 @@ class AppProvider extends ChangeNotifier {
           reports.add(
             ActuellerCatalogBrochureReport(
               brochureUrl: brochureUrl,
-              sourceLabel: 'Aktüel Broşür',
+              sourceLabel: 'Market Broşürü',
               marketName: null,
               imageCount: 0,
               blockCount: 0,
@@ -691,7 +700,7 @@ class AppProvider extends ChangeNotifier {
           deals: deals,
           unmatchedBlocks: unmatchedBlocks.take(40).toList(),
           detectedStore: null,
-          sourceLabel: 'Günlük Aktüel Broşürler',
+          sourceLabel: 'Günlük Market Broşürleri',
           capturedImagePath: null,
           scannedAt: now,
           confidence: deals.isEmpty ? 0 : 0.78,

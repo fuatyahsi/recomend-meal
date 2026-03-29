@@ -58,4 +58,29 @@ void main() {
 
     expect(restored.preferredMarkets, ['migros', 'a101', 'carrefoursa']);
   });
+
+  test('smart kitchen preferences start with no selected markets by default',
+      () {
+    final defaults = SmartKitchenPreferences.defaults();
+    final restored = SmartKitchenPreferences.fromJson({
+      'mealSlots': const [],
+      'preferredMarkets': const [],
+    });
+
+    expect(defaults.preferredMarkets, isEmpty);
+    expect(restored.preferredMarkets, isEmpty);
+  });
+
+  test('smart kitchen preferences migrate legacy payloads without market ids',
+      () {
+    final restored = SmartKitchenPreferences.fromJson({
+      'mealSlots': const [],
+      'campaignAlertsEnabled': true,
+    });
+
+    expect(
+      restored.preferredMarkets,
+      SmartKitchenPreferences.legacyDefaultMarketIds,
+    );
+  });
 }

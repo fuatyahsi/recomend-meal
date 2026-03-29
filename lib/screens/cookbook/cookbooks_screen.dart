@@ -15,8 +15,25 @@ class CookbooksScreen extends StatefulWidget {
 
 class _CookbooksScreenState extends State<CookbooksScreen> {
   final _cookbookService = CookbookService();
+
   List<Cookbook> _cookbooks = [];
   bool _isLoading = true;
+
+  static const _defaultCookbookEmoji = '\u{1F4D2}';
+  static const _emojiOptions = [
+    '\u{1F4D2}',
+    '\u{1F373}',
+    '\u{1F955}',
+    '\u{1F370}',
+    '\u{1F96A}',
+    '\u{1F41F}',
+    '\u{1F96C}',
+    '\u{1F35D}',
+    '\u{1FAD9}',
+    '\u{1F32E}',
+    '\u{1F35C}',
+    '\u2615',
+  ];
 
   @override
   void initState() {
@@ -26,12 +43,19 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
 
   Future<void> _loadCookbooks() async {
     final auth = context.read<AuthProvider>();
-    if (!auth.isAuthenticated) return;
+    if (!auth.isAuthenticated) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
+
     try {
       _cookbooks = await _cookbookService.getUserCookbooks(
         auth.currentUser!.uid,
       );
     } catch (_) {}
+
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -50,7 +74,7 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
         ),
         body: Center(
           child: Text(
-            isTr ? 'Giriş yapmalısın.' : 'Please sign in.',
+            isTr ? 'Giri\u015f yapmal\u0131s\u0131n.' : 'Please sign in.',
           ),
         ),
       );
@@ -76,14 +100,14 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          isTr ? 'Henüz defterin yok' : 'No cookbooks yet',
+                          isTr ? 'Hen\u00fcz defterin yok' : 'No cookbooks yet',
                           style: theme.textTheme.titleMedium,
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           isTr
-                              ? 'Tariflerini düzenlemek için bir defter oluştur.'
+                              ? 'Tariflerini d\u00fczenlemek i\u00e7in bir defter olu\u015ftur.'
                               : 'Create a cookbook to organize your recipes.',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
@@ -137,7 +161,7 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                               child: Row(
                                 children: [
                                   const Icon(
-                                    Icons.delete,
+                                    Icons.delete_outline_rounded,
                                     color: Colors.red,
                                     size: 20,
                                   ),
@@ -151,7 +175,7 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                             if (value == 'delete') {
                               await _cookbookService
                                   .deleteCookbook(cookbook.id);
-                              _loadCookbooks();
+                              await _loadCookbooks();
                             }
                           },
                         ),
@@ -169,30 +193,17 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
   }
 
   void _showCreateDialog(BuildContext context, bool isTr, String userId) {
+    final messenger = ScaffoldMessenger.of(context);
     final nameController = TextEditingController();
-    var selectedEmoji = '\u{1F4D2}';
+    var selectedEmoji = _defaultCookbookEmoji;
     var isSubmitting = false;
-    const emojis = [
-      '\u{1F4D2}',
-      '\u{1F373}',
-      '\u{1F955}',
-      '\u{1F370}',
-      '\u{1F96A}',
-      '\u{1F41F}',
-      '\u{1F96C}',
-      '\u{1F35D}',
-      '\u{1FAD8}',
-      '\u{1F32E}',
-      '\u{1F35C}',
-      '\u{2615}',
-    ];
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: Text(
-            isTr ? 'Yeni Defter Oluştur' : 'Create New Cookbook',
+            isTr ? 'Yeni Defter Olu\u015ftur' : 'Create New Cookbook',
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -200,7 +211,7 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: emojis.map((emoji) {
+                children: _emojiOptions.map((emoji) {
                   return GestureDetector(
                     onTap: isSubmitting
                         ? null
@@ -234,9 +245,10 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                 controller: nameController,
                 enabled: !isSubmitting,
                 decoration: InputDecoration(
-                  labelText: isTr ? 'Defter Adı' : 'Cookbook Name',
-                  hintText:
-                      isTr ? 'Ör: Haftalık Favoriler' : 'e.g. Weekly Favorites',
+                  labelText: isTr ? 'Defter Ad\u0131' : 'Cookbook Name',
+                  hintText: isTr
+                      ? '\u00d6r: Haftal\u0131k Favoriler'
+                      : 'e.g. Weekly Favorites',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -248,14 +260,16 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
             TextButton(
               onPressed:
                   isSubmitting ? null : () => Navigator.pop(dialogContext),
-              child: Text(isTr ? 'İptal' : 'Cancel'),
+              child: Text(isTr ? '\u0130ptal' : 'Cancel'),
             ),
             ElevatedButton(
               onPressed: isSubmitting
                   ? null
                   : () async {
                       final trimmedName = nameController.text.trim();
-                      if (trimmedName.isEmpty) return;
+                      if (trimmedName.isEmpty) {
+                        return;
+                      }
 
                       setDialogState(() => isSubmitting = true);
 
@@ -266,9 +280,21 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                           emoji: selectedEmoji,
                         );
 
-                        if (!dialogContext.mounted) return;
+                        if (!dialogContext.mounted) {
+                          return;
+                        }
                         Navigator.pop(dialogContext);
-                        _loadCookbooks();
+                        await _loadCookbooks();
+                      } on CookbookAlreadyExistsException {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isTr
+                                  ? 'Ayn\u0131 isimde bir defter zaten var.'
+                                  : 'A cookbook with the same name already exists.',
+                            ),
+                          ),
+                        );
                       } finally {
                         if (dialogContext.mounted) {
                           setDialogState(() => isSubmitting = false);
@@ -281,7 +307,7 @@ class _CookbooksScreenState extends State<CookbooksScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(isTr ? 'Oluştur' : 'Create'),
+                  : Text(isTr ? 'Olu\u015ftur' : 'Create'),
             ),
           ],
         ),

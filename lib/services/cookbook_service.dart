@@ -1,28 +1,61 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/cookbook_model.dart';
+
+class CookbookAlreadyExistsException implements Exception {
+  final String normalizedName;
+
+  const CookbookAlreadyExistsException(this.normalizedName);
+
+  @override
+  String toString() => 'CookbookAlreadyExistsException($normalizedName)';
+}
 
 class CookbookService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference get _cookbooksRef => _firestore.collection('cookbooks');
 
-  // Defter oluştur
+  String _normalizeCookbookName(String name) {
+    return name.trim().toLowerCase();
+  }
+
+  String _buildCookbookDocId(String userId, String name) {
+    final normalizedName = _normalizeCookbookName(name);
+    return '$userId:${Uri.encodeComponent(normalizedName)}';
+  }
+
   Future<String> createCookbook({
     required String userId,
     required String name,
     required String emoji,
   }) async {
-    final doc = await _cookbooksRef.add(Cookbook(
-      id: '',
-      userId: userId,
-      name: name,
-      emoji: emoji,
-      createdAt: DateTime.now(),
-    ).toFirestore());
-    return doc.id;
+    final trimmedName = name.trim();
+    final docRef = _cookbooksRef.doc(_buildCookbookDocId(userId, trimmedName));
+
+    return _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (snapshot.exists) {
+        throw CookbookAlreadyExistsException(
+          _normalizeCookbookName(trimmedName),
+        );
+      }
+
+      transaction.set(
+        docRef,
+        Cookbook(
+          id: docRef.id,
+          userId: userId,
+          name: trimmedName,
+          emoji: emoji,
+          createdAt: DateTime.now(),
+        ).toFirestore(),
+      );
+
+      return docRef.id;
+    });
   }
 
-  // Kullanıcının defterlerini getir
   Future<List<Cookbook>> getUserCookbooks(String userId) async {
     final snapshot = await _cookbooksRef
         .where('userId', isEqualTo: userId)
@@ -31,8 +64,8 @@ class CookbookService {
     return snapshot.docs.map((doc) => Cookbook.fromFirestore(doc)).toList();
   }
 
-  // Deftere built-in tarif ekle/çıkar
-  Future<void> toggleRecipeInCookbook(String cookbookId, String recipeId) async {
+  Future<void> toggleRecipeInCookbook(
+      String cookbookId, String recipeId) async {
     final doc = await _cookbooksRef.doc(cookbookId).get();
     final cookbook = Cookbook.fromFirestore(doc);
 
@@ -47,9 +80,10 @@ class CookbookService {
     }
   }
 
-  // Deftere topluluk tarifi ekle/çıkar
   Future<void> toggleCommunityRecipeInCookbook(
-      String cookbookId, String communityRecipeId) async {
+    String cookbookId,
+    String communityRecipeId,
+  ) async {
     final doc = await _cookbooksRef.doc(cookbookId).get();
     final cookbook = Cookbook.fromFirestore(doc);
 
@@ -64,16 +98,17 @@ class CookbookService {
     }
   }
 
-  // Defter sil
   Future<void> deleteCookbook(String cookbookId) async {
     await _cookbooksRef.doc(cookbookId).delete();
   }
 
-  // Defter güncelle
   Future<void> updateCookbook(
-      String cookbookId, {String? name, String? emoji}) async {
+    String cookbookId, {
+    String? name,
+    String? emoji,
+  }) async {
     final data = <String, dynamic>{};
-    if (name != null) data['name'] = name;
+    if (name != null) data['name'] = name.trim();
     if (emoji != null) data['emoji'] = emoji;
     if (data.isNotEmpty) {
       await _cookbooksRef.doc(cookbookId).update(data);
