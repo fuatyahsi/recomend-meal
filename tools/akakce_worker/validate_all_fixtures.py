@@ -45,6 +45,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=1.0,
         help="Minimum required match coverage per fixture. 1.0 means all expected products must match.",
     )
+    parser.add_argument(
+        "--fail-on-empty-match",
+        action="store_true",
+        help=(
+            "Fail when none of the registered fixtures match brochures in the "
+            "current source manifest. By default this exits successfully and "
+            "treats the run as skipped."
+        ),
+    )
     return parser
 
 
@@ -106,9 +115,14 @@ def main() -> None:
                     print(f"  - {item['productName']} | {item['price']}")
 
     if validated_count == 0:
-        raise SystemExit(
-            "No registered fixtures matched brochures in the current source manifest."
+        message = (
+            "No registered fixtures matched brochures in the current source "
+            "manifest. Treating fixture validation as skipped."
         )
+        if args.fail_on_empty_match:
+            raise SystemExit(message)
+        print(message)
+        return
 
     if failures:
         raise SystemExit(

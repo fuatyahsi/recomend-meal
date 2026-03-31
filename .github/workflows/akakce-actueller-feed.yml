@@ -1,4 +1,4 @@
-name: Market Actueller Feed
+﻿name: Market Actueller Feed
 # Trigger note: keep this workflow easy to retrigger with tiny non-functional edits.
 # Debug rerun marker: 2
 
@@ -117,3 +117,4 @@ jobs:
             tools/akakce_worker/output/extracted_products.json
             tools/akakce_worker/output/actueller_feed.json
           if-no-files-found: warn
+
