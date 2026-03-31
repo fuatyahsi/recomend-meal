@@ -7,6 +7,7 @@ import '../models/kitchen_intelligence.dart';
 import '../models/smart_actueller.dart';
 import '../models/smart_kitchen.dart';
 import '../utils/market_registry.dart';
+import '../utils/product_category.dart';
 
 class SmartActuellerService {
   static const _letterClass = r'A-Za-zĞğÜüŞşİıÖöÇç';
@@ -110,7 +111,7 @@ class SmartActuellerService {
     required String rawText,
     required Iterable<Ingredient> ingredients,
     String? detectedStore,
-    String sourceLabel = 'Smart Actüel',
+    String sourceLabel = 'Kampanya Radarı',
     String? capturedImagePath,
     List<String> ocrBlocks = const [],
   }) {
@@ -151,6 +152,9 @@ class SmartActuellerService {
         confidence: 0.55,
         rawBlock: block,
         sourceLabel: sourceLabel,
+        category: categorizeProduct(productTitle),
+        brand: parseProductBrand(productTitle),
+        weight: parseProductWeight(productTitle),
       );
       if (catalogItemIds.add(catalogItem.id)) {
         catalogItems.add(catalogItem);
@@ -285,7 +289,10 @@ class SmartActuellerService {
         neededCount: neededCount,
         pantryCount: pantryCount,
       );
-      final estimatedSavings = deal.unitSavings * purchaseCount;
+      final hasRealSavings = deal.regularPrice != null && deal.regularPrice! > deal.discountPrice;
+      final estimatedSavings = hasRealSavings
+          ? (deal.regularPrice! - deal.discountPrice) * purchaseCount
+          : 0.0;
       final recipeLabel = shoppingItem == null
           ? ''
           : shoppingItem.recipeNames.take(2).join(', ');
@@ -306,12 +313,12 @@ class SmartActuellerService {
           : ' \u00d6zellikle $recipeLabel i\u00e7in i\u015fine yarar.';
       final recipeNoteEn =
           recipeLabel.isEmpty ? '' : ' It fits $recipeLabel especially well.';
-      final savingsLabelTr = estimatedSavings >= 2
-          ? ' Tek alışta yaklaşık ${estimatedSavings.round()} TL daha uygun.'
-          : ' Bu üründe uygun bir fiyat görünüyor.';
-      final savingsLabelEn = estimatedSavings >= 2
-          ? ' About ${estimatedSavings.round()} TRY cheaper for a typical purchase.'
-          : ' This looks like a good price.';
+      final savingsLabelTr = hasRealSavings && estimatedSavings >= 2
+          ? ' Tahmini ${estimatedSavings.round()} TL tasarruf.'
+          : '';
+      final savingsLabelEn = hasRealSavings && estimatedSavings >= 2
+          ? ' Estimated ${estimatedSavings.round()} TRY savings.'
+          : '';
       final untilLabelTr = deal.validUntil == null
           ? ''
           : ' Son tarih: ${_formatDateTr(deal.validUntil!)}.';

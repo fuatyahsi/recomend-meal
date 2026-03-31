@@ -104,7 +104,7 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isTr ? 'Food AI Vision Lab' : 'Food AI Vision Lab'),
+        title: Text(isTr ? 'Görsel Analiz Merkezi' : 'Visual Analysis Hub'),
         actions: [
           IconButton(
             onPressed: provider.clearVisionResults,
@@ -119,9 +119,9 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
           const SizedBox(height: 16),
           _LabCard(
             icon: Icons.receipt_long_rounded,
-            title: isTr ? 'Shopping Scanner' : 'Shopping Scanner',
+            title: isTr ? 'Fiş Tarayıcı' : 'Receipt Scanner',
             subtitle: isTr
-                ? 'Fis metnini yapistir. Eslesen malzemeler dolabina otomatik eklensin.'
+                ? 'Fiş metnini yapıştır ya da fotoğraf çek. Eşleşen malzemeleri dolaba otomatik ekleyelim.'
                 : 'Paste receipt text and auto-add matched ingredients to your pantry.',
             child: Column(
               children: [
@@ -144,7 +144,7 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
                   maxLines: 7,
                   decoration: InputDecoration(
                     hintText: isTr
-                        ? 'Ornek:\nYumurta\nDomates\nKasar peyniri\nZeytinyagi'
+                        ? 'Örnek:\nYumurta\nDomates\nKaşar peyniri\nZeytinyağı'
                         : 'Example:\nEggs\nTomato\nCheddar\nOlive oil',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -165,8 +165,8 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
                         ),
                         label: Text(
                           _isScanning
-                              ? (isTr ? 'Taraniyor' : 'Scanning')
-                              : (isTr ? 'Fisi tara' : 'Scan receipt'),
+                              ? (isTr ? 'Taranıyor' : 'Scanning')
+                              : (isTr ? 'Fişi tara' : 'Scan receipt'),
                         ),
                       ),
                     ),
@@ -185,9 +185,9 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
           const SizedBox(height: 16),
           _LabCard(
             icon: Icons.auto_awesome_rounded,
-            title: isTr ? 'AI Tabak Analizi' : 'AI Plate Analysis',
+            title: isTr ? 'Tabak Analizi' : 'Plate Analysis',
             subtitle: isTr
-                ? 'Yemegi tarif et, uygulama benzer tabaklari, mood uyumunu ve paylasim caption\'ini hazirlasin.'
+                ? 'Yemeği tarif et; benzer tabakları, ruh hâli uyumunu ve paylaşım metnini hazırlayalım.'
                 : 'Describe the dish and get likely matches, mood fit, and a share caption.',
             child: Column(
               children: [
@@ -209,7 +209,7 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
                   maxLines: 7,
                   decoration: InputDecoration(
                     hintText: isTr
-                        ? 'Ornek:\nKremali mantarli makarna, dereotu ve limon kabugu ile servis'
+                        ? 'Örnek:\nKremalı mantarlı makarna, dereotu ve limon kabuğu ile servis'
                         : 'Example:\nCreamy mushroom pasta finished with dill and lemon zest',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -231,7 +231,7 @@ class _VisionLabScreenState extends State<VisionLabScreen> {
                         label: Text(
                           _isAnalyzing
                               ? (isTr ? 'Analiz ediliyor' : 'Analyzing')
-                              : (isTr ? 'Tabagi analiz et' : 'Analyze plate'),
+                              : (isTr ? 'Tabağı analiz et' : 'Analyze plate'),
                         ),
                       ),
                     ),
@@ -295,7 +295,7 @@ class _VisionHeroCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  isTr ? 'Food AI Vision MVP' : 'Food AI Vision MVP',
+                  isTr ? 'Görsel Analiz Merkezi' : 'Visual Analysis Hub',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -307,7 +307,7 @@ class _VisionHeroCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             isTr
-                ? 'Artik hem metin hem gorsel akisi var: fis fotografi cek, tabagi analiz et, dolap, mood ve tarif motoru birlikte calissin.'
+                ? 'Artık hem metin hem görsel akışı var: fişi çek, tabağı analiz et, dolap ve tarif önerilerini birlikte çalıştıralım.'
                 : 'Vision now supports both text and image flows: scan a receipt, analyze a plate, and let pantry, mood, and recipe engines work together.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.9),
@@ -452,7 +452,7 @@ class _ReceiptResultCard extends StatelessWidget {
         children: [
           Text(
             isTr
-                ? 'Eslesme guveni: %${(result.confidence * 100).round()}'
+                ? 'Eşleşme güveni: %${(result.confidence * 100).round()}'
                 : 'Match confidence: %${(result.confidence * 100).round()}',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
@@ -462,7 +462,7 @@ class _ReceiptResultCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isTr
-                  ? 'Algilanan market: ${result.detectedStore}'
+                  ? 'Algılanan market: ${result.detectedStore}'
                   : 'Detected store: ${result.detectedStore}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -473,7 +473,7 @@ class _ReceiptResultCard extends StatelessWidget {
           if (result.matchedIngredients.isEmpty)
             Text(
               isTr
-                  ? 'Eslesen malzeme bulunamadi.'
+                  ? 'Eşleşen malzeme bulunamadı.'
                   : 'No ingredients were matched.',
             )
           else
@@ -490,7 +490,7 @@ class _ReceiptResultCard extends StatelessWidget {
           if (result.detectedLabels.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              isTr ? 'Gorsel ipuclari' : 'Visual hints',
+              isTr ? 'Görsel ipuçları' : 'Visual hints',
               style: theme.textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -518,7 +518,7 @@ class _ReceiptResultCard extends StatelessWidget {
           if (result.unmatchedLines.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              isTr ? 'Eslesmeyen satirlar' : 'Unmatched lines',
+              isTr ? 'Eşleşmeyen satırlar' : 'Unmatched lines',
               style: theme.textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -582,7 +582,7 @@ class _PlateResultCard extends StatelessWidget {
                 avatar: const Icon(Icons.speed_outlined, size: 16),
                 label: Text(
                   isTr
-                      ? '%${(result.confidence * 100).round()} guven'
+                      ? '%${(result.confidence * 100).round()} güven'
                       : '%${(result.confidence * 100).round()} confidence',
                 ),
               ),
@@ -615,7 +615,7 @@ class _PlateResultCard extends StatelessWidget {
           if (result.analysisPrompt.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
-              isTr ? 'Analiz istemi' : 'Analysis prompt',
+              isTr ? 'Analiz notu' : 'Analysis prompt',
               style: theme.textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -626,7 +626,7 @@ class _PlateResultCard extends StatelessWidget {
           if (result.matchedRecipes.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              isTr ? 'En yakin tarifler' : 'Closest recipe matches',
+              isTr ? 'Benzer tarifler' : 'Closest recipe matches',
               style: theme.textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),

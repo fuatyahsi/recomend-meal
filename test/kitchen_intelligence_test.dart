@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fridge_chef/models/ingredient.dart';
+import 'package:fridge_chef/models/kitchen_intelligence.dart';
 import 'package:fridge_chef/models/kitchen_rpg.dart';
+import 'package:fridge_chef/models/recipe.dart';
 import 'package:fridge_chef/models/smart_kitchen.dart';
 import 'package:fridge_chef/services/kitchen_intelligence_service.dart';
 import 'package:fridge_chef/services/kitchen_rpg_service.dart';
@@ -153,6 +155,222 @@ void main() {
         comparisons.first.totalPrice <= comparisons.last.totalPrice,
         isTrue,
       );
+    });
+
+    test('surprise basket splits the route by cheapest market', () {
+      const tomato = Ingredient(
+        id: 'tomato',
+        nameTr: 'Domates',
+        nameEn: 'Tomato',
+        category: IngredientCategory.vegetables,
+        icon: 'T',
+      );
+      const milk = Ingredient(
+        id: 'milk',
+        nameTr: 'Süt',
+        nameEn: 'Milk',
+        category: IngredientCategory.dairy,
+        icon: 'M',
+      );
+      const tomatoItem = SmartShoppingItem(
+        ingredient: tomato,
+        requiredCount: 1,
+        availableCount: 0,
+        missingCount: 1,
+      );
+      const milkItem = SmartShoppingItem(
+        ingredient: milk,
+        requiredCount: 1,
+        availableCount: 0,
+        missingCount: 1,
+      );
+
+      final plan = service.buildSurpriseBasketPlan(
+        shoppingItems: const [tomatoItem, milkItem],
+        comparisons: const [
+          MarketBasketComparison(
+            market: 'A101',
+            deals: [
+              MarketItemDeal(
+                shoppingItem: tomatoItem,
+                market: 'A101',
+                unitPrice: 20,
+                totalPrice: 20,
+                isCampaign: true,
+                isLiveData: true,
+                campaignLabelTr: 'Kampanya',
+                campaignLabelEn: 'Campaign',
+              ),
+              MarketItemDeal(
+                shoppingItem: milkItem,
+                market: 'A101',
+                unitPrice: 32,
+                totalPrice: 32,
+                isCampaign: false,
+                isLiveData: true,
+                campaignLabelTr: 'Raf',
+                campaignLabelEn: 'Shelf',
+              ),
+            ],
+            totalPrice: 52,
+            campaignCount: 1,
+            estimatedSavingsVsHighest: 0,
+            isLiveData: true,
+            sourceLabel: 'fixture',
+          ),
+          MarketBasketComparison(
+            market: 'ŞOK',
+            deals: [
+              MarketItemDeal(
+                shoppingItem: tomatoItem,
+                market: 'ŞOK',
+                unitPrice: 24,
+                totalPrice: 24,
+                isCampaign: false,
+                isLiveData: true,
+                campaignLabelTr: 'Raf',
+                campaignLabelEn: 'Shelf',
+              ),
+              MarketItemDeal(
+                shoppingItem: milkItem,
+                market: 'ŞOK',
+                unitPrice: 18,
+                totalPrice: 18,
+                isCampaign: true,
+                isLiveData: true,
+                campaignLabelTr: 'Kampanya',
+                campaignLabelEn: 'Campaign',
+              ),
+            ],
+            totalPrice: 42,
+            campaignCount: 1,
+            estimatedSavingsVsHighest: 10,
+            isLiveData: true,
+            sourceLabel: 'fixture',
+          ),
+        ],
+        locale: 'tr',
+      );
+
+      expect(plan, isNotNull);
+      expect(plan!.stops.length, 2);
+      expect(plan.estimatedSavings, greaterThan(0));
+    });
+
+    test('price ticker keeps the best visible market price', () {
+      const tomato = Ingredient(
+        id: 'tomato',
+        nameTr: 'Domates',
+        nameEn: 'Tomato',
+        category: IngredientCategory.vegetables,
+        icon: 'T',
+      );
+      const milk = Ingredient(
+        id: 'milk',
+        nameTr: 'Süt',
+        nameEn: 'Milk',
+        category: IngredientCategory.dairy,
+        icon: 'M',
+      );
+
+      final entries = service.buildPriceTickerEntries(
+        quotes: const [
+          RemoteMarketQuote(
+            ingredientId: 'tomato',
+            market: 'bim',
+            unitPrice: 19.9,
+            isCampaign: true,
+            campaignLabelTr: 'Kampanya',
+            campaignLabelEn: 'Campaign',
+          ),
+          RemoteMarketQuote(
+            ingredientId: 'tomato',
+            market: 'migros',
+            unitPrice: 24.9,
+            isCampaign: false,
+            campaignLabelTr: 'Raf',
+            campaignLabelEn: 'Shelf',
+          ),
+          RemoteMarketQuote(
+            ingredientId: 'milk',
+            market: 'sok',
+            unitPrice: 31.5,
+            isCampaign: true,
+            campaignLabelTr: 'Kampanya',
+            campaignLabelEn: 'Campaign',
+          ),
+        ],
+        ingredients: const [tomato, milk],
+      );
+
+      expect(entries, isNotEmpty);
+      expect(entries.first.market, isNotEmpty);
+      expect(entries.any((entry) => entry.ingredient.id == 'tomato'), isTrue);
+    });
+
+    test('sponsored placements prefer recipes with sponsor ingredients', () {
+      const flour = Ingredient(
+        id: 'flour',
+        nameTr: 'Un',
+        nameEn: 'Flour',
+        category: IngredientCategory.grains,
+        icon: 'U',
+      );
+      const yogurt = Ingredient(
+        id: 'yogurt',
+        nameTr: 'Yoğurt',
+        nameEn: 'Yogurt',
+        category: IngredientCategory.dairy,
+        icon: 'Y',
+      );
+      const recipe = Recipe(
+        id: 'pogaca',
+        nameTr: 'Poğaça',
+        nameEn: 'Pogaca',
+        descriptionTr: 'Test',
+        descriptionEn: 'Test',
+        ingredients: [
+          RecipeIngredient(
+            ingredientId: 'flour',
+            amountTr: '2 su bardağı',
+            amountEn: '2 cups',
+          ),
+          RecipeIngredient(
+            ingredientId: 'yogurt',
+            amountTr: '1 çay bardağı',
+            amountEn: '1 tea glass',
+          ),
+        ],
+        stepsTr: [RecipeStep(stepNumber: 1, instruction: 'Karıştır')],
+        stepsEn: [RecipeStep(stepNumber: 1, instruction: 'Mix')],
+        prepTimeMinutes: 10,
+        cookTimeMinutes: 20,
+        servings: 4,
+        difficulty: 'easy',
+        category: 'bakery',
+      );
+
+      final placements = service.buildSponsoredPlacements(
+        recipes: [recipe],
+        shoppingItems: const [
+          SmartShoppingItem(
+            ingredient: flour,
+            requiredCount: 1,
+            availableCount: 0,
+            missingCount: 1,
+          ),
+          SmartShoppingItem(
+            ingredient: yogurt,
+            requiredCount: 1,
+            availableCount: 0,
+            missingCount: 1,
+          ),
+        ],
+        locale: 'tr',
+      );
+
+      expect(placements, isNotEmpty);
+      expect(placements.first.recipe.id, 'pogaca');
     });
   });
 

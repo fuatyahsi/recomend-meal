@@ -104,6 +104,11 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
       _speakCurrentStep();
       return;
     }
+    if (command.contains('önceki')) {
+      _prevStep();
+      _speakCurrentStep();
+      return;
+    }
     if (_matchAny(command, ['previous', 'geri', 'onceki', 'önceki'])) {
       _prevStep();
       _speakCurrentStep();
@@ -116,6 +121,10 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
     if (_matchAny(command, ['done', 'tamam', 'bitti'])) {
       _toggleStepComplete(_currentStep);
       _speak(isTr ? 'Adim tamamlandi.' : 'Step completed.');
+      return;
+    }
+    if (command.contains('yardım')) {
+      _showSousChefSheet();
       return;
     }
     if (_matchAny(command, ['help', 'yardim', 'yardım'])) {
@@ -131,6 +140,13 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
       _speakIngredients();
       return;
     }
+    if (command.contains('zamanlayıcı')) {
+      final minutes = _extractMinutes(command);
+      if (minutes != null && minutes > 0) {
+        _startTimer(minutes);
+      }
+      return;
+    }
     if (_matchAny(command, ['timer', 'zamanlayici', 'zamanlayıcı'])) {
       final minutes = _extractMinutes(command);
       if (minutes != null && minutes > 0) {
@@ -142,6 +158,16 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
       _cancelTimer();
       return;
     }
+    if (command.contains('kalan süre')) {
+      _speak(
+        _hasTimer
+            ? (isTr
+                ? '${_remaining.inMinutes} dakika ${_remaining.inSeconds % 60} saniye kaldi.'
+                : '${_remaining.inMinutes} minutes left.')
+            : (isTr ? 'Aktif zamanlayici yok.' : 'No active timer.'),
+      );
+      return;
+    }
     if (_matchAny(command, ['time left', 'kalan sure', 'kalan süre'])) {
       _speak(
         _hasTimer
@@ -150,6 +176,24 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
                 : '${_remaining.inMinutes} minutes left.')
             : (isTr ? 'Aktif zamanlayici yok.' : 'No active timer.'),
       );
+      return;
+    }
+    if (_matchAny(command, [
+      'yanina ne gider',
+      'yanina',
+      'neyle servis',
+      'what goes with',
+      'side',
+      'dolapta ne var',
+      'evde ne var',
+      'what can i make',
+      'what else',
+      'ellerim unlu',
+    ])) {
+      _speakChefAnswer(command);
+      if (_matchAny(command, ['ellerim unlu'])) {
+        _speakCurrentStep();
+      }
     }
   }
 
@@ -166,6 +210,19 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
     await _tts.speak(text);
   }
 
+  Future<void> _speakChefAnswer(String question) async {
+    final provider = context.read<AppProvider>();
+    final answer = provider.buildChefCompanionAnswer(
+      question,
+      recipeIngredientNames: widget.ingredients ?? const [],
+    );
+    await _speak(answer);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(answer)),
+    );
+  }
+
   Future<void> _speakCurrentStep() async {
     final isTr = context.read<AppProvider>().locale.languageCode == 'tr';
     await _speak(
@@ -176,7 +233,9 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
   }
 
   Future<void> _speakIngredients() async {
-    if (!_voiceEnabled || widget.ingredients == null || widget.ingredients!.isEmpty) {
+    if (!_voiceEnabled ||
+        widget.ingredients == null ||
+        widget.ingredients!.isEmpty) {
       return;
     }
     final isTr = context.read<AppProvider>().locale.languageCode == 'tr';
@@ -195,13 +254,16 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
         setState(() => _remaining = Duration.zero);
         _speak(isTr ? 'Zamanlayici bitti.' : 'Timer finished.');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(isTr ? 'Zamanlayici bitti.' : 'Timer finished.')),
+          SnackBar(
+              content: Text(isTr ? 'Zamanlayici bitti.' : 'Timer finished.')),
         );
         return;
       }
       setState(() => _remaining -= const Duration(seconds: 1));
     });
-    _speak(isTr ? '$minutes dakikalik zamanlayici basladi.' : '$minutes minute timer started.');
+    _speak(isTr
+        ? '$minutes dakikalik zamanlayici basladi.'
+        : '$minutes minute timer started.');
   }
 
   void _cancelTimer() {
@@ -211,6 +273,16 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
 
   String _tipFor(String step, bool isTr) {
     final lower = step.toLowerCase();
+    if (_matchAny(lower, ['doğra'])) {
+      return isTr
+          ? 'Benzer boyutlarda doğrama, daha dengeli pişirir.'
+          : 'Cut evenly so everything cooks at the same pace.';
+    }
+    if (_matchAny(lower, ['kızart'])) {
+      return isTr
+          ? 'Tavayı önce ısıt, sonra malzemeyi ekle.'
+          : 'Heat the pan first, then add the ingredients.';
+    }
     if (_matchAny(lower, ['dogra', 'doğra', 'chop', 'slice'])) {
       return isTr
           ? 'Benzer boyutlarda dograma, daha dengeli pisirir.'
@@ -291,21 +363,33 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _QuickChip(label: isTr ? '3 dk' : '3 min', onTap: () => _startTimer(3)),
-                _QuickChip(label: isTr ? '5 dk' : '5 min', onTap: () => _startTimer(5)),
                 _QuickChip(
-                  label: isTr ? 'Adimi oku' : 'Read step',
+                    label: isTr ? '3 dk' : '3 min',
+                    onTap: () => _startTimer(3)),
+                _QuickChip(
+                    label: isTr ? '5 dk' : '5 min',
+                    onTap: () => _startTimer(5)),
+                _QuickChip(
+                  label: isTr ? 'Adımı oku' : 'Read step',
                   onTap: () {
                     _speakCurrentStep();
                   },
                 ),
-                _QuickChip(label: isTr ? 'Malzemeler' : 'Ingredients', onTap: _showIngredients),
+                _QuickChip(
+                    label: isTr ? 'Malzemeler' : 'Ingredients',
+                    onTap: _showIngredients),
+                _QuickChip(
+                  label: isTr ? 'Yanına ne gider?' : 'What goes with this?',
+                  onTap: () => _speakChefAnswer(
+                    isTr ? 'yanına ne gider' : 'what goes with this',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 14),
             Text(
               isTr
-                  ? 'Komutlar: sonraki, onceki, tekrar, tamam, 5 dakika zamanlayici, timer iptal, ipucu'
+                  ? 'Komutlar: sonraki, önceki, tekrar, tamam, 5 dakika zamanlayıcı, timer iptal, ipucu'
                   : 'Commands: next, previous, repeat, done, 5 minute timer, cancel timer, tip',
               style: const TextStyle(color: Colors.white60),
             ),
@@ -367,7 +451,9 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
           children: [
             Text(widget.emoji),
             const SizedBox(width: 8),
-            Expanded(child: Text(widget.recipeName, overflow: TextOverflow.ellipsis)),
+            Expanded(
+                child:
+                    Text(widget.recipeName, overflow: TextOverflow.ellipsis)),
           ],
         ),
         actions: [
@@ -399,7 +485,9 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
                   if (_voiceEnabled)
                     Text(
                       _lastCommand.isEmpty
-                          ? (isTr ? 'Sous Chef dinliyor...' : 'Sous Chef is listening...')
+                          ? (isTr
+                              ? 'Sous Chef dinliyor...'
+                              : 'Sous Chef is listening...')
                           : _lastCommand,
                       style: const TextStyle(color: Colors.greenAccent),
                     ),
@@ -496,8 +584,12 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
                               spacing: 8,
                               runSpacing: 8,
                               children: [
-                                _QuickChip(label: isTr ? '3 dk' : '3 min', onTap: () => _startTimer(3)),
-                                _QuickChip(label: isTr ? '5 dk' : '5 min', onTap: () => _startTimer(5)),
+                                _QuickChip(
+                                    label: isTr ? '3 dk' : '3 min',
+                                    onTap: () => _startTimer(3)),
+                                _QuickChip(
+                                    label: isTr ? '5 dk' : '5 min',
+                                    onTap: () => _startTimer(5)),
                                 _QuickChip(
                                   label: isTr ? 'Oku' : 'Read',
                                   onTap: () {
@@ -512,8 +604,11 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
                       const SizedBox(height: 12),
                       TextButton.icon(
                         onPressed: () => _toggleStepComplete(index),
-                        icon: Icon(isDone ? Icons.undo : Icons.check_circle_outline),
-                        label: Text(isDone ? (isTr ? 'Geri al' : 'Undo') : (isTr ? 'Tamam' : 'Done')),
+                        icon: Icon(
+                            isDone ? Icons.undo : Icons.check_circle_outline),
+                        label: Text(isDone
+                            ? (isTr ? 'Geri al' : 'Undo')
+                            : (isTr ? 'Tamam' : 'Done')),
                       ),
                     ],
                   ),
@@ -535,16 +630,24 @@ class _CookingModeScreenState extends State<CookingModeScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: _currentStep < widget.steps.length - 1 ? _nextStep : _finish,
-                    icon: Icon(_currentStep < widget.steps.length - 1 ? Icons.arrow_forward : Icons.celebration),
-                    label: Text(_currentStep < widget.steps.length - 1 ? (isTr ? 'Sonraki' : 'Next') : (isTr ? 'Bitir' : 'Finish')),
+                    onPressed: _currentStep < widget.steps.length - 1
+                        ? _nextStep
+                        : _finish,
+                    icon: Icon(_currentStep < widget.steps.length - 1
+                        ? Icons.arrow_forward
+                        : Icons.celebration),
+                    label: Text(_currentStep < widget.steps.length - 1
+                        ? (isTr ? 'Sonraki' : 'Next')
+                        : (isTr ? 'Bitir' : 'Finish')),
                   ),
                 ),
               ],
             ),
           ),
           Text(
-            allDone ? (isTr ? 'Tum adimlar tamamlandi' : 'All steps completed') : '',
+            allDone
+                ? (isTr ? 'Tum adimlar tamamlandi' : 'All steps completed')
+                : '',
             style: const TextStyle(color: Colors.green),
           ),
           const SizedBox(height: 12),

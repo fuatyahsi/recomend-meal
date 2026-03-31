@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:image_picker/image_picker.dart';
+
 import '../models/kitchen_intelligence.dart';
 import '../models/kitchen_rpg.dart';
 import '../models/recipe.dart';
-import '../models/smart_actueller.dart';
 import '../models/smart_kitchen.dart';
 import '../providers/app_provider.dart';
 import '../services/notification_service.dart';
 import '../services/smart_actueller_source_service.dart';
 import '../utils/community_challenges.dart';
 import '../utils/mood_recipes.dart';
+import '../utils/text_repair.dart';
 import 'ingredient_selection_screen.dart';
 import 'recipe_detail_screen.dart';
-import 'smart_actueller_screen.dart';
 
 class SmartKitchenScreen extends StatelessWidget {
   const SmartKitchenScreen({super.key});
@@ -32,11 +33,6 @@ class SmartKitchenScreen extends StatelessWidget {
     final rpgProfile = provider.kitchenRpgProfile;
     final weeklyChallenges = provider.weeklyChallengeProgress;
     final rescueSuggestions = provider.wasteRescueSuggestions;
-    final actuellerScan = provider.lastActuellerScanResult;
-    final actuellerSuggestions = provider.smartActuellerSuggestions;
-    final actuellerSavings = provider.smartActuellerMonthlySavings;
-    final marketComparisons = provider.getMarketComparisons();
-    final marketSyncStatus = provider.marketSyncStatus;
     final digitalTwinZones = provider.digitalTwinZones;
     final flavorPairings = provider.flavorPairings;
     final weeklyDigest = provider.getWeeklyMenuDigest();
@@ -50,14 +46,39 @@ class SmartKitchenScreen extends StatelessWidget {
       featuredMealId,
       limit: 4,
     );
+    final surpriseBasket = provider.surpriseBasketPlan;
+    final pantryVision = provider.lastPantryVisionCapture;
+    final pantryVisionSuggestions = provider.pantryVisionSuggestions;
     final hasAnyPlannedMeal = prefs.mealSlots.any(
       (slot) => provider.getPlannedRecipes(slot.id).isNotEmpty,
     );
+    String clean(String value) => repairTurkishText(value);
+
+    Future<void> pickPantryImage(ImageSource source) async {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1800,
+        imageQuality: 88,
+      );
+      if (picked == null || !context.mounted) return;
+      await context.read<AppProvider>().analyzePantryImage(picked.path);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isTr
+                ? 'Dolap fotoÄŸrafÄ± iÅŸlendi. AlgÄ±lanan malzemeler gÃ¼ncellendi.'
+                : 'Pantry photo processed. Detected ingredients were updated.',
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isTr ? 'Akıllı Mutfak Asistanı' : 'Smart Kitchen Assistant',
+          isTr ? 'AkÄ±llÄ± Mutfak AsistanÄ±' : 'Smart Kitchen Assistant',
         ),
       ),
       body: ListView(
@@ -65,10 +86,10 @@ class SmartKitchenScreen extends StatelessWidget {
         children: [
           _IntroCard(
             title: isTr
-                ? 'Önce menünü kur, sonra zamanını ayarla'
+                ? 'Ã–nce menÃ¼nÃ¼ kur, sonra zamanÄ±nÄ± ayarla'
                 : 'Build your menus first, then set your timing',
             subtitle: isTr
-                ? 'Kahvaltı, öğle ve akşam için menünü oluştur. Uygulama dolabındaki malzemelere göre öneri sunsun, eksikleri çıkarsın ve alışveriş listesini hazırlasın.'
+                ? 'KahvaltÄ±, Ã¶ÄŸle ve akÅŸam iÃ§in menÃ¼nÃ¼ oluÅŸtur. Uygulama dolabÄ±ndaki malzemelere gÃ¶re Ã¶neri sunsun, eksikleri Ã§Ä±karsÄ±n ve alÄ±ÅŸveriÅŸ listesini hazÄ±rlasÄ±n.'
                 : 'Create menus for breakfast, lunch, and dinner. Let the app suggest options from your pantry, find the gaps, and prepare the shopping list.',
           ),
           const SizedBox(height: 16),
@@ -121,10 +142,162 @@ class SmartKitchenScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFFFEEE4), Color(0xFFFFF8F3)],
+                ),
+              ),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.shopping_bag_rounded),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isTr ? 'SÃ¼rpriz Sepet' : 'Surprise Basket',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              surpriseBasket == null
+                                  ? (isTr
+                                      ? 'Eksiklerini seÃ§, market rotasÄ±nÄ± otomatik Ã§Ä±karalÄ±m.'
+                                      : 'Pick your missing items and we will build the cheapest route.')
+                                  : clean(surpriseBasket
+                                      .body(provider.languageCode)),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (surpriseBasket != null) ...[
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: surpriseBasket.stops.map((stop) {
+                        return Chip(
+                          avatar: const Icon(Icons.route_rounded, size: 16),
+                          label: Text(
+                            '${stop.market} â€¢ ${stop.subtotal.toStringAsFixed(0)} TL',
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.photo_camera_back_rounded,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isTr ? 'GÃ¶rsel Kiler' : 'Visual Pantry',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    pantryVision == null
+                        ? (isTr
+                            ? 'DolabÄ±nÄ±n fotoÄŸrafÄ±nÄ± Ã§ek. Uygulama malzemeleri algÄ±lasÄ±n, bozulma risklerini Ã¶ne Ã§Ä±karalÄ±m.'
+                            : 'Take a pantry photo. ML Kit will guess ingredients and build spoilage alerts.')
+                        : (isTr
+                            ? '${pantryVision.detectedIngredients.length} malzeme algÄ±landÄ±. En riskli olanlarÄ± hemen Ã¶ne Ã§Ä±kardÄ±m.'
+                            : '${pantryVision.detectedIngredients.length} ingredients detected. I highlighted the riskiest ones first.'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => pickPantryImage(ImageSource.camera),
+                        icon: const Icon(Icons.camera_alt_rounded),
+                        label: Text(isTr ? 'DolabÄ± tara' : 'Scan pantry'),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: () => pickPantryImage(ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library_rounded),
+                        label:
+                            Text(isTr ? 'Galeriden seÃ§' : 'Pick from gallery'),
+                      ),
+                    ],
+                  ),
+                  if (pantryVisionSuggestions.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    ...pantryVisionSuggestions.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: theme.colorScheme.primaryContainer,
+                            child: Text(item.ingredient.icon),
+                          ),
+                          title: Text(clean(item.title(provider.languageCode))),
+                          subtitle:
+                              Text(clean(item.body(provider.languageCode))),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _SectionTitle(
-            title: isTr ? '1. Menü planı' : '1. Meal plan',
+            title: isTr ? '1. MenÃ¼ planÄ±' : '1. Meal plan',
             subtitle: isTr
-                ? 'Her öğün için birden fazla tarif seçebilirsin.'
+                ? 'Her Ã¶ÄŸÃ¼n iÃ§in birden fazla tarif seÃ§ebilirsin.'
                 : 'You can choose multiple recipes for each meal.',
           ),
           const SizedBox(height: 12),
@@ -178,7 +351,7 @@ class SmartKitchenScreen extends StatelessWidget {
           _SectionTitle(
             title: isTr ? '2. Dolap durumu' : '2. Pantry status',
             subtitle: isTr
-                ? 'Alışveriş listesi için dolabındaki malzemeleri güncel tut.'
+                ? 'AlÄ±ÅŸveriÅŸ listesi iÃ§in dolabÄ±ndaki malzemeleri gÃ¼ncel tut.'
                 : 'Keep your pantry current so shopping lists stay accurate.',
           ),
           const SizedBox(height: 12),
@@ -198,7 +371,7 @@ class SmartKitchenScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           isTr
-                              ? '$pantryCount malzeme dolapta işaretli'
+                              ? '$pantryCount malzeme dolapta iÅŸaretli'
                               : '$pantryCount ingredients marked in pantry',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
@@ -210,7 +383,7 @@ class SmartKitchenScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     isTr
-                        ? 'Menülerdeki eksikler seçtiğin dolap durumuna göre hesaplanır.'
+                        ? 'MenÃ¼lerdeki eksikler seÃ§tiÄŸin dolap durumuna gÃ¶re hesaplanÄ±r.'
                         : 'Missing items are calculated from the ingredients you marked as available.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -241,7 +414,7 @@ class SmartKitchenScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       isTr
-                          ? 'Henüz dolap listesi yok. Önce mevcut malzemelerini ekle.'
+                          ? 'HenÃ¼z dolap listesi yok. Ã–nce mevcut malzemelerini ekle.'
                           : 'Your pantry list is empty. Add what you already have first.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -259,7 +432,7 @@ class SmartKitchenScreen extends StatelessWidget {
                     icon: const Icon(Icons.edit_outlined),
                     label: Text(
                       isTr
-                          ? 'Dolaptaki malzemeleri güncelle'
+                          ? 'Dolaptaki malzemeleri gÃ¼ncelle'
                           : 'Update pantry ingredients',
                     ),
                   ),
@@ -270,10 +443,10 @@ class SmartKitchenScreen extends StatelessWidget {
           const SizedBox(height: 8),
           _SectionTitle(
             title: isTr
-                ? '3. Eksik malzemeler ve alışveriş listesi'
+                ? '3. Eksik malzemeler ve alÄ±ÅŸveriÅŸ listesi'
                 : '3. Missing ingredients and shopping list',
             subtitle: isTr
-                ? 'Seçtiğin menülere ve dolap durumuna göre hazırlanır.'
+                ? 'SeÃ§tiÄŸin menÃ¼lere ve dolap durumuna gÃ¶re hazÄ±rlanÄ±r.'
                 : 'Built from your selected menus and pantry status.',
           ),
           const SizedBox(height: 12),
@@ -283,13 +456,13 @@ class SmartKitchenScreen extends StatelessWidget {
               child: !hasAnyPlannedMeal
                   ? Text(
                       isTr
-                          ? 'Önce en az bir öğün için menü oluştur. Alışveriş listesi seçtiğin menülere göre oluşacak.'
+                          ? 'Ã–nce en az bir Ã¶ÄŸÃ¼n iÃ§in menÃ¼ oluÅŸtur. AlÄ±ÅŸveriÅŸ listesi seÃ§tiÄŸin menÃ¼lere gÃ¶re oluÅŸacak.'
                           : 'Build at least one meal menu first. The shopping list will be generated from your selected menus.',
                     )
                   : plannedShoppingSummary.isEmpty
                       ? Text(
                           isTr
-                              ? 'Planladığın menüler için dolaptaki malzemeler yeterli görünüyor.'
+                              ? 'PlanladÄ±ÄŸÄ±n menÃ¼ler iÃ§in dolaptaki malzemeler yeterli gÃ¶rÃ¼nÃ¼yor.'
                               : 'Your pantry looks enough for the menus you planned.',
                         )
                       : Column(
@@ -315,26 +488,6 @@ class SmartKitchenScreen extends StatelessWidget {
                         ),
             ),
           ),
-          const SizedBox(height: 8),
-          _SmartActuellerCard(
-            isTr: isTr,
-            scanResult: actuellerScan,
-            suggestions: actuellerSuggestions,
-            monthlySavings: actuellerSavings,
-            onOpen: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const SmartActuellerScreen(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          _MarketComparisonCard(
-            isTr: isTr,
-            comparisons: marketComparisons,
-            syncStatus: marketSyncStatus,
-            onRefresh: () => provider.refreshMarketWatch(),
-          ),
           const SizedBox(height: 16),
           _DigitalTwinCard(
             isTr: isTr,
@@ -347,9 +500,9 @@ class SmartKitchenScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _SectionTitle(
-            title: isTr ? '4. Öğün rutinleri' : '4. Meal routines',
+            title: isTr ? '4. Ã–ÄŸÃ¼n rutinleri' : '4. Meal routines',
             subtitle: isTr
-                ? 'Menünü kurduktan sonra saatleri ayarla.'
+                ? 'MenÃ¼nÃ¼ kurduktan sonra saatleri ayarla.'
                 : 'Set your times after building your menus.',
           ),
           const SizedBox(height: 12),
@@ -392,9 +545,9 @@ class SmartKitchenScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _SectionTitle(
-            title: isTr ? '5. Hatırlatmalar' : '5. Reminders',
+            title: isTr ? '5. HatÄ±rlatmalar' : '5. Reminders',
             subtitle: isTr
-                ? 'Öğün yaklaşırken bildirim hazırlayalım.'
+                ? 'Ã–ÄŸÃ¼n yaklaÅŸÄ±rken bildirim hazÄ±rlayalÄ±m.'
                 : 'Prepare notifications before each meal.',
           ),
           const SizedBox(height: 12),
@@ -405,14 +558,14 @@ class SmartKitchenScreen extends StatelessWidget {
             },
             icon: const Icon(Icons.notifications_active_outlined),
             label: Text(
-              isTr ? 'Bildirimleri etkinleştir' : 'Enable notifications',
+              isTr ? 'Bildirimleri etkinleÅŸtir' : 'Enable notifications',
             ),
           ),
           const SizedBox(height: 12),
           if (reminderPreviews.isEmpty)
             _InfoCard(
               message: isTr
-                  ? 'En az bir öğünü etkinleştir; hatırlatma önizlemesi burada görünsün.'
+                  ? 'En az bir Ã¶ÄŸÃ¼nÃ¼ etkinleÅŸtir; hatÄ±rlatma Ã¶nizlemesi burada gÃ¶rÃ¼nsÃ¼n.'
                   : 'Enable at least one meal to see the reminder preview here.',
             )
           else
@@ -426,7 +579,7 @@ class SmartKitchenScreen extends StatelessWidget {
           _SectionTitle(
             title: isTr ? 'Asistan tercihleri' : 'Assistant preferences',
             subtitle: isTr
-                ? 'Genel davranışı burada tut.'
+                ? 'Genel davranÄ±ÅŸÄ± burada tut.'
                 : 'Keep the overall assistant behavior here.',
           ),
           const SizedBox(height: 12),
@@ -438,12 +591,12 @@ class SmartKitchenScreen extends StatelessWidget {
                   onChanged: provider.setEveningDriveHomeSuggestions,
                   title: Text(
                     isTr
-                        ? 'Öğünden önce öneriler hazır olsun'
+                        ? 'Ã–ÄŸÃ¼nden Ã¶nce Ã¶neriler hazÄ±r olsun'
                         : 'Prepare suggestions before meals',
                   ),
                   subtitle: Text(
                     isTr
-                        ? 'Sıradaki öğün için menü önerileri önceden gelsin.'
+                        ? 'SÄ±radaki Ã¶ÄŸÃ¼n iÃ§in menÃ¼ Ã¶nerileri Ã¶nceden gelsin.'
                         : 'Show menu suggestions ahead of the next meal.',
                   ),
                 ),
@@ -453,12 +606,12 @@ class SmartKitchenScreen extends StatelessWidget {
                   onChanged: provider.setSchoolBreakfastNudges,
                   title: Text(
                     isTr
-                        ? 'Erken saatli öğünleri hatırlat'
+                        ? 'Erken saatli Ã¶ÄŸÃ¼nleri hatÄ±rlat'
                         : 'Remind early-hour meals',
                   ),
                   subtitle: Text(
                     isTr
-                        ? 'Erken saatlerdeki öğünleri önceden hatırlat.'
+                        ? 'Erken saatlerdeki Ã¶ÄŸÃ¼nleri Ã¶nceden hatÄ±rlat.'
                         : 'Send reminders before earlier meals.',
                   ),
                 ),
@@ -468,7 +621,7 @@ class SmartKitchenScreen extends StatelessWidget {
                   onChanged: provider.setPriceComparisonEnabled,
                   title: Text(
                     isTr
-                        ? 'Market fiyat karşılaştırma hazırlığı'
+                        ? 'Market fiyat karÅŸÄ±laÅŸtÄ±rma hazÄ±rlÄ±ÄŸÄ±'
                         : 'Market price comparison prep',
                   ),
                 ),
@@ -477,7 +630,7 @@ class SmartKitchenScreen extends StatelessWidget {
                   value: prefs.campaignAlertsEnabled,
                   onChanged: provider.setCampaignAlertsEnabled,
                   title: Text(
-                    isTr ? 'Kampanya alarmları' : 'Campaign alerts',
+                    isTr ? 'Kampanya alarmlarÄ±' : 'Campaign alerts',
                   ),
                 ),
                 Padding(
@@ -512,17 +665,13 @@ class SmartKitchenScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showMarketFeedConfig(
-                        context,
-                        provider: provider,
-                        isTr: isTr,
-                      ),
-                      icon: const Icon(Icons.link_rounded),
-                      label: Text(
-                        isTr
-                            ? 'Canli market feed ayarla'
-                            : 'Configure live market feed',
+                    child: Text(
+                      isTr
+                          ? 'ResmÃ® fiyatlar konum seÃ§ildiÄŸinde otomatik gelir. Eski haricÃ® feed ayarÄ± ana akÄ±ÅŸtan Ã§Ä±karÄ±ldÄ±.'
+                          : 'Official prices now load after choosing a location. The old external feed setting was removed from the main flow.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.35,
                       ),
                     ),
                   ),
@@ -532,73 +681,6 @@ class SmartKitchenScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _showMarketFeedConfig(
-    BuildContext context, {
-    required AppProvider provider,
-    required bool isTr,
-  }) async {
-    final urlController = TextEditingController(
-      text: provider.smartKitchenPreferences.marketFeedUrl,
-    );
-    final labelController = TextEditingController(
-      text: provider.smartKitchenPreferences.marketFeedLabel,
-    );
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            isTr ? 'Canli market feed' : 'Live market feed',
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: labelController,
-                decoration: InputDecoration(
-                  labelText: isTr ? 'Kaynak etiketi' : 'Source label',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                minLines: 2,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: isTr ? 'JSON feed URL' : 'JSON feed URL',
-                  hintText: 'https://example.com/fridgechef-market-feed.json',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(isTr ? 'Vazgec' : 'Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                await provider.setMarketFeedConfig(
-                  feedUrl: urlController.text,
-                  feedLabel: labelController.text,
-                );
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-                if (provider.smartKitchenPreferences.priceComparisonEnabled &&
-                    urlController.text.trim().isNotEmpty) {
-                  await provider.refreshMarketWatch();
-                }
-              },
-              child: Text(isTr ? 'Kaydet' : 'Save'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -646,7 +728,7 @@ class SmartKitchenScreen extends StatelessWidget {
                   children: [
                     Text(
                       isTr
-                          ? '${_mealLabel(mealId, true)} menüsünü seç'
+                          ? '${_mealLabel(mealId, true)} menÃ¼sÃ¼nÃ¼ seÃ§'
                           : 'Select the ${_mealLabel(mealId, false)} menu',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
@@ -655,7 +737,7 @@ class SmartKitchenScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       isTr
-                          ? 'Birden fazla tarif seçebilirsin. Seçtiklerin alışveriş listesine birlikte yansır.'
+                          ? 'Birden fazla tarif seÃ§ebilirsin. SeÃ§tiklerin alÄ±ÅŸveriÅŸ listesine birlikte yansÄ±r.'
                           : 'You can select multiple recipes. Everything you pick will feed the shopping list together.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -686,8 +768,8 @@ class SmartKitchenScreen extends StatelessWidget {
                             title: Text(recipe.getName(locale)),
                             subtitle: Text(
                               isTr
-                                  ? '${recipe.totalTimeMinutes} dk • $missingCount eksik'
-                                  : '${recipe.totalTimeMinutes} min • $missingCount missing',
+                                  ? '${recipe.totalTimeMinutes} dk â€¢ $missingCount eksik'
+                                  : '${recipe.totalTimeMinutes} min â€¢ $missingCount missing',
                             ),
                             onChanged: (value) {
                               setModalState(() {
@@ -715,7 +797,7 @@ class SmartKitchenScreen extends StatelessWidget {
                           Navigator.pop(bottomSheetContext);
                         },
                         child: Text(
-                          isTr ? 'Menüyü kaydet' : 'Save menu',
+                          isTr ? 'MenÃ¼yÃ¼ kaydet' : 'Save menu',
                         ),
                       ),
                     ),
@@ -744,7 +826,7 @@ class _IntroCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -752,7 +834,7 @@ class _IntroCard extends StatelessWidget {
             const Color(0xFFFF8C42),
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.primary.withValues(alpha: 0.18),
@@ -764,13 +846,28 @@ class _IntroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
-          const SizedBox(height: 16),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.16),
+              ),
+            ),
+            child: const Icon(
+              Icons.psychology_alt_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 18),
           Text(
             title,
-            style: theme.textTheme.titleLarge?.copyWith(
+            style: theme.textTheme.headlineSmall?.copyWith(
               color: Colors.white,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 8),
@@ -780,6 +877,63 @@ class _IntroCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.92),
               height: 1.4,
             ),
+          ),
+          const SizedBox(height: 16),
+          const Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _IntroBadge(
+                icon: Icons.menu_book_rounded,
+                label: 'MenÃ¼',
+              ),
+              _IntroBadge(
+                icon: Icons.kitchen_outlined,
+                label: 'Dolap',
+              ),
+              _IntroBadge(
+                icon: Icons.shopping_bag_outlined,
+                label: 'AlÄ±ÅŸveriÅŸ',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IntroBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _IntroBadge({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -852,7 +1006,7 @@ class _SuggestionSpotlightCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     isTr
-                        ? '$mealLabel için menü öner'
+                        ? '$mealLabel iÃ§in menÃ¼ Ã¶ner'
                         : 'Menu ideas for $mealLabel',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -864,7 +1018,7 @@ class _SuggestionSpotlightCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isTr
-                  ? 'Önce menüyü seçmeye başla. Eklediklerin alışveriş listesine otomatik yansısın.'
+                  ? 'Ã–nce menÃ¼yÃ¼ seÃ§meye baÅŸla. Eklediklerin alÄ±ÅŸveriÅŸ listesine otomatik yansÄ±sÄ±n.'
                   : 'Start building the menu first. Added recipes will feed the shopping list automatically.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -874,7 +1028,7 @@ class _SuggestionSpotlightCard extends StatelessWidget {
             if (suggestions.isEmpty)
               Text(
                 isTr
-                    ? 'Bu öğün için yeni öneri hazırlanamadı.'
+                    ? 'Bu Ã¶ÄŸÃ¼n iÃ§in yeni Ã¶neri hazÄ±rlanamadÄ±.'
                     : 'No menu suggestion is ready for this meal yet.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -888,7 +1042,7 @@ class _SuggestionSpotlightCard extends StatelessWidget {
                   (sum, item) => sum + item.missingCount,
                 );
                 final statusText = suggestion.canCookNow
-                    ? (isTr ? 'Dolapta hazır' : 'Ready from pantry')
+                    ? (isTr ? 'Dolapta hazÄ±r' : 'Ready from pantry')
                     : (isTr
                         ? '$missingUnits birim eksik'
                         : '$missingUnits units missing');
@@ -902,8 +1056,8 @@ class _SuggestionSpotlightCard extends StatelessWidget {
                   title: Text(recipe.getName(isTr ? 'tr' : 'en')),
                   subtitle: Text(
                     isTr
-                        ? '${recipe.totalTimeMinutes} dk • $statusText'
-                        : '${recipe.totalTimeMinutes} min • $statusText',
+                        ? '${recipe.totalTimeMinutes} dk â€¢ $statusText'
+                        : '${recipe.totalTimeMinutes} min â€¢ $statusText',
                   ),
                   trailing: IconButton(
                     onPressed: () => onAddSuggestion(recipe.id),
@@ -970,7 +1124,7 @@ class _MealPlanCard extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: onManageMenu,
                   icon: const Icon(Icons.edit_outlined),
-                  label: Text(isTr ? 'Menüyü düzenle' : 'Edit menu'),
+                  label: Text(isTr ? 'MenÃ¼yÃ¼ dÃ¼zenle' : 'Edit menu'),
                 ),
               ],
             ),
@@ -978,10 +1132,10 @@ class _MealPlanCard extends StatelessWidget {
             Text(
               plannedRecipes.isEmpty
                   ? (isTr
-                      ? 'Bu öğün için önce menü oluştur.'
+                      ? 'Bu Ã¶ÄŸÃ¼n iÃ§in Ã¶nce menÃ¼ oluÅŸtur.'
                       : 'Create a menu for this meal first.')
                   : (isTr
-                      ? '${plannedRecipes.length} tarif seçili'
+                      ? '${plannedRecipes.length} tarif seÃ§ili'
                       : '${plannedRecipes.length} recipes selected'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -991,7 +1145,7 @@ class _MealPlanCard extends StatelessWidget {
             if (plannedRecipes.isEmpty)
               Text(
                 isTr
-                    ? 'Menü seçimi sonrası eksik malzemeler otomatik çıkarılır.'
+                    ? 'MenÃ¼ seÃ§imi sonrasÄ± eksik malzemeler otomatik Ã§Ä±karÄ±lÄ±r.'
                     : 'Missing ingredients will be calculated after menu selection.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -1024,14 +1178,14 @@ class _MealPlanCard extends StatelessWidget {
                 icon: const Icon(Icons.inventory_2_outlined),
                 label: Text(
                   isTr
-                      ? 'Bu menüyü pişirdim, dolaptan düş'
+                      ? 'Bu menÃ¼yÃ¼ piÅŸirdim, dolaptan dÃ¼ÅŸ'
                       : 'Cooked this menu, deduct from pantry',
                 ),
               ),
             ],
             const SizedBox(height: 14),
             Text(
-              isTr ? 'Önerilen menü parçaları' : 'Suggested menu ideas',
+              isTr ? 'Ã–nerilen menÃ¼ parÃ§alarÄ±' : 'Suggested menu ideas',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -1040,7 +1194,7 @@ class _MealPlanCard extends StatelessWidget {
             if (suggestedRecipes.isEmpty)
               Text(
                 isTr
-                    ? 'Bu öğün için yeni öneri hazırlanamadı.'
+                    ? 'Bu Ã¶ÄŸÃ¼n iÃ§in yeni Ã¶neri hazÄ±rlanamadÄ±.'
                     : 'No additional suggestions are ready for this meal.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -1055,7 +1209,7 @@ class _MealPlanCard extends StatelessWidget {
                     (sum, item) => sum + item.missingCount,
                   );
                   final statusLabel = suggestion.canCookNow
-                      ? (isTr ? 'Dolapta hazır' : 'Ready from pantry')
+                      ? (isTr ? 'Dolapta hazÄ±r' : 'Ready from pantry')
                       : (isTr
                           ? '$missingUnits birim eksik'
                           : '$missingUnits units missing');
@@ -1069,8 +1223,8 @@ class _MealPlanCard extends StatelessWidget {
                     title: Text(recipe.getName(locale)),
                     subtitle: Text(
                       isTr
-                          ? '${recipe.totalTimeMinutes} dk • $statusLabel'
-                          : '${recipe.totalTimeMinutes} min • $statusLabel',
+                          ? '${recipe.totalTimeMinutes} dk â€¢ $statusLabel'
+                          : '${recipe.totalTimeMinutes} min â€¢ $statusLabel',
                     ),
                     trailing: IconButton(
                       onPressed: () => onAddSuggestion(recipe.id),
@@ -1192,7 +1346,7 @@ class _MealRoutineCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _TimeButton(
-                    label: isTr ? 'Hafta içi' : 'Weekdays',
+                    label: isTr ? 'Hafta iÃ§i' : 'Weekdays',
                     timeText: _formatMinutes(context, slot.weekdayMinutes),
                     onTap: onPickWeekday,
                   ),
@@ -1211,7 +1365,7 @@ class _MealRoutineCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  isTr ? 'Hatırlatma süresi:' : 'Remind before:',
+                  isTr ? 'HatÄ±rlatma sÃ¼resi:' : 'Remind before:',
                   style: theme.textTheme.bodyMedium,
                 ),
                 const Spacer(),
@@ -1311,12 +1465,12 @@ class _ReminderCard extends StatelessWidget {
         leading: const Icon(Icons.notifications_active_outlined),
         title: Text(
           isTr
-              ? '${_mealLabel(preview.mealId, true)} için $reminderText'
+              ? '${_mealLabel(preview.mealId, true)} iÃ§in $reminderText'
               : '$reminderText for ${_mealLabel(preview.mealId, false)}',
         ),
         subtitle: Text(
           isTr
-              ? '$mealText öğününden ${preview.leadMinutes} dk önce'
+              ? '$mealText Ã¶ÄŸÃ¼nÃ¼nden ${preview.leadMinutes} dk Ã¶nce'
               : '${preview.leadMinutes} min before the $mealText meal',
         ),
         trailing: Icon(Icons.chevron_right, color: theme.colorScheme.outline),
@@ -1418,13 +1572,13 @@ class _RpgOverviewCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Kitchen RPG' : 'Kitchen RPG',
+                    isTr ? 'Mutfak Seviyesi' : 'Kitchen Progress',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                _InfoBadge(icon: Icons.bolt, label: 'Lv.$level'),
+                _InfoBadge(icon: Icons.bolt, label: 'Seviye $level'),
               ],
             ),
             const SizedBox(height: 10),
@@ -1442,13 +1596,13 @@ class _RpgOverviewCard extends StatelessWidget {
                 _InfoBadge(
                   icon: Icons.local_fire_department_outlined,
                   label: isTr
-                      ? '$streakDays gun streak'
+                      ? '$streakDays gÃ¼n Ã¼st Ã¼ste'
                       : '$streakDays day streak',
                 ),
                 _InfoBadge(
                   icon: Icons.military_tech_outlined,
                   label: isTr
-                      ? '$completedChallenges gorev tamam'
+                      ? '$completedChallenges gÃ¶rev tamamlandÄ±'
                       : '$completedChallenges challenges done',
                 ),
                 _InfoBadge(
@@ -1482,7 +1636,7 @@ class _RpgOverviewCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       isTr
-                          ? '$progress / ${item.challenge.target} adim'
+                          ? '$progress / ${item.challenge.target} adÄ±m'
                           : '$progress / ${item.challenge.target} steps',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -1504,7 +1658,7 @@ class _RpgOverviewCard extends StatelessWidget {
               ),
               child: Text(
                 isTr
-                    ? 'Topluluk challenge: ${activeCommunityChallenge.titleTr}'
+                    ? 'Topluluk gÃ¶revi: ${activeCommunityChallenge.titleTr}'
                     : 'Community challenge: ${activeCommunityChallenge.titleEn}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w700,
@@ -1550,7 +1704,7 @@ class _MoodDigestCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Mood bazli menu' : 'Mood-based menu',
+                    isTr ? 'Ruh hÃ¢line gÃ¶re menÃ¼' : 'Mood-based menu',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -1561,7 +1715,7 @@ class _MoodDigestCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isTr
-                  ? 'Bu hafta nasil hissediyorsun? Secimlerin pazar ozetine ve menu onerilerine yansisin.'
+                  ? 'Bu hafta nasÄ±l hissediyorsun? SeÃ§imlerin pazar Ã¶zetine ve menÃ¼ Ã¶nerilerine yansÄ±sÄ±n.'
                   : 'How are you feeling this week? Let it shape the Sunday digest and menu suggestions.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -1618,7 +1772,7 @@ class _MoodDigestCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       isTr
-                          ? 'Aktif mood: ${activeMood!.nameTr}'
+                          ? 'Aktif ruh hÃ¢li: ${activeMood!.nameTr}'
                           : 'Active mood: ${activeMood!.nameEn}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w700,
@@ -1663,7 +1817,9 @@ class _ZeroWasteCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Zero-Waste AI Co-Pilot' : 'Zero-Waste AI Co-Pilot',
+                    isTr
+                        ? 'Ä°sraf Ã–nleme AsistanÄ±'
+                        : 'Zero-Waste AI Co-Pilot',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -1680,7 +1836,7 @@ class _ZeroWasteCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isTr
-                  ? 'Riskli malzemeleri one cek, cope gitmeden menulere bagla.'
+                  ? 'Riskli malzemeleri Ã¶ne Ã§ek, Ã§Ã¶pe gitmeden menÃ¼lere baÄŸla.'
                   : 'Bring risky items forward and connect them to menus before they are wasted.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -1690,7 +1846,7 @@ class _ZeroWasteCard extends StatelessWidget {
             if (rescueSuggestions.isEmpty)
               Text(
                 isTr
-                    ? 'Su an icin yuksek riskli malzeme gorunmuyor.'
+                    ? 'Åu an iÃ§in yÃ¼ksek riskli malzeme gÃ¶rÃ¼nmÃ¼yor.'
                     : 'No high-risk ingredients are visible right now.',
               )
             else
@@ -1710,289 +1866,6 @@ class _ZeroWasteCard extends StatelessWidget {
                               onPreviewRecipe(suggestion.rescueRecipe!),
                           icon: const Icon(Icons.chevron_right_rounded),
                         ),
-                );
-              }),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SmartActuellerCard extends StatelessWidget {
-  final bool isTr;
-  final ActuellerScanResult? scanResult;
-  final List<ActuellerSuggestion> suggestions;
-  final double monthlySavings;
-  final VoidCallback onOpen;
-
-  const _SmartActuellerCard({
-    required this.isTr,
-    required this.scanResult,
-    required this.suggestions,
-    required this.monthlySavings,
-    required this.onOpen,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final topSuggestion = suggestions.isEmpty ? null : suggestions.first;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.local_offer_outlined,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    isTr ? 'Markette Bugün Ne Ucuz?' : 'Today\'s Market Deals',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isTr
-                  ? 'Seçtiğin marketlerde hangi ürünün uygun olduğunu hemen gör. Evde eksilenleri öne çıkaralım.'
-                  : 'See which products are cheaper in your selected markets and highlight the ones you are running low on.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (scanResult == null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.45,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  isTr
-                      ? 'Henüz market indirimi alınmadı. Hemen göz atabilirsin.'
-                      : 'No market deals have been loaded yet. You can open it now.',
-                ),
-              )
-            else ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  Chip(
-                    label: Text(
-                      scanResult!.detectedStore?.isNotEmpty == true
-                          ? scanResult!.detectedStore!
-                          : scanResult!.sourceLabel,
-                    ),
-                  ),
-                  Chip(
-                    label: Text(
-                      isTr
-                          ? '${scanResult!.deals.length} ürün'
-                          : '${scanResult!.deals.length} items',
-                    ),
-                  ),
-                  Chip(
-                    label: Text(
-                      isTr
-                          ? 'Bu ay ${monthlySavings.round()} TL'
-                          : '${monthlySavings.round()} TRY this month',
-                    ),
-                  ),
-                ],
-              ),
-              if (topSuggestion != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.primaryContainer,
-                        theme.colorScheme.secondaryContainer,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isTr ? 'Bugün öne çıkan fırsat' : 'Top pick today',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        topSuggestion.title(isTr ? 'tr' : 'en'),
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        topSuggestion.body(isTr ? 'tr' : 'en'),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.84),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton.tonalIcon(
-                onPressed: onOpen,
-                icon: const Icon(Icons.document_scanner_outlined),
-                label: Text(
-                  scanResult == null
-                      ? (isTr ? 'Broşürü tara' : 'Scan flyer')
-                      : (isTr ? 'İndirimleri aç' : 'Open deals'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MarketComparisonCard extends StatelessWidget {
-  final bool isTr;
-  final List<MarketBasketComparison> comparisons;
-  final MarketSyncStatus syncStatus;
-  final Future<void> Function() onRefresh;
-
-  const _MarketComparisonCard({
-    required this.isTr,
-    required this.comparisons,
-    required this.syncStatus,
-    required this.onRefresh,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.storefront_outlined,
-                    color: theme.colorScheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    isTr ? 'Firsat kosesi' : 'Opportunity corner',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: syncStatus.isLoading ? null : onRefresh,
-                  icon: Icon(
-                    syncStatus.isLoading
-                        ? Icons.hourglass_top_rounded
-                        : Icons.refresh_rounded,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isTr
-                  ? 'Eksik malzemeler icin market bazli basket karsilastirmasi.'
-                  : 'Market-level basket comparison for missing ingredients.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (syncStatus.sourceLabel.isNotEmpty ||
-                syncStatus.message != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                syncStatus.message ??
-                    (syncStatus.usedLiveData
-                        ? (isTr
-                            ? '${syncStatus.sourceLabel} ile canlı veri kullanılıyor.'
-                            : 'Using live data from ${syncStatus.sourceLabel}.')
-                        : (isTr
-                            ? 'Tahmini fiyat modeli aktif.'
-                            : 'Estimated pricing model is active.')),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: syncStatus.usedLiveData
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            if (comparisons.isEmpty)
-              Text(
-                isTr
-                    ? 'Karsilastirma icin once eksik malzeme olusmali.'
-                    : 'You need missing ingredients before comparing markets.',
-              )
-            else
-              ...comparisons.take(3).map((comparison) {
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.local_offer_outlined),
-                  title: Text(comparison.market),
-                  subtitle: Text(
-                    isTr
-                        ? '${comparison.campaignCount} kampanya, ${comparison.deals.length} ürün • ${comparison.isLiveData ? 'canlı' : 'tahmini'}'
-                        : '${comparison.campaignCount} campaigns, ${comparison.deals.length} items • ${comparison.isLiveData ? 'live' : 'estimated'}',
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${comparison.totalPrice.round()} TL',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      if (comparison.estimatedSavingsVsHighest > 0)
-                        Text(
-                          isTr
-                              ? '${comparison.estimatedSavingsVsHighest.round()} TL daha uygun'
-                              : '${comparison.estimatedSavingsVsHighest.round()} TRY cheaper',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                    ],
-                  ),
                 );
               }),
           ],
@@ -2027,7 +1900,7 @@ class _DigitalTwinCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Digital Kitchen Twin' : 'Digital Kitchen Twin',
+                    isTr ? 'Dolap HaritasÄ±' : 'Digital Kitchen Twin',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -2038,7 +1911,7 @@ class _DigitalTwinCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isTr
-                  ? 'Dolabini raf bazli gor. Bir sonraki fazda bunu AR kamera ustune tasiyabiliriz.'
+                  ? 'DolabÄ±nÄ± raf raf gÃ¶r. Ä°leride bunu kamera Ã¼stÃ¼nde de gÃ¶sterebiliriz.'
                   : 'View your pantry as fridge zones today. This is ready to graduate to AR later.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -2072,7 +1945,7 @@ class _DigitalTwinCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             isTr
-                                ? '${zone.items.length} ürün, $highRisk riskli'
+                                ? '${zone.items.length} Ã¼rÃ¼n, $highRisk riskli'
                                 : '${zone.items.length} items, $highRisk risky',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
@@ -2131,7 +2004,7 @@ class _FlavorPairingCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isTr ? 'Anti-Recipe modu' : 'Anti-Recipe mode',
+                    isTr ? 'Lezzet Eşleşmeleri' : 'Flavor Pairings',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -2142,8 +2015,8 @@ class _FlavorPairingCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isTr
-                  ? 'Tarif yerine uyumlu malzemeleri one cikar. Kendi imza tabagini kur.'
-                  : 'Promote compatible ingredients instead of a fixed recipe. Build your own signature plate.',
+                  ? 'Tarife bağlı kalmadan birlikte iyi giden malzemeleri gösterir. İstersen eksik parçayı ekleyip tabağı tamamlayabilirsin.'
+                  : 'Shows ingredients that naturally work well together without forcing a fixed recipe.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -2152,7 +2025,7 @@ class _FlavorPairingCard extends StatelessWidget {
             if (pairings.isEmpty)
               Text(
                 isTr
-                    ? 'Pairing gormek icin once dolabinda birkac temel malzeme sec.'
+                    ? 'Öneri görmek için önce dolabında birkaç temel malzeme seç.'
                     : 'Select a few pantry ingredients first to see flavor pairings.',
               )
             else

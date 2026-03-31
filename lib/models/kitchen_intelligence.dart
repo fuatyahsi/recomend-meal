@@ -236,6 +236,196 @@ class PlateVisionCapture {
   });
 }
 
+class PantryVisionImageCapture {
+  final String imagePath;
+  final String rawText;
+  final List<String> labels;
+  final double confidence;
+
+  const PantryVisionImageCapture({
+    required this.imagePath,
+    required this.rawText,
+    required this.labels,
+    required this.confidence,
+  });
+}
+
+class PantryVisionCapture {
+  final String imagePath;
+  final String rawText;
+  final List<String> labels;
+  final List<Ingredient> detectedIngredients;
+  final double confidence;
+
+  const PantryVisionCapture({
+    required this.imagePath,
+    required this.rawText,
+    required this.labels,
+    required this.detectedIngredients,
+    required this.confidence,
+  });
+}
+
+class PantryVisionSuggestion {
+  final Ingredient ingredient;
+  final int estimatedDaysLeft;
+  final Recipe? rescueRecipe;
+  final String titleTr;
+  final String titleEn;
+  final String bodyTr;
+  final String bodyEn;
+
+  const PantryVisionSuggestion({
+    required this.ingredient,
+    required this.estimatedDaysLeft,
+    required this.rescueRecipe,
+    required this.titleTr,
+    required this.titleEn,
+    required this.bodyTr,
+    required this.bodyEn,
+  });
+
+  String title(String locale) => locale == 'tr' ? titleTr : titleEn;
+  String body(String locale) => locale == 'tr' ? bodyTr : bodyEn;
+}
+
+class SurpriseBasketPick {
+  final SmartShoppingItem shoppingItem;
+  final String market;
+  final double linePrice;
+  final double estimatedSavingsVsHighest;
+
+  const SurpriseBasketPick({
+    required this.shoppingItem,
+    required this.market,
+    required this.linePrice,
+    required this.estimatedSavingsVsHighest,
+  });
+}
+
+class SurpriseBasketStop {
+  final String market;
+  final List<SurpriseBasketPick> picks;
+  final double subtotal;
+
+  const SurpriseBasketStop({
+    required this.market,
+    required this.picks,
+    required this.subtotal,
+  });
+}
+
+class SurpriseBasketPlan {
+  final String titleTr;
+  final String titleEn;
+  final String bodyTr;
+  final String bodyEn;
+  final List<SurpriseBasketStop> stops;
+  final double totalSpend;
+  final double estimatedSavings;
+
+  const SurpriseBasketPlan({
+    required this.titleTr,
+    required this.titleEn,
+    required this.bodyTr,
+    required this.bodyEn,
+    required this.stops,
+    required this.totalSpend,
+    required this.estimatedSavings,
+  });
+
+  String title(String locale) => locale == 'tr' ? titleTr : titleEn;
+  String body(String locale) => locale == 'tr' ? bodyTr : bodyEn;
+}
+
+class PriceTickerEntry {
+  final Ingredient ingredient;
+  final String market;
+  final double price;
+  final double deltaPercent;
+  final bool isDrop;
+  final String labelTr;
+  final String labelEn;
+
+  const PriceTickerEntry({
+    required this.ingredient,
+    required this.market,
+    required this.price,
+    required this.deltaPercent,
+    required this.isDrop,
+    required this.labelTr,
+    required this.labelEn,
+  });
+
+  String label(String locale) => locale == 'tr' ? labelTr : labelEn;
+}
+
+class ProductPriceTickerEntry {
+  final String productTitle;
+  final String market;
+  final double price;
+  final double deltaPercent;
+  final bool isDrop;
+
+  const ProductPriceTickerEntry({
+    required this.productTitle,
+    required this.market,
+    required this.price,
+    required this.deltaPercent,
+    required this.isDrop,
+  });
+}
+
+class NeighborhoodSavingsEntry {
+  final int rank;
+  final String name;
+  final String districtTr;
+  final String districtEn;
+  final double savingsValue;
+  final int completedChallenges;
+  final bool isCurrentUser;
+
+  const NeighborhoodSavingsEntry({
+    required this.rank,
+    required this.name,
+    required this.districtTr,
+    required this.districtEn,
+    required this.savingsValue,
+    required this.completedChallenges,
+    required this.isCurrentUser,
+  });
+
+  String district(String locale) => locale == 'tr' ? districtTr : districtEn;
+}
+
+class SponsoredRecipePlacement {
+  final Recipe recipe;
+  final String sponsorName;
+  final String partnerName;
+  final String titleTr;
+  final String titleEn;
+  final String bodyTr;
+  final String bodyEn;
+  final String ctaTr;
+  final String ctaEn;
+
+  const SponsoredRecipePlacement({
+    required this.recipe,
+    required this.sponsorName,
+    required this.partnerName,
+    required this.titleTr,
+    required this.titleEn,
+    required this.bodyTr,
+    required this.bodyEn,
+    required this.ctaTr,
+    required this.ctaEn,
+  });
+
+  String title(String locale) => locale == 'tr' ? titleTr : titleEn;
+  String body(String locale) => locale == 'tr' ? bodyTr : bodyEn;
+  String cta(String locale) => locale == 'tr' ? ctaTr : ctaEn;
+}
+
 class RemoteMarketQuote {
   final String ingredientId;
   final String market;

@@ -1,4 +1,4 @@
-import '../models/kitchen_rpg.dart';
+﻿import '../models/kitchen_rpg.dart';
 
 class KitchenRpgService {
   static const pantrySyncCooldown = Duration(minutes: 20);
@@ -135,8 +135,8 @@ class KitchenRpgService {
       'Planlama Ustası',
       'Lezzet Avcısı',
       'Mutfak Taktikçisi',
-      'Fridge Hero',
-      'MasterChef Modu',
+      'Buzdolabı Kahramanı',
+      'Usta Şef Modu',
     ];
     final titlesEn = [
       'Rookie Prep',
@@ -144,7 +144,7 @@ class KitchenRpgService {
       'Planning Pro',
       'Flavor Hunter',
       'Kitchen Tactician',
-      'Fridge Hero',
+      'Buzdolabı Kahramanı',
       'MasterChef Mode',
     ];
     final index = ((level - 1) ~/ 2).clamp(0, titlesTr.length - 1);
@@ -261,3 +261,4 @@ class KitchenRpgService {
     return next;
   }
 }
+

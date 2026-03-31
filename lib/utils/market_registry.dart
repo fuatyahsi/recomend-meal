@@ -1,4 +1,4 @@
-const marketDisplayNamesById = <String, String>{
+﻿const marketDisplayNamesById = <String, String>{
   'a101': 'A101',
   'bim': 'BİM',
   'sok': 'ŞOK',
@@ -9,13 +9,17 @@ const marketDisplayNamesById = <String, String>{
   'kooperatif': 'Tarım Kredi',
   'file': 'File Market',
   'bildirici': 'Bildirici',
+  'altunbilekler': 'Altunbilekler',
+  'macrocenter': 'Macrocenter',
+  'gimsa': 'GİMSA',
+  'akyurt': 'Akyurt Süpermarket',
   'getir': 'Getir',
   'yemeksepeti': 'Yemeksepeti',
 };
 
 const marketAliasesById = <String, List<String>>{
   'a101': ['a101'],
-  'bim': ['bim', 'bım', 'b.i.m'],
+  'bim': ['bim', 'bım', 'b.i.m', 'bim market'],
   'sok': ['sok', 'şok', 'şok'],
   'migros': ['migros'],
   'carrefoursa': ['carrefoursa', 'carrefour sa', 'carrefour'],
@@ -32,6 +36,10 @@ const marketAliasesById = <String, List<String>>{
   ],
   'file': ['file', 'file market', 'filemarket'],
   'bildirici': ['bildirici'],
+  'altunbilekler': ['altunbilekler', 'altun bilekler'],
+  'macrocenter': ['macrocenter', 'macro center'],
+  'gimsa': ['gimsa', 'gimsa market'],
+  'akyurt': ['akyurt', 'akyurt supermarket', 'akyurt süpermarket', 'akyurtsupermarket'],
   'getir': ['getir'],
   'yemeksepeti': ['yemeksepeti', 'yemek sepeti'],
 };

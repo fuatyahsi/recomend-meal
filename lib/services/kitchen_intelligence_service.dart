@@ -1,7 +1,8 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import '../models/ingredient.dart';
 import '../models/kitchen_intelligence.dart';
+import '../models/kitchen_rpg.dart';
 import '../models/recipe.dart';
 import '../models/smart_kitchen.dart';
 import '../utils/market_registry.dart';
@@ -43,7 +44,7 @@ class KitchenIntelligenceService {
     'satis',
     'pos',
     'z no',
-    'fiş',
+    'fiÅŸ',
     'fis',
     'no:',
   ];
@@ -197,19 +198,19 @@ class KitchenIntelligenceService {
     ),
     (
       ['tomato', 'olive_oil', 'basil'],
-      'Domates, zeytinyagi ve feslegen her zaman temiz bir eslesme verir.',
+      'Domates, zeytinyaÄŸÄ± ve fesleÄŸen birlikte her zaman ferah bir tabak Ã§Ä±karÄ±r.',
       'Tomato, olive oil, and basil always land as a clean match.',
       91,
     ),
     (
       ['yogurt', 'mint_dried', 'cucumber'],
-      'Yogurt, mint, and cucumber together create a cool rescue plate.',
+      'YoÄŸurt, kuru nane ve salatalÄ±k birlikte serin ve hafif bir eÅŸlikÃ§i oluÅŸturur.',
       'Yogurt, mint, and cucumber together create a cool rescue plate.',
       88,
     ),
     (
       ['egg', 'cheese_white', 'parsley'],
-      'Yumurta, beyaz peynir ve maydanoz kahvaltida cok guclu bir cekirdek.',
+      'Yumurta, beyaz peynir ve maydanoz kahvaltÄ±da Ã§ok gÃ¼venli ve doyurucu bir temel oluÅŸturur.',
       'Egg, white cheese, and parsley create a powerful breakfast core.',
       86,
     ),
@@ -561,19 +562,25 @@ class KitchenIntelligenceService {
 
       final missing =
           ids.where((id) => !selectedIngredientIds.contains(id)).toList();
+      final missingTr = missing
+          .map((id) => _friendlyIngredientName(id, 'tr'))
+          .toList(growable: false);
+      final missingEn = missing
+          .map((id) => _friendlyIngredientName(id, 'en'))
+          .toList(growable: false);
       final titleTr = missing.isEmpty
-          ? 'Lezzet uyumu %${rule.$4}'
-          : 'Bir adimda %${rule.$4} uyum';
+          ? 'Birlikte Ã§ok iyi gider'
+          : '$matches malzeme hazÄ±r, kÃ¼Ã§Ã¼k bir dokunuÅŸ kaldÄ±';
       final titleEn = missing.isEmpty
-          ? 'Flavor fit ${rule.$4}%'
-          : 'One step away from ${rule.$4}% fit';
+          ? 'These work really well together'
+          : '$matches ingredients are ready, one small addition left';
 
       final bodyTr = missing.isEmpty
           ? rule.$2
-          : '${rule.$2} Eksik halka: ${missing.join(', ')}.';
+          : '${rule.$2} Tamamlamak iÃ§in ${_humanList(missingTr, 'tr')} ekleyebilirsin.';
       final bodyEn = missing.isEmpty
           ? rule.$3
-          : '${rule.$3} Missing link: ${missing.join(', ')}.';
+          : '${rule.$3} To complete it, add ${_humanList(missingEn, 'en')}.';
 
       suggestions.add(
         FlavorPairSuggestion(
@@ -588,6 +595,39 @@ class KitchenIntelligenceService {
 
     suggestions.sort((a, b) => b.score.compareTo(a.score));
     return suggestions.take(3).toList();
+  }
+
+  String _friendlyIngredientName(String id, String locale) {
+    if (locale == 'tr') {
+      final aliases = _receiptAliasesByIngredientId[id];
+      if (aliases != null && aliases.isNotEmpty) {
+        return _capitalizeWords(aliases.first);
+      }
+    }
+
+    return _capitalizeWords(id.replaceAll('_', ' '));
+  }
+
+  String _capitalizeWords(String value) {
+    return value.split(' ').where((part) => part.trim().isNotEmpty).map((part) {
+      final lower = part.trim().toLowerCase();
+      if (lower.isEmpty) return lower;
+      return '${lower[0].toUpperCase()}${lower.substring(1)}';
+    }).join(' ');
+  }
+
+  String _humanList(List<String> items, String locale) {
+    if (items.isEmpty) return '';
+    if (items.length == 1) return items.first;
+    if (items.length == 2) {
+      return locale == 'tr'
+          ? '${items.first} ve ${items.last}'
+          : '${items.first} and ${items.last}';
+    }
+
+    final head = items.sublist(0, items.length - 1).join(', ');
+    final tail = items.last;
+    return locale == 'tr' ? '$head ve $tail' : '$head, and $tail';
   }
 
   WeeklyMenuDigest buildWeeklyMenuDigest({
@@ -609,16 +649,308 @@ class KitchenIntelligenceService {
     final recipeNamesEn = recipes.map((recipe) => recipe.nameEn).join(', ');
 
     return WeeklyMenuDigest(
-      titleTr: 'Pazar menun hazir',
+      titleTr: 'Pazar menÃ¼n hazÄ±r',
       titleEn: 'Your Sunday menu is ready',
       bodyTr: recipes.isEmpty
-          ? 'Mood ve dolap verine gore yeni hafta icin fikirler hazirliyorum.'
-          : '$moodLabelTr gore secilen menu: $recipeNamesTr',
+          ? 'Ruh hÃ¢line ve dolap durumuna gÃ¶re yeni hafta iÃ§in fikirler hazÄ±rlÄ±yorum.'
+          : '$moodLabelTr gÃ¶re seÃ§ilen menÃ¼: $recipeNamesTr',
       bodyEn: recipes.isEmpty
           ? 'I am preparing next week ideas based on your mood and pantry.'
           : 'Picked for $moodLabelEn: $recipeNamesEn',
       recipes: recipes,
     );
+  }
+
+  SurpriseBasketPlan? buildSurpriseBasketPlan({
+    required List<SmartShoppingItem> shoppingItems,
+    required List<MarketBasketComparison> comparisons,
+    required String locale,
+  }) {
+    if (shoppingItems.isEmpty || comparisons.isEmpty) {
+      return null;
+    }
+
+    final groupedPicks = <String, List<SurpriseBasketPick>>{};
+    var totalSpend = 0.0;
+    var totalSavings = 0.0;
+
+    for (final item in shoppingItems) {
+      final candidates = comparisons
+          .expand((comparison) => comparison.deals)
+          .where(
+            (deal) => deal.shoppingItem.ingredient.id == item.ingredient.id,
+          )
+          .toList()
+        ..sort((a, b) => a.totalPrice.compareTo(b.totalPrice));
+
+      if (candidates.isEmpty) {
+        continue;
+      }
+
+      final best = candidates.first;
+      final worst = candidates.last;
+      final savings =
+          (worst.totalPrice - best.totalPrice).clamp(0, 9999).toDouble();
+      totalSpend += best.totalPrice;
+      totalSavings += savings;
+
+      groupedPicks.putIfAbsent(best.market, () => <SurpriseBasketPick>[]).add(
+            SurpriseBasketPick(
+              shoppingItem: item,
+              market: best.market,
+              linePrice: best.totalPrice,
+              estimatedSavingsVsHighest: savings,
+            ),
+          );
+    }
+
+    if (groupedPicks.isEmpty) {
+      return null;
+    }
+
+    final stops = groupedPicks.entries
+        .map(
+          (entry) => SurpriseBasketStop(
+            market: entry.key,
+            picks: entry.value
+              ..sort(
+                (a, b) => b.estimatedSavingsVsHighest.compareTo(
+                  a.estimatedSavingsVsHighest,
+                ),
+              ),
+            subtotal: entry.value.fold<double>(
+              0,
+              (sum, pick) => sum + pick.linePrice,
+            ),
+          ),
+        )
+        .toList()
+      ..sort((a, b) => b.subtotal.compareTo(a.subtotal));
+
+    final previewPicks = stops
+        .expand((stop) => stop.picks.map((pick) =>
+            '${stop.market} â€¢ ${pick.shoppingItem.ingredient.getName(locale)}'))
+        .take(3)
+        .join(', ');
+
+    return SurpriseBasketPlan(
+      titleTr:
+          'SÃ¼rpriz Sepet: ${totalSavings.round()} TL avantaj iÃ§in ${stops.length} market',
+      titleEn:
+          'Surprise Basket: ${totalSavings.round()} TRY advantage across ${stops.length} stores',
+      bodyTr: previewPicks.isEmpty
+          ? 'Bu hafta en ucuz rotayÄ± otomatik Ã§Ä±kardÄ±m.'
+          : 'Bu hafta yaklaÅŸÄ±k ${totalSavings.round()} TL cepte kalsÄ±n diye rotayÄ± ÅŸÃ¶yle bÃ¶ldÃ¼m: $previewPicks.',
+      bodyEn: previewPicks.isEmpty
+          ? 'I built the cheapest route for this week.'
+          : 'To keep about ${totalSavings.round()} TRY in your pocket this week, follow: $previewPicks.',
+      stops: stops,
+      totalSpend: totalSpend,
+      estimatedSavings: totalSavings,
+    );
+  }
+
+  List<PriceTickerEntry> buildPriceTickerEntries({
+    required List<RemoteMarketQuote> quotes,
+    required Iterable<Ingredient> ingredients,
+  }) {
+    if (quotes.isEmpty) {
+      return const [];
+    }
+
+    final ingredientById = {
+      for (final ingredient in ingredients) ingredient.id: ingredient,
+    };
+    final quotesByIngredient = <String, List<RemoteMarketQuote>>{};
+
+    for (final quote in quotes) {
+      quotesByIngredient.putIfAbsent(quote.ingredientId, () => []).add(quote);
+    }
+
+    final entries = <PriceTickerEntry>[];
+    for (final entry in quotesByIngredient.entries) {
+      final ingredient = ingredientById[entry.key];
+      if (ingredient == null) {
+        continue;
+      }
+
+      final ingredientQuotes = entry.value.toList()
+        ..sort((a, b) => a.unitPrice.compareTo(b.unitPrice));
+      final best = ingredientQuotes.first;
+      final average = ingredientQuotes
+              .map((quote) => quote.unitPrice)
+              .fold<double>(0, (sum, price) => sum + price) /
+          ingredientQuotes.length;
+      final baseline = average <= 0
+          ? _unitPriceForMarket(
+              ingredient, normalizeMarketId(best.market) ?? 'migros')
+          : average;
+      final deltaPercent = (((baseline - best.unitPrice) / baseline) * 100)
+          .clamp(-99, 99)
+          .toDouble();
+      final marketName = displayNameForMarket(best.market);
+
+      entries.add(
+        PriceTickerEntry(
+          ingredient: ingredient,
+          market: marketName,
+          price: best.unitPrice,
+          deltaPercent: deltaPercent.toDouble(),
+          isDrop: deltaPercent >= 0,
+          labelTr:
+              '${ingredient.nameTr} iÃ§in en iyi fiyat $marketName: ${best.unitPrice.toStringAsFixed(2)} TL',
+          labelEn:
+              'Best ${ingredient.nameEn} price is at $marketName: ${best.unitPrice.toStringAsFixed(2)} TRY',
+        ),
+      );
+    }
+
+    entries.sort((a, b) => b.deltaPercent.compareTo(a.deltaPercent));
+    return entries.take(8).toList();
+  }
+
+  List<PantryVisionSuggestion> buildPantryVisionSuggestions({
+    required PantryVisionCapture capture,
+    required List<PantryRiskItem> riskItems,
+    required List<Recipe> recipes,
+    required Set<String> availableIngredientIds,
+  }) {
+    if (capture.detectedIngredients.isEmpty) {
+      return const [];
+    }
+
+    final riskByIngredient = {
+      for (final item in riskItems) item.ingredient.id: item,
+    };
+    final suggestions = <PantryVisionSuggestion>[];
+    final seen = <String>{};
+
+    for (final ingredient in capture.detectedIngredients) {
+      if (!seen.add(ingredient.id)) {
+        continue;
+      }
+      final riskItem = riskByIngredient[ingredient.id];
+      final daysLeft = riskItem == null
+          ? (_shelfLifeDays(ingredient) * 0.6).round().clamp(1, 30).toInt()
+          : (riskItem.shelfLifeDays - riskItem.ageDays).clamp(0, 30).toInt();
+
+      Recipe? rescueRecipe;
+      for (final recipe in recipes) {
+        if (recipe.ingredients
+            .any((item) => item.ingredientId == ingredient.id)) {
+          rescueRecipe = recipe;
+          break;
+        }
+      }
+
+      final missingCount = rescueRecipe == null
+          ? 0
+          : rescueRecipe
+              .getMissingIngredients(availableIngredientIds.toList())
+              .where((ingredient) => !ingredient.isOptional)
+              .length;
+
+      suggestions.add(
+        PantryVisionSuggestion(
+          ingredient: ingredient,
+          estimatedDaysLeft: daysLeft,
+          rescueRecipe: rescueRecipe,
+          titleTr: '${ingredient.nameTr} rafta gÃ¶rÃ¼ndÃ¼',
+          titleEn: '${ingredient.nameEn} looks visible on the shelf',
+          bodyTr: daysLeft <= 2
+              ? '${ingredient.nameTr} iÃ§in bozulma riski yÃ¼kseliyor. ${rescueRecipe?.nameTr ?? "BugÃ¼n tÃ¼ketmek"} iyi bir hamle olur.'
+              : '${ingredient.nameTr} dolapta hazÄ±r gÃ¶rÃ¼nÃ¼yor. ${missingCount == 0 ? "BugÃ¼n" : "YakÄ±nda"} ${rescueRecipe?.nameTr ?? "bir kurtarma tarifi"} iyi gider.',
+          bodyEn: daysLeft <= 2
+              ? '${ingredient.nameEn} is getting closer to spoilage. ${rescueRecipe?.nameEn ?? "Use it today"} would be a smart save.'
+              : '${ingredient.nameEn} looks available in the pantry. ${rescueRecipe?.nameEn ?? "A quick rescue dish"} is a strong next move.',
+        ),
+      );
+    }
+
+    suggestions.sort(
+      (a, b) => a.estimatedDaysLeft.compareTo(b.estimatedDaysLeft),
+    );
+    return suggestions.take(4).toList();
+  }
+
+  List<NeighborhoodSavingsEntry> buildNeighborhoodSavingsBoard({
+    required KitchenRpgProfile profile,
+    required double monthlySavings,
+    required int completedChallenges,
+    String currentUserName = 'Sen',
+  }) {
+    // Hidden until a real community leaderboard backend is available.
+    return const [];
+  }
+
+  List<SponsoredRecipePlacement> buildSponsoredPlacements({
+    required List<Recipe> recipes,
+    required List<SmartShoppingItem> shoppingItems,
+    required String locale,
+  }) {
+    // Hidden until real sponsor and delivery integrations are active.
+    return const [];
+  }
+
+  String buildChefCompanionAnswer({
+    required String question,
+    required Set<String> pantryIngredientIds,
+    required List<String> recipeIngredientNames,
+    required String locale,
+  }) {
+    final normalized = _normalize(question);
+    final isTr = locale == 'tr';
+
+    if (normalized.contains('yanina ne gider') ||
+        normalized.contains('yanina') ||
+        normalized.contains('what goes with') ||
+        normalized.contains('side')) {
+      if (pantryIngredientIds.contains('yogurt')) {
+        return isTr
+            ? 'YanÄ±na haydari Ã§ok yakÄ±ÅŸÄ±r. DolabÄ±nda yoÄŸurt olduÄŸu iÃ§in en hÄ±zlÄ± eÅŸlikÃ§i o.'
+            : 'Haydari would pair really well, and yogurt is already in your pantry.';
+      }
+      if (pantryIngredientIds.contains('rice')) {
+        return isTr
+            ? 'YanÄ±na sade bir pilav koy. Bu tarifin yÃ¼kÃ¼nÃ¼ dengeler.'
+            : 'Add a simple rice pilaf on the side to balance the dish.';
+      }
+      if (pantryIngredientIds.contains('tomato') &&
+          pantryIngredientIds.contains('cucumber')) {
+        return isTr
+            ? 'YanÄ±na domates-salatalÄ±k salatasÄ± iyi gider. Ferah bir denge kurar.'
+            : 'A tomato-cucumber salad would be a clean, fresh side.';
+      }
+      return isTr
+          ? 'YanÄ±na hafif bir salata veya yoÄŸurtlu bir eÅŸlikÃ§i iyi gider.'
+          : 'A light salad or a yogurt-based side would fit well.';
+    }
+
+    if (normalized.contains('dolapta ne var') ||
+        normalized.contains('evde ne var') ||
+        normalized.contains('what can i make') ||
+        normalized.contains('what else')) {
+      final pairings = buildFlavorPairings(pantryIngredientIds);
+      if (pairings.isNotEmpty) {
+        return pairings.first.body(locale);
+      }
+      return isTr
+          ? 'Dolaptaki eÅŸleÅŸmelere gÃ¶re hafif bir omlet, salata ya da makarna hattÄ± mantÄ±klÄ± gÃ¶rÃ¼nÃ¼yor.'
+          : 'Based on your pantry, an omelet, salad, or pasta track looks strongest.';
+    }
+
+    if (normalized.contains('ellerim unlu') ||
+        normalized.contains('next step') ||
+        normalized.contains('sonraki adim')) {
+      final ingredientPreview = recipeIngredientNames.take(3).join(', ');
+      return isTr
+          ? 'Tamam, ellerini bÄ±rakma. Ä°stersen â€œsonrakiâ€ diyerek adÄ±ma geÃ§ebiliriz. Bu tarifin Ã§ekirdeÄŸi ÅŸu malzemeler: $ingredientPreview.'
+          : 'No problem. Say â€œnextâ€ and I can keep moving. Core ingredients here are $ingredientPreview.';
+    }
+
+    return isTr
+        ? 'BuradayÄ±m. â€œYanÄ±na ne gider?â€, â€œDolapta ne var?â€ veya â€œSonrakiâ€ diyerek devam edebiliriz.'
+        : 'I am here. Try asking â€œwhat goes with this?â€, â€œwhat can I make?â€, or say â€œnextâ€.';
   }
 
   double estimateIngredientValue(Ingredient ingredient, int units) {
@@ -951,18 +1283,18 @@ class KitchenIntelligenceService {
   String _normalizeReceiptInput(String input) {
     return input
         .toLowerCase()
-        .replaceAll('ı', 'i')
-        .replaceAll('ğ', 'g')
-        .replaceAll('ü', 'u')
-        .replaceAll('ş', 's')
-        .replaceAll('ö', 'o')
-        .replaceAll('ç', 'c')
-        .replaceAll('Ã„Â±', 'i')
-        .replaceAll('Ã„Å¸', 'g')
-        .replaceAll('ÃƒÂ¼', 'u')
-        .replaceAll('Ã…Å¸', 's')
-        .replaceAll('ÃƒÂ¶', 'o')
-        .replaceAll('ÃƒÂ§', 'c')
+        .replaceAll('Ä±', 'i')
+        .replaceAll('ÄŸ', 'g')
+        .replaceAll('Ã¼', 'u')
+        .replaceAll('ÅŸ', 's')
+        .replaceAll('Ã¶', 'o')
+        .replaceAll('Ã§', 'c')
+        .replaceAll('Ãƒâ€Ã‚Â±', 'i')
+        .replaceAll('Ãƒâ€Ã…Â¸', 'g')
+        .replaceAll('ÃƒÆ’Ã‚Â¼', 'u')
+        .replaceAll('Ãƒâ€¦Ã…Â¸', 's')
+        .replaceAll('ÃƒÆ’Ã‚Â¶', 'o')
+        .replaceAll('ÃƒÆ’Ã‚Â§', 'c')
         .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
@@ -977,6 +1309,12 @@ class KitchenIntelligenceService {
         .replaceAll('ÅŸ', 's')
         .replaceAll('Ã¶', 'o')
         .replaceAll('Ã§', 'c')
+        .replaceAll('Ä°', 'i')
+        .replaceAll('Ä', 'g')
+        .replaceAll('Ãœ', 'u')
+        .replaceAll('Å', 's')
+        .replaceAll('Ã–', 'o')
+        .replaceAll('Ã‡', 'c')
         .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
@@ -1055,3 +1393,5 @@ class _ReceiptMatch {
     required this.score,
   });
 }
+
+

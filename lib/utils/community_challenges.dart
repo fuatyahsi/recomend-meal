@@ -48,6 +48,20 @@ class CommunityChallenges {
       accentColorValue: 0xFFFF7A59,
     ),
     CommunityChallenge(
+      id: 'zero_spend_dinner',
+      emoji: '💸',
+      tag: 'challenge_zero_spend_dinner',
+      titleTr: '0 TL Akşam Yemeği',
+      titleEn: 'Zero-Spend Dinner',
+      subtitleTr: 'Evdekilerle 3 akşam çıkar',
+      subtitleEn: 'Create 3 dinners with what you have',
+      descriptionTr:
+          'Bu hafta hiç alışveriş yapmadan, sadece evdeki malzemelerle 3 akşam yemeği çıkar. Tasarruf puanı burada sıçrar.',
+      descriptionEn:
+          'Create 3 dinners this week without shopping, using only what you already have at home.',
+      accentColorValue: 0xFF2DAA72,
+    ),
+    CommunityChallenge(
       id: 'midnight_snack',
       emoji: '🌙',
       tag: 'challenge_midnight_snack',
@@ -96,6 +110,7 @@ class CommunityChallenges {
     final anchor = DateTime(2026, 1, 5);
     final weekIndex = current.difference(anchor).inDays ~/ 7;
     final normalizedIndex = weekIndex % all.length;
-    return all[normalizedIndex < 0 ? normalizedIndex + all.length : normalizedIndex];
+    return all[
+        normalizedIndex < 0 ? normalizedIndex + all.length : normalizedIndex];
   }
 }

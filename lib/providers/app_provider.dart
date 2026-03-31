@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,22 +6,35 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ingredient.dart';
 import '../models/kitchen_intelligence.dart';
 import '../models/kitchen_rpg.dart';
+import '../models/market_fiyati.dart';
 import '../models/recipe.dart';
 import '../models/smart_actueller.dart';
 import '../models/smart_kitchen.dart';
 import '../services/kitchen_intelligence_service.dart';
 import '../services/kitchen_rpg_service.dart';
 import '../services/kitchen_vision_service.dart';
+import '../services/market_fiyati_source_service.dart';
 import '../services/market_watch_service.dart';
 import '../services/notification_service.dart';
 import '../services/recipe_service.dart';
 import '../services/smart_actueller_feed_service.dart';
 import '../services/smart_actueller_service.dart';
 import '../services/smart_actueller_source_service.dart';
+import '../utils/market_registry.dart';
 import '../utils/mood_recipes.dart';
+import '../utils/text_repair.dart';
 
 class AppProvider extends ChangeNotifier {
   static const _actuellerDailySyncHour = 8;
+  static const _marketFiyatiCategoryKeywords = [
+    'Meyve ve Sebze',
+    'Et, Tavuk ve Balık',
+    'Süt Ürünleri ve Kahvaltılık',
+    'Temel Gıda',
+    'İçecek',
+    'Atıştırmalık ve Tatlı',
+    'Temizlik ve Kişisel Bakım Ürünleri',
+  ];
 
   final RecipeService _recipeService = RecipeService();
   final KitchenIntelligenceService _kitchenIntelligenceService =
@@ -29,6 +42,8 @@ class AppProvider extends ChangeNotifier {
   final KitchenRpgService _kitchenRpgService = KitchenRpgService();
   final KitchenVisionService _kitchenVisionService = KitchenVisionService();
   final MarketWatchService _marketWatchService = MarketWatchService();
+  final MarketFiyatiSourceService _marketFiyatiSourceService =
+      MarketFiyatiSourceService();
   final SmartActuellerFeedService _smartActuellerFeedService =
       SmartActuellerFeedService();
   final SmartActuellerService _smartActuellerService = SmartActuellerService();
@@ -48,6 +63,7 @@ class AppProvider extends ChangeNotifier {
   String? _activeMoodId;
   ReceiptScanResult? _lastReceiptScanResult;
   PlateAnalysisResult? _lastPlateAnalysisResult;
+  PantryVisionCapture? _lastPantryVisionCapture;
   ActuellerScanResult? _lastActuellerScanResult;
   List<RemoteMarketQuote> _remoteMarketQuotes = const [];
   List<RemoteMarketQuote> _actuellerMarketQuotes = const [];
@@ -76,10 +92,50 @@ class AppProvider extends ChangeNotifier {
   int get selectedCount => selectedIngredientIds.length;
   SmartKitchenPreferences get smartKitchenPreferences =>
       _smartKitchenPreferences;
+  MarketFiyatiSession? get marketFiyatiSession {
+    final session = _smartKitchenPreferences.marketFiyatiSession;
+    if (session == null || !session.isReady) {
+      return null;
+    }
+
+    final preferredMarketIds =
+        normalizeMarketIds(_smartKitchenPreferences.preferredMarkets).toSet();
+    if (preferredMarketIds.isEmpty) {
+      return session;
+    }
+
+    final filteredDepots = session.depots.where((depotId) {
+      final rawMarketId = depotId.split('-').first;
+      final normalizedMarketId = normalizeMarketId(rawMarketId) ?? rawMarketId;
+      return preferredMarketIds.contains(normalizedMarketId);
+    }).toList();
+
+    if (filteredDepots.isEmpty) {
+      return session;
+    }
+    return session.copyWith(depots: filteredDepots);
+  }
+
+  String? get marketFiyatiLocationLabel => marketFiyatiSession?.locationLabel;
+  List<String> get marketFiyatiCategoryKeywords =>
+      List.unmodifiable(_marketFiyatiCategoryKeywords);
+  bool get hasOfficialMarketCatalog {
+    if (marketFiyatiSession == null) {
+      return false;
+    }
+
+    final catalogItems = _lastActuellerScanResult?.catalogItems ??
+        const <ActuellerCatalogItem>[];
+    return catalogItems.any(
+      (item) => (item.sourceProductId ?? '').trim().isNotEmpty,
+    );
+  }
+
   KitchenRpgProfile get kitchenRpgProfile => _kitchenRpgProfile;
   String? get activeMoodId => _activeMoodId;
   ReceiptScanResult? get lastReceiptScanResult => _lastReceiptScanResult;
   PlateAnalysisResult? get lastPlateAnalysisResult => _lastPlateAnalysisResult;
+  PantryVisionCapture? get lastPantryVisionCapture => _lastPantryVisionCapture;
   ActuellerScanResult? get lastActuellerScanResult => _lastActuellerScanResult;
   MarketSyncStatus get marketSyncStatus => _marketSyncStatus;
   String get kitchenLevelTitle =>
@@ -129,6 +185,112 @@ class AppProvider extends ChangeNotifier {
       _kitchenIntelligenceService.buildDigitalTwin(pantryRiskItems);
   List<FlavorPairSuggestion> get flavorPairings =>
       _kitchenIntelligenceService.buildFlavorPairings(selectedIngredientIds);
+  List<PriceTickerEntry> get priceTickerEntries {
+    final quotes = hasOfficialMarketCatalog
+        ? _actuellerMarketQuotes
+        : (_smartKitchenPreferences.priceComparisonEnabled &&
+                _smartKitchenPreferences.marketFeedUrl.trim().isNotEmpty
+            ? _remoteMarketQuotes
+            : const <RemoteMarketQuote>[]);
+
+    return _kitchenIntelligenceService.buildPriceTickerEntries(
+      quotes: quotes,
+      ingredients: _recipeService.ingredients,
+    );
+  }
+
+  List<ProductPriceTickerEntry> get officialPriceTickerEntries {
+    if (!hasOfficialMarketCatalog) {
+      return const [];
+    }
+
+    final officialItems = (_lastActuellerScanResult?.catalogItems ??
+            const <ActuellerCatalogItem>[])
+        .where((item) => (item.sourceProductId ?? '').trim().isNotEmpty)
+        .toList();
+    final groupedByProduct = <String, Map<String, ActuellerCatalogItem>>{};
+
+    for (final item in officialItems) {
+      if (item.price <= 0) {
+        continue;
+      }
+      final sourceProductId = item.sourceProductId?.trim() ?? '';
+      if (sourceProductId.isEmpty) {
+        continue;
+      }
+
+      final marketKey =
+          normalizeMarketId(item.marketName) ?? item.marketName.toLowerCase();
+      final marketMap = groupedByProduct.putIfAbsent(sourceProductId, () => {});
+      final existing = marketMap[marketKey];
+      if (existing == null || item.price < existing.price) {
+        marketMap[marketKey] = item;
+      }
+    }
+
+    final entries = <ProductPriceTickerEntry>[];
+    for (final marketMap in groupedByProduct.values) {
+      final offers = marketMap.values.toList()
+        ..sort((a, b) => a.price.compareTo(b.price));
+      if (offers.length < 2) {
+        continue;
+      }
+
+      final best = offers.first;
+      final averagePrice =
+          offers.fold<double>(0, (sum, item) => sum + item.price) /
+              offers.length;
+      final deltaPercent = averagePrice <= 0
+          ? 0.0
+          : (((averagePrice - best.price) / averagePrice) * 100)
+              .clamp(-99, 99)
+              .toDouble();
+
+      entries.add(
+        ProductPriceTickerEntry(
+          productTitle: best.productTitle,
+          market: best.marketName,
+          price: best.price,
+          deltaPercent: deltaPercent,
+          isDrop: deltaPercent >= 0,
+        ),
+      );
+    }
+
+    entries.sort((a, b) => b.deltaPercent.compareTo(a.deltaPercent));
+    return entries.take(8).toList();
+  }
+
+  SurpriseBasketPlan? get surpriseBasketPlan =>
+      _kitchenIntelligenceService.buildSurpriseBasketPlan(
+        shoppingItems: getCombinedShoppingItems(),
+        comparisons: getMarketComparisons(),
+        locale: languageCode,
+      );
+  List<PantryVisionSuggestion> get pantryVisionSuggestions =>
+      _lastPantryVisionCapture == null
+          ? const []
+          : _kitchenIntelligenceService.buildPantryVisionSuggestions(
+              capture: _lastPantryVisionCapture!,
+              riskItems: pantryRiskItems,
+              recipes: _recipeService.recipes,
+              availableIngredientIds: selectedIngredientIds,
+            );
+  List<NeighborhoodSavingsEntry> get neighborhoodSavingsBoard =>
+      _kitchenIntelligenceService.buildNeighborhoodSavingsBoard(
+        profile: _kitchenRpgProfile,
+        monthlySavings: monthlySavingsEstimate + smartActuellerMonthlySavings,
+        completedChallenges:
+            weeklyChallengeProgress.where((item) => item.completed).length,
+      );
+  List<SponsoredRecipePlacement> get sponsoredRecipePlacements =>
+      _kitchenIntelligenceService.buildSponsoredPlacements(
+        recipes: getPersonalizedSuggestions(limit: 24)
+            .map((item) => item.recipe)
+            .toList(),
+        shoppingItems: getCombinedShoppingItems(),
+        locale: languageCode,
+      );
   List<KitchenWeeklyChallengeProgress> get weeklyChallengeProgress =>
       _kitchenRpgService.buildWeeklyChallengeProgress(_kitchenRpgProfile);
   double get monthlySavingsEstimate => _kitchenRpgProfile.monthlySavingsValue;
@@ -169,7 +331,7 @@ class AppProvider extends ChangeNotifier {
     }
     _isLoading = false;
     notifyListeners();
-    syncAkakceActuellerCatalogIfDue();
+    syncPreferredActuellerCatalogIfDue();
   }
 
   void setLocale(Locale locale) {
@@ -389,6 +551,41 @@ class AppProvider extends ChangeNotifier {
     );
   }
 
+  Future<void> analyzePantryImage(String imagePath) async {
+    final capture = await _kitchenVisionService.analyzePantryImage(imagePath);
+    final combinedSignal = [
+      capture.rawText,
+      if (capture.labels.isNotEmpty) capture.labels.join('\n'),
+    ].where((part) => part.trim().isNotEmpty).join('\n');
+
+    final detected = _kitchenIntelligenceService.analyzeReceiptText(
+      combinedSignal,
+      _recipeService.ingredients,
+      languageCode,
+    );
+
+    final now = DateTime.now();
+    for (final ingredient in detected.matchedIngredients) {
+      _pantryItemCounts[ingredient.id] = getIngredientCount(ingredient.id) + 1;
+      _pantryUpdatedAt[ingredient.id] = now;
+    }
+
+    _lastPantryVisionCapture = PantryVisionCapture(
+      imagePath: capture.imagePath,
+      rawText: capture.rawText,
+      labels: capture.labels,
+      detectedIngredients: detected.matchedIngredients,
+      confidence: capture.confidence,
+    );
+
+    _recordKitchenActivity(KitchenActivityType.visionAnalysis);
+    _recordKitchenActivity(KitchenActivityType.pantrySync, force: true);
+    _updateMatchingRecipes();
+    await _savePreferences();
+    await _refreshSmartKitchenNotifications();
+    notifyListeners();
+  }
+
   Future<void> analyzeActuellerText(
     String rawText, {
     String? capturedImagePath,
@@ -499,8 +696,16 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> syncAkakceActuellerCatalogIfDue() async {
-    await syncAkakceActuellerCatalog();
+  Future<void> syncPreferredActuellerCatalogIfDue() async {
+    await syncPreferredActuellerCatalog();
+  }
+
+  Future<void> syncPreferredActuellerCatalog({bool force = false}) async {
+    if (marketFiyatiSession != null) {
+      await _syncMarketFiyatiCatalog(force: force);
+      return;
+    }
+    await syncAkakceActuellerCatalog(force: force);
   }
 
   Future<void> syncAkakceActuellerCatalog({bool force = false}) async {
@@ -509,6 +714,7 @@ class AppProvider extends ChangeNotifier {
       return;
     }
     if (_smartKitchenPreferences.preferredMarkets.isEmpty) {
+      _clearActuellerCatalogState();
       _lastActuellerCatalogBrochureCount = 0;
       _lastActuellerCatalogUrls = const [];
       _actuellerCatalogSyncMessage = languageCode == 'tr'
@@ -734,6 +940,115 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _syncMarketFiyatiCatalog({bool force = false}) async {
+    final now = DateTime.now();
+    if (!force && !_shouldSyncActuellerCatalog(now)) {
+      return;
+    }
+    if (_smartKitchenPreferences.preferredMarkets.isEmpty) {
+      _clearActuellerCatalogState();
+      _lastActuellerCatalogBrochureCount = 0;
+      _lastActuellerCatalogUrls = const [];
+      _actuellerCatalogSyncMessage = languageCode == 'tr'
+          ? 'Önce marketlerini seç, sonra fiyatları getir.'
+          : 'Select your stores first, then load prices.';
+      notifyListeners();
+      return;
+    }
+    final session = marketFiyatiSession;
+    if (session == null) {
+      _actuellerCatalogSyncMessage = languageCode == 'tr'
+          ? 'Resmî fiyatlar için önce konum seç.'
+          : 'Choose a location first for official prices.';
+      notifyListeners();
+      return;
+    }
+    if (_isActuellerCatalogSyncing) {
+      return;
+    }
+
+    _isActuellerCatalogSyncing = true;
+    _actuellerCatalogSyncMessage = null;
+    notifyListeners();
+
+    try {
+      final uniqueCatalogItems = <String, ActuellerCatalogItem>{};
+      final bestQuotesByKey = <String, RemoteMarketQuote>{};
+
+      for (final category in _marketFiyatiCategoryKeywords) {
+        final response = await _marketFiyatiSourceService.searchByCategories(
+          session: session,
+          keywords: category,
+        );
+        final items = _marketFiyatiSourceService.toCatalogItems(
+          response,
+          sourceLabel: 'Market Fiyatı',
+        );
+        final quotes = _marketFiyatiSourceService.toRemoteQuotes(
+          response,
+          ingredients: _recipeService.ingredients,
+        );
+
+        for (final item in items) {
+          uniqueCatalogItems[item.id] = item;
+        }
+
+        for (final quote in quotes) {
+          final normalizedMarket =
+              normalizeMarketId(quote.market) ?? quote.market.toLowerCase();
+          final key = '${quote.ingredientId}|$normalizedMarket';
+          final previous = bestQuotesByKey[key];
+          if (previous == null || quote.unitPrice < previous.unitPrice) {
+            bestQuotesByKey[key] = quote;
+          }
+        }
+      }
+
+      final catalogItems = uniqueCatalogItems.values.toList()
+        ..sort((a, b) {
+          final marketCompare = a.marketName.compareTo(b.marketName);
+          if (marketCompare != 0) return marketCompare;
+          return a.productTitle.compareTo(b.productTitle);
+        });
+
+      _lastActuellerScanResult = ActuellerScanResult(
+        rawText: catalogItems.map((item) => item.rawBlock).join('\n'),
+        blocks: catalogItems.map((item) => item.rawBlock).toList(),
+        catalogItems: catalogItems,
+        deals: const [],
+        unmatchedBlocks: const [],
+        detectedStore: null,
+        sourceLabel: 'Resmî Market Fiyatı',
+        capturedImagePath: null,
+        scannedAt: now,
+        confidence: catalogItems.isEmpty ? 0 : 0.98,
+      );
+      _actuellerMarketQuotes = bestQuotesByKey.values.toList();
+      _lastActuellerCatalogSyncAt = now;
+      _lastActuellerCatalogBrochureCount = _marketFiyatiCategoryKeywords.length;
+      _lastActuellerCatalogUrls = const [];
+      _lastActuellerCatalogReports = const [];
+      _actuellerCatalogSyncMessage = catalogItems.isEmpty
+          ? (languageCode == 'tr'
+              ? 'Resmî fiyatlar geldi ama ürün listesi boş döndü.'
+              : 'Official prices loaded, but the product list was empty.')
+          : (languageCode == 'tr'
+              ? '${_marketFiyatiCategoryKeywords.length} resmî kategori yüklendi, ${catalogItems.length} ürün hazır.'
+              : '${_marketFiyatiCategoryKeywords.length} official categories loaded, ${catalogItems.length} items ready.');
+      _recordKitchenActivity(KitchenActivityType.visionAnalysis);
+      await _savePreferences();
+      await _refreshSmartKitchenNotifications();
+    } catch (error) {
+      _actuellerCatalogSyncMessage = languageCode == 'tr'
+          ? 'Resmî market fiyatları alınamadı. Daha sonra tekrar dene.'
+          : 'Official market prices could not be loaded. Try again later.';
+      debugPrint('Market Fiyati catalog sync error: $error');
+    } finally {
+      _isActuellerCatalogSyncing = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> trackActuellerSavings(ActuellerSuggestion suggestion) async {
     final currentMonthKey = _monthKey(DateTime.now());
     if (_smartActuellerSavingsMonthKey != currentMonthKey) {
@@ -753,9 +1068,8 @@ class AppProvider extends ChangeNotifier {
   void clearVisionResults() {
     _lastReceiptScanResult = null;
     _lastPlateAnalysisResult = null;
-    _lastActuellerScanResult = null;
-    _actuellerMarketQuotes = const [];
-    _lastActuellerCatalogReports = const [];
+    _lastPantryVisionCapture = null;
+    _clearActuellerCatalogState();
     _savePreferences();
     notifyListeners();
   }
@@ -819,6 +1133,20 @@ class AppProvider extends ChangeNotifier {
       dinner: dinner,
       locale: languageCode,
       moodId: _activeMoodId,
+    );
+  }
+
+  String buildChefCompanionAnswer(
+    String question, {
+    List<String> recipeIngredientNames = const [],
+  }) {
+    return repairTurkishText(
+      _kitchenIntelligenceService.buildChefCompanionAnswer(
+        question: question,
+        pantryIngredientIds: selectedIngredientIds,
+        recipeIngredientNames: recipeIngredientNames,
+        locale: languageCode,
+      ),
     );
   }
 
@@ -1201,7 +1529,128 @@ class AppProvider extends ChangeNotifier {
       preferredMarkets: markets,
     );
     await _savePreferences();
+    await _refreshMarketFiyatiSessionForPreferredMarkets();
+    await syncPreferredActuellerCatalog(force: true);
     notifyListeners();
+  }
+
+  Future<List<MarketFiyatiLocationSuggestion>> searchMarketFiyatiLocations(
+    String query,
+  ) async {
+    return _marketFiyatiSourceService.searchLocationSuggestions(words: query);
+  }
+
+  Future<void> setMarketFiyatiLocation(
+    MarketFiyatiLocationSuggestion suggestion, {
+    int nearestDistance = 1,
+    int sessionDistance = 5,
+  }) async {
+    final nearestDepots = await _marketFiyatiSourceService.fetchNearestDepots(
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+      distance: nearestDistance,
+    );
+
+    final preferredMarketIds =
+        normalizeMarketIds(_smartKitchenPreferences.preferredMarkets).toSet();
+    final filteredDepots = preferredMarketIds.isEmpty
+        ? nearestDepots
+        : nearestDepots.where((depot) {
+            final normalizedMarketId =
+                normalizeMarketId(depot.marketName) ?? depot.marketName;
+            return preferredMarketIds.contains(normalizedMarketId);
+          }).toList();
+
+    final session = _marketFiyatiSourceService.buildSessionFromSuggestion(
+      suggestion: suggestion,
+      depots: filteredDepots.isEmpty ? nearestDepots : filteredDepots,
+      distance: sessionDistance,
+    );
+
+    if (!session.isReady) {
+      throw Exception(
+        languageCode == 'tr'
+            ? 'Seçilen konum için yakın market bulunamadı.'
+            : 'No nearby markets were found for the selected location.',
+      );
+    }
+
+    _smartKitchenPreferences = _smartKitchenPreferences.copyWith(
+      marketFiyatiSession: session,
+    );
+    await _savePreferences();
+    await syncPreferredActuellerCatalog(force: true);
+    notifyListeners();
+  }
+
+  Future<void> clearMarketFiyatiLocation() async {
+    _smartKitchenPreferences = _smartKitchenPreferences.copyWith(
+      marketFiyatiSession: null,
+    );
+    await _savePreferences();
+    await syncPreferredActuellerCatalog(force: true);
+    notifyListeners();
+  }
+
+  Future<List<ActuellerCatalogItem>> fetchOfficialSimilarProducts(
+    ActuellerCatalogItem item,
+  ) async {
+    final session = marketFiyatiSession;
+    final sourceProductId = item.sourceProductId;
+    if (session == null || sourceProductId == null || sourceProductId.isEmpty) {
+      return const [];
+    }
+
+    final response = await _marketFiyatiSourceService.searchSimilarProduct(
+      session: session,
+      id: sourceProductId,
+      keywords: item.productTitle,
+    );
+    return _marketFiyatiSourceService.toCatalogItems(response);
+  }
+
+  Future<void> _refreshMarketFiyatiSessionForPreferredMarkets() async {
+    final storedSession = _smartKitchenPreferences.marketFiyatiSession;
+    if (storedSession == null) {
+      return;
+    }
+
+    final nearestDepots = await _marketFiyatiSourceService.fetchNearestDepots(
+      latitude: storedSession.latitude,
+      longitude: storedSession.longitude,
+      distance: storedSession.distance,
+    );
+
+    final preferredMarketIds =
+        normalizeMarketIds(_smartKitchenPreferences.preferredMarkets).toSet();
+    final filteredDepots = preferredMarketIds.isEmpty
+        ? nearestDepots
+        : nearestDepots.where((depot) {
+            final normalizedMarketId =
+                normalizeMarketId(depot.marketName) ?? depot.marketName;
+            return preferredMarketIds.contains(normalizedMarketId);
+          }).toList();
+
+    final rebuiltSession = _marketFiyatiSourceService.buildSessionFromNearest(
+      locationLabel: storedSession.locationLabel,
+      latitude: storedSession.latitude,
+      longitude: storedSession.longitude,
+      depots: filteredDepots.isEmpty ? nearestDepots : filteredDepots,
+      distance: storedSession.distance,
+    );
+
+    _smartKitchenPreferences = _smartKitchenPreferences.copyWith(
+      marketFiyatiSession: rebuiltSession.isReady ? rebuiltSession : null,
+    );
+    await _savePreferences();
+  }
+
+  void _clearActuellerCatalogState() {
+    _lastActuellerScanResult = null;
+    _actuellerMarketQuotes = const [];
+    _lastActuellerCatalogReports = const [];
+    _lastActuellerCatalogUrls = const [];
+    _lastActuellerCatalogBrochureCount = 0;
   }
 
   Future<void> setMarketFeedConfig({
@@ -2144,3 +2593,4 @@ class AppProvider extends ChangeNotifier {
     return _isUsableOcrLine(block.trim());
   }
 }
+

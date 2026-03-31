@@ -12,7 +12,20 @@
           "package_name": "com.fridgechef.fridge_chef"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "924020622132-0c4rdjl8qe36mud6t04at3h7l1clinqo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fridgechef.fridge_chef",
+            "certificate_hash": "50f18903641e2079f793a7ee912964154fd4d82e"
+          }
+        },
+        {
+          "client_id": "924020622132-poinoklav5a173jghfv225fou8gv8jna.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDNQMWEiVvn_juEoq-VxouzC6r6mUasKoY"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "924020622132-poinoklav5a173jghfv225fou8gv8jna.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "924020622132-alit9856hn13ivaer0d766d4h9q7gdgb.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.fridgechef.fridgeChef"
+              }
+            }
+          ]
         }
       }
     }

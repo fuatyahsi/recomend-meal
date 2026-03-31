@@ -1,3 +1,4 @@
+import '../utils/product_category.dart';
 import 'ingredient.dart';
 
 class ActuellerDeal {
@@ -82,6 +83,13 @@ class ActuellerCatalogItem {
   final double confidence;
   final String rawBlock;
   final String sourceLabel;
+  final ProductCategory category;
+  final String? brand;
+  final String? weight;
+  final String? sourceProductId;
+  final String? sourceDepotId;
+  final String? sourceMenuCategory;
+  final String? sourceMainCategory;
 
   const ActuellerCatalogItem({
     required this.id,
@@ -91,6 +99,13 @@ class ActuellerCatalogItem {
     required this.confidence,
     required this.rawBlock,
     required this.sourceLabel,
+    this.category = ProductCategory.other,
+    this.brand,
+    this.weight,
+    this.sourceProductId,
+    this.sourceDepotId,
+    this.sourceMenuCategory,
+    this.sourceMainCategory,
   });
 
   Map<String, dynamic> toJson() => {
@@ -101,17 +116,35 @@ class ActuellerCatalogItem {
         'confidence': confidence,
         'rawBlock': rawBlock,
         'sourceLabel': sourceLabel,
+        'category': category.name,
+        'brand': brand,
+        'weight': weight,
+        'sourceProductId': sourceProductId,
+        'sourceDepotId': sourceDepotId,
+        'sourceMenuCategory': sourceMenuCategory,
+        'sourceMainCategory': sourceMainCategory,
       };
 
   static ActuellerCatalogItem fromJson(Map<String, dynamic> json) {
+    final title = json['productTitle']?.toString() ?? '';
     return ActuellerCatalogItem(
       id: json['id']?.toString() ?? '',
       marketName: json['marketName']?.toString() ?? '',
-      productTitle: json['productTitle']?.toString() ?? '',
+      productTitle: title,
       price: (json['price'] as num?)?.toDouble() ?? 0,
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
       rawBlock: json['rawBlock']?.toString() ?? '',
       sourceLabel: json['sourceLabel']?.toString() ?? '',
+      category: ProductCategory.values.firstWhere(
+        (c) => c.name == (json['category']?.toString() ?? ''),
+        orElse: () => categorizeProduct(title),
+      ),
+      brand: json['brand']?.toString(),
+      weight: json['weight']?.toString(),
+      sourceProductId: json['sourceProductId']?.toString(),
+      sourceDepotId: json['sourceDepotId']?.toString(),
+      sourceMenuCategory: json['sourceMenuCategory']?.toString(),
+      sourceMainCategory: json['sourceMainCategory']?.toString(),
     );
   }
 }

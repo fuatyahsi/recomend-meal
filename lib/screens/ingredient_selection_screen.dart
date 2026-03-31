@@ -98,7 +98,7 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
     return [
       _IngredientCollection(
         id: 'breakfast',
-        title: isTr ? 'Kahvaltilik hizli secim' : 'Breakfast quick picks',
+        title: isTr ? 'Kahvaltılık hızlı seçim' : 'Breakfast quick picks',
         subtitle: isTr
             ? 'Yumurta, peynir, ekmek ve sabah temel malzemeleri.'
             : 'Eggs, cheese, bread, and breakfast staples.',
@@ -120,9 +120,9 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
       ),
       _IngredientCollection(
         id: 'turkish_pantry',
-        title: isTr ? 'Turk mutfagi temeli' : 'Turkish pantry base',
+        title: isTr ? 'Türk mutfağı temeli' : 'Turkish pantry base',
         subtitle: isTr
-            ? 'Tencere yemekleri ve klasik tarifler icin cekirdek set.'
+            ? 'Tencere yemekleri ve klasik tarifler için çekirdek set.'
             : 'Core items for Turkish home cooking.',
         icon: Icons.soup_kitchen_rounded,
         ingredientIds: const [
@@ -146,7 +146,7 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
         id: 'salad_meze',
         title: isTr ? 'Salata ve meze' : 'Salad and meze',
         subtitle: isTr
-            ? 'Ferah tabaklar, zeytinyaglilar ve mezeler icin.'
+            ? 'Ferah tabaklar, zeytinyağlılar ve mezeler için.'
             : 'Fresh plates, olive oil dishes, and mezes.',
         icon: Icons.eco_rounded,
         ingredientIds: const [
@@ -166,9 +166,9 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
       ),
       _IngredientCollection(
         id: 'proteins',
-        title: isTr ? 'Aksam ve protein' : 'Dinner and protein',
+        title: isTr ? 'Akşam ve protein' : 'Dinner and protein',
         subtitle: isTr
-            ? 'Ana yemekler icin protein agirlikli set.'
+            ? 'Ana yemekler için protein ağırlıklı set.'
             : 'Protein-forward picks for main dishes.',
         icon: Icons.set_meal_rounded,
         ingredientIds: const [
@@ -188,9 +188,9 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
       ),
       _IngredientCollection(
         id: 'dessert_baking',
-        title: isTr ? 'Tatli ve firin' : 'Dessert and baking',
+        title: isTr ? 'Tatlı ve fırın' : 'Dessert and baking',
         subtitle: isTr
-            ? 'Tatli, krep, kek ve firin tarifleri icin.'
+            ? 'Tatlı, krep, kek ve fırın tarifleri için.'
             : 'For desserts, crepes, cakes, and baked treats.',
         icon: Icons.cake_rounded,
         ingredientIds: const [
@@ -284,6 +284,10 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: _IngredientHeroCard(isTr: isTr),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -413,7 +417,7 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
                       const SizedBox(height: 20),
                       Text(
                         isTr
-                            ? 'Turk mutfagi icin hizli gruplar'
+                            ? 'Türk mutfağı için hızlı gruplar'
                             : 'Quick groups for your kitchen',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
@@ -519,6 +523,78 @@ class _IngredientCollection {
     required this.icon,
     required this.ingredientIds,
   });
+}
+
+class _IngredientHeroCard extends StatelessWidget {
+  final bool isTr;
+
+  const _IngredientHeroCard({required this.isTr});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF6C3F2C),
+            Color(0xFFB76A3E),
+            Color(0xFFF0B36A),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB76A3E).withValues(alpha: 0.20),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.18),
+              ),
+            ),
+            child: const Icon(
+              Icons.inventory_2_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            isTr ? 'Buzdolabında Ne Var?' : 'What is in your fridge?',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isTr
+                ? 'Evde olanları işaretle, tarif önerileri netleşsin ve eksikler doğru çıksın.'
+                : 'Mark what you already have so recipe suggestions and shopping gaps become more accurate.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.92),
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _BrowseSummaryCard extends StatelessWidget {

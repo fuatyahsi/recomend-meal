@@ -108,6 +108,37 @@ class KitchenVisionService {
     }
   }
 
+  Future<PantryVisionImageCapture> analyzePantryImage(String imagePath) async {
+    final inputImage = InputImage.fromFilePath(imagePath);
+    final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    final imageLabeler = ImageLabeler(
+      options: ImageLabelerOptions(confidenceThreshold: 0.42),
+    );
+
+    try {
+      final recognizedText = await textRecognizer.processImage(inputImage);
+      final labels = await imageLabeler.processImage(inputImage);
+      final labelTexts = labels
+          .where((label) => label.confidence >= 0.42)
+          .map((label) => label.label)
+          .toSet()
+          .toList();
+
+      return PantryVisionImageCapture(
+        imagePath: imagePath,
+        rawText: recognizedText.text.trim(),
+        labels: labelTexts,
+        confidence: _receiptConfidence(
+          rawText: recognizedText.text,
+          labels: labelTexts,
+        ),
+      );
+    } finally {
+      await textRecognizer.close();
+      await imageLabeler.close();
+    }
+  }
+
   String _buildPlatePrompt({
     required List<String> labelTexts,
     required String recognizedText,

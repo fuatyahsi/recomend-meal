@@ -8,6 +8,7 @@ import '../providers/app_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/ingredient_substitutes.dart';
 import 'cooking_mode_screen.dart';
+import 'smart_kitchen_screen.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -382,7 +383,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                   Expanded(
                                     child: Text(
                                       isTr
-                                          ? 'Smart Substitution'
+                                          ? 'Akıllı Alternatif'
                                           : 'Smart Substitution',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w800,
@@ -419,6 +420,52 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                   ),
                                 );
                               }),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (missingIngredients.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer
+                                .withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isTr
+                                    ? 'Sponsorlu hızlı tamamlama'
+                                    : 'Sponsored quick checkout',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                isTr
+                                    ? 'Eksik ürünleri tek akışta görmek için akıllı mutfak listeni aç. Affiliate ve market entegrasyonu burada büyüyecek.'
+                                    : 'Open your smart kitchen list to see missing products in one flow. Affiliate and market integrations will grow from here.',
+                              ),
+                              const SizedBox(height: 10),
+                              FilledButton.tonalIcon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const SmartKitchenScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.shopping_bag_rounded),
+                                label: Text(
+                                  isTr ? 'Getir’den gelsin' : 'Open quick order',
+                                ),
+                              ),
                             ],
                           ),
                         ),

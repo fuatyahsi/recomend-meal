@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -64,7 +64,7 @@ class _AkakceStructuredSource {
 class SmartActuellerSourceService {
   static const akakceListingUrl = 'https://www.akakce.com/brosurler/';
 
-  static const List<MarketSource> availableMarkets = [
+    static const List<MarketSource> availableMarkets = [
     MarketSource(
       id: 'a101',
       name: 'A101',
@@ -124,6 +124,30 @@ class SmartActuellerSourceService {
       name: 'Bildirici',
       emoji: '📢',
       akakceSlug: 'bildirici',
+    ),
+    MarketSource(
+      id: 'altunbilekler',
+      name: 'Altunbilekler',
+      emoji: '🛒',
+      akakceSlug: 'altunbilekler',
+    ),
+    MarketSource(
+      id: 'macrocenter',
+      name: 'Macrocenter',
+      emoji: '🥩',
+      akakceSlug: 'macrocenter',
+    ),
+    MarketSource(
+      id: 'gimsa',
+      name: 'GİMSA',
+      emoji: '🏬',
+      akakceSlug: 'gimsa',
+    ),
+    MarketSource(
+      id: 'akyurt',
+      name: 'Akyurt Süpermarket',
+      emoji: '🧺',
+      akakceSlug: 'akyurtsupermarket',
     ),
   ];
 
@@ -804,3 +828,4 @@ class SmartActuellerSourceService {
     return '.jpg';
   }
 }
+

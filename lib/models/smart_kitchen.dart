@@ -1,6 +1,9 @@
 import 'ingredient.dart';
+import 'market_fiyati.dart';
 import 'recipe.dart';
 import '../utils/market_registry.dart';
+
+const Object _smartKitchenUnset = Object();
 
 class MealRoutineSlot {
   final String id;
@@ -93,6 +96,7 @@ class SmartKitchenPreferences {
   final String marketFeedUrl;
   final String marketFeedLabel;
   final Map<String, List<String>> plannedRecipeIdsByMeal;
+  final MarketFiyatiSession? marketFiyatiSession;
 
   const SmartKitchenPreferences({
     required this.mealSlots,
@@ -104,6 +108,7 @@ class SmartKitchenPreferences {
     required this.marketFeedUrl,
     required this.marketFeedLabel,
     required this.plannedRecipeIdsByMeal,
+    required this.marketFiyatiSession,
   });
 
   factory SmartKitchenPreferences.defaults() {
@@ -139,6 +144,7 @@ class SmartKitchenPreferences {
       marketFeedUrl: '',
       marketFeedLabel: '',
       plannedRecipeIdsByMeal: {},
+      marketFiyatiSession: null,
     );
   }
 
@@ -159,6 +165,7 @@ class SmartKitchenPreferences {
     String? marketFeedUrl,
     String? marketFeedLabel,
     Map<String, List<String>>? plannedRecipeIdsByMeal,
+    Object? marketFiyatiSession = _smartKitchenUnset,
   }) {
     return SmartKitchenPreferences(
       mealSlots: mealSlots ?? this.mealSlots,
@@ -175,6 +182,9 @@ class SmartKitchenPreferences {
       marketFeedLabel: marketFeedLabel ?? this.marketFeedLabel,
       plannedRecipeIdsByMeal:
           plannedRecipeIdsByMeal ?? this.plannedRecipeIdsByMeal,
+      marketFiyatiSession: marketFiyatiSession == _smartKitchenUnset
+          ? this.marketFiyatiSession
+          : marketFiyatiSession as MarketFiyatiSession?,
     );
   }
 
@@ -231,6 +241,11 @@ class SmartKitchenPreferences {
       marketFeedUrl: json['marketFeedUrl'] as String? ?? '',
       marketFeedLabel: json['marketFeedLabel'] as String? ?? '',
       plannedRecipeIdsByMeal: plannedRecipeIdsByMeal,
+      marketFiyatiSession: json['marketFiyatiSession'] is Map<String, dynamic>
+          ? MarketFiyatiSession.fromJson(
+              json['marketFiyatiSession'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
@@ -244,6 +259,7 @@ class SmartKitchenPreferences {
         'marketFeedUrl': marketFeedUrl,
         'marketFeedLabel': marketFeedLabel,
         'plannedRecipeIdsByMeal': plannedRecipeIdsByMeal,
+        'marketFiyatiSession': marketFiyatiSession?.toJson(),
       };
 }
 

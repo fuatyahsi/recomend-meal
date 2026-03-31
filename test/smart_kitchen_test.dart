@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fridge_chef/models/market_fiyati.dart';
 import 'package:fridge_chef/models/smart_kitchen.dart';
 
 void main() {
@@ -10,6 +11,13 @@ void main() {
           preferredMarkets: const ['migros', 'a101'],
           marketFeedUrl: 'https://example.com/feed.json',
           marketFeedLabel: 'FridgeChef Live',
+          marketFiyatiSession: const MarketFiyatiSession(
+            locationLabel: 'Aşağı Öveçler, Çankaya, Ankara',
+            depots: ['migros-8926', 'a101-8887'],
+            distance: 5,
+            latitude: 39.8867769953312,
+            longitude: 32.8167366992369,
+          ),
           plannedRecipeIdsByMeal: const {
             'dinner': ['mercimek-corbasi', 'coban-salata'],
           },
@@ -26,6 +34,14 @@ void main() {
     expect(restored.preferredMarkets, ['migros', 'a101']);
     expect(restored.marketFeedUrl, 'https://example.com/feed.json');
     expect(restored.marketFeedLabel, 'FridgeChef Live');
+    expect(
+      restored.marketFiyatiSession?.locationLabel,
+      'Aşağı Öveçler, Çankaya, Ankara',
+    );
+    expect(
+      restored.marketFiyatiSession?.depots,
+      ['migros-8926', 'a101-8887'],
+    );
     expect(
       restored.plannedRecipeIdsByMeal['dinner'],
       ['mercimek-corbasi', 'coban-salata'],
